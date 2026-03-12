@@ -1,106 +1,117 @@
+```html
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sistema de Leitura de Hidrômetros</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 
 body{
 font-family:Arial;
+background:#f4f6fb;
 margin:0;
-background:#f3f4f6;
-}
-
-header{
-background:#0b2a5b;
-color:white;
-padding:14px;
-text-align:center;
-font-size:20px;
-}
-
-header span{
-color:#1bb34a;
+padding:20px;
 }
 
 .container{
-padding:15px;
+max-width:900px;
+margin:auto;
 }
 
 .card{
 background:white;
-padding:18px;
-border-radius:8px;
-margin-bottom:15px;
-box-shadow:0 0 8px rgba(0,0,0,0.1);
+border-radius:10px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
 }
 
-input,select{
+input{
 width:100%;
-padding:12px;
-margin-top:5px;
+padding:10px;
+border-radius:6px;
+border:1px solid #ccc;
 margin-bottom:10px;
 }
 
 button{
-width:100%;
-padding:12px;
-background:#0b2a5b;
+background:#4a67ff;
 color:white;
 border:none;
+padding:10px 20px;
+border-radius:6px;
+cursor:pointer;
 }
 
-.hidden{
-display:none;
+button:hover{
+opacity:0.9;
+}
+
+.progress{
+height:20px;
+background:#ddd;
+border-radius:10px;
+overflow:hidden;
+}
+
+.bar{
+height:100%;
+background:#3cb371;
+width:0%;
+text-align:center;
+color:white;
+font-size:12px;
+}
+
+.hidrometro{
+border:1px solid #ddd;
+border-radius:8px;
+padding:10px;
+margin-bottom:10px;
 }
 
 </style>
-
 </head>
 
 <body>
-
-<header>
-Grupo GPS <span>Multiplan</span>
-</header>
 
 <div class="container">
 
 <div id="login" class="card">
 
-<h3>Login</h3>
+<h2>Login</h2>
 
 <input id="user" placeholder="Usuário">
+
 <input id="pass" type="password" placeholder="Senha">
 
 <button onclick="login()">Entrar</button>
 
 </div>
 
-<div id="app" class="hidden">
+
+<div id="app" style="display:none">
 
 <div class="card">
 
-<h3>Leitura</h3>
+<h3 id="usuario"></h3>
 
-<select id="hidro"></select>
-
-<input id="anterior" readonly>
-
-<input id="atual" placeholder="Leitura Atual">
-
-<input type="file" id="foto" accept="image/*" capture="camera">
-
-<button onclick="registrar()">Registrar</button>
+<div class="progress">
+<div id="bar" class="bar">0%</div>
+</div>
 
 </div>
 
+<div id="lista"></div>
+
 <div class="card">
 
-<h3>Histórico</h3>
-
-<div id="historico"></div>
+<button onclick="finalizar()">Finalizar Sistema</button>
 
 </div>
 
@@ -110,91 +121,125 @@ Grupo GPS <span>Multiplan</span>
 
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbykjrah5er_sxiBM2jDmxBxLBUZox7NJQbS6v-DCUFG_h6MUtNX8ezKmL71Zyp4pvYtIg/exec"
+const CONFIG = {
 
-let usuario=""
-
-async function login(){
-
-let u=user.value
-let p=pass.value
-
-let r=await fetch(API+"?action=login&user="+u+"&pass="+p)
-let d=await r.json()
-
-if(d.success){
-
-usuario=d.usuario
-
-login.classList.add("hidden")
-app.classList.remove("hidden")
-
-carregar()
+GAS_URL:"https://script.google.com/macros/s/AKfycbyDDnDZt9SAx0JvSpSnNT7b9Jkc6Xr1Vk0p8cJ7B-QQF8ChyVgoyiOPBstvP5coWNhWVg/exec"
 
 }
 
+const locais=[
+
+{nome:"BARRA FREE"},
+{nome:"EXP 7"},
+{nome:"AC"},
+{nome:"MALL NOVO"},
+{nome:"RIO ANTIGO"},
+{nome:"AB"},
+{nome:"HOTZONE"},
+{nome:"ETA"},
+{nome:"EXP 5"},
+{nome:"CAG 1 CM2"},
+{nome:"CAG 2 CM2"}
+
+]
+
+const tipos=["CEDAE","REUSO","ÁGUA GELADA","PURGA","LADRÃO"]
+
+let usuario=null
+let leituras={}
+
+function login(){
+
+usuario=document.getElementById("user").value
+
+if(!usuario){
+alert("Digite o usuário")
+return
 }
 
-async function carregar(){
+document.getElementById("login").style.display="none"
+document.getElementById("app").style.display="block"
 
-let r=await fetch(API+"?action=hidrometros")
-let dados=await r.json()
+document.getElementById("usuario").innerText="Usuário: "+usuario
 
-hidro.innerHTML=""
+render()
 
-dados.forEach(h=>{
+}
 
-let o=document.createElement("option")
-o.value=h.id
-o.text=h.id+" - "+h.local
+function render(){
 
-hidro.appendChild(o)
+const lista=document.getElementById("lista")
+
+lista.innerHTML=""
+
+locais.forEach(local=>{
+
+tipos.forEach(tipo=>{
+
+const key=local.nome+"-"+tipo
+
+lista.innerHTML+=`
+
+<div class="card hidrometro">
+
+<b>${local.nome} - ${tipo}</b>
+
+<input id="ant-${key}" placeholder="Leitura anterior">
+
+<input id="atu-${key}" placeholder="Leitura atual">
+
+<input type="file" id="foto-${key}">
+
+<button onclick="salvar('${local.nome}','${tipo}')">Salvar</button>
+
+</div>
+
+`
+
+})
 
 })
 
 }
 
-async function registrar(){
+function salvar(local,tipo){
 
-if(!foto.files[0]){
+const key=local+"-"+tipo
+
+const anterior=document.getElementById("ant-"+key).value
+const atual=document.getElementById("atu-"+key).value
+
+const file=document.getElementById("foto-"+key).files[0]
+
+if(!atual){
+alert("Leitura atual obrigatória")
+return
+}
+
+if(!file){
 alert("Foto obrigatória")
 return
 }
 
-let file=foto.files[0]
+const reader=new FileReader()
 
-let reader=new FileReader()
+reader.onload=e=>{
 
-reader.onload=async function(){
+leituras[key]={
 
-let base64=reader.result
-
-let anterior=0
-let atual=Number(document.getElementById("atual").value)
-
-let consumo=atual-anterior
-
-let payload={
-
-action:"salvarLeitura",
-sessao:"R"+Date.now(),
-tecnico:usuario,
-hidrometro:hidro.value,
-local:"",
-tipo:"",
+local:local,
+tipo:tipo,
 anterior:anterior,
 atual:atual,
-consumo:consumo,
-foto:base64
+consumo:atual-anterior,
+variacao:"",
+justificativa:"",
+foto:e.target.result,
+salvo:true
 
 }
 
-await fetch(API,{
-method:"POST",
-body:JSON.stringify(payload)
-})
-
-alert("Leitura enviada")
+updateProgress()
 
 }
 
@@ -202,7 +247,63 @@ reader.readAsDataURL(file)
 
 }
 
+function updateProgress(){
+
+const total=locais.length*tipos.length
+
+const ok=Object.keys(leituras).length
+
+const percent=Math.round((ok/total)*100)
+
+const bar=document.getElementById("bar")
+
+bar.style.width=percent+"%"
+bar.innerText=percent+"%"
+
+}
+
+async function finalizar(){
+
+const dados={
+
+usuario:usuario,
+dataInicio:new Date(),
+leituras:Object.values(leituras)
+
+}
+
+try{
+
+const r=await fetch(CONFIG.GAS_URL,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify(dados)
+})
+
+const res=await r.json()
+
+if(res.success){
+
+alert("Leitura enviada com sucesso")
+
+}else{
+
+alert("Erro: "+res.message)
+
+}
+
+}catch(e){
+
+alert("Erro de conexão")
+
+}
+
+}
+
 </script>
 
 </body>
 </html>
+```
