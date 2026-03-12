@@ -1,309 +1,900 @@
-```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Sistema de Leitura de Hidrômetros</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-background:#f4f6fb;
-margin:0;
-padding:20px;
-}
-
-.container{
-max-width:900px;
-margin:auto;
-}
-
-.card{
-background:white;
-border-radius:10px;
-padding:20px;
-margin-bottom:20px;
-box-shadow:0 4px 12px rgba(0,0,0,0.1);
-}
-
-input{
-width:100%;
-padding:10px;
-border-radius:6px;
-border:1px solid #ccc;
-margin-bottom:10px;
-}
-
-button{
-background:#4a67ff;
-color:white;
-border:none;
-padding:10px 20px;
-border-radius:6px;
-cursor:pointer;
-}
-
-button:hover{
-opacity:0.9;
-}
-
-.progress{
-height:20px;
-background:#ddd;
-border-radius:10px;
-overflow:hidden;
-}
-
-.bar{
-height:100%;
-background:#3cb371;
-width:0%;
-text-align:center;
-color:white;
-font-size:12px;
-}
-
-.hidrometro{
-border:1px solid #ddd;
-border-radius:8px;
-padding:10px;
-margin-bottom:10px;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leitura de Hidrômetros - Torres</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .login-screen {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .login-screen h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .qr-screen {
+            display: none;
+            text-align: center;
+            color: white;
+        }
+        
+        .qr-instruction {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .qr-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .leitura-screen {
+            display: none;
+        }
+        
+        .progresso-geral {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .progresso-texto {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .progresso-barra {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progresso-preenchido {
+            height: 100%;
+            background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+            transition: width 0.5s ease;
+        }
+        
+        .local-card {
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .local-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .local-header.completo {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .local-nome {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .local-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .local-progresso {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .local-check {
+            font-size: 1.2rem;
+        }
+        
+        .local-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .local-content.expandido {
+            display: block;
+        }
+        
+        .hidrometro-item {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        
+        .hidrometro-item.completo {
+            border-color: #38ef7d;
+            background: #f0fff4;
+        }
+        
+        .hidrometro-tipo {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .hidrometro-tipo .icon {
+            font-size: 1.2rem;
+        }
+        
+        .leitura-anterior {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-group input.erro {
+            border-color: #eb3349;
+            background: #fff5f5;
+        }
+        
+        .alerta-variacao {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .alerta-variacao.show {
+            display: block;
+        }
+        
+        .justificativa {
+            display: none;
+            margin-bottom: 10px;
+        }
+        
+        .justificativa.show {
+            display: block;
+        }
+        
+        .justificativa textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #eb3349;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .foto-section {
+            margin-top: 10px;
+        }
+        
+        .foto-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .foto-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .foto-btn.tem-foto {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .foto-preview {
+            margin-top: 10px;
+            max-width: 100%;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .foto-preview.show {
+            display: block;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .finalizar-section {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .finalizar-section.show {
+            display: block;
+        }
+        
+        .info-sessao {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+        
+        .loading.show {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+    </style>
 </head>
-
 <body>
-
-<div class="container">
-
-<div id="login" class="card">
-
-<h2>Login</h2>
-
-<input id="user" placeholder="Usuário">
-
-<input id="pass" type="password" placeholder="Senha">
-
-<button onclick="login()">Entrar</button>
-
-</div>
-
-
-<div id="app" style="display:none">
-
-<div class="card">
-
-<h3 id="usuario"></h3>
-
-<div class="progress">
-<div id="bar" class="bar">0%</div>
-</div>
-
-</div>
-
-<div id="lista"></div>
-
-<div class="card">
-
-<button onclick="finalizar()">Finalizar Sistema</button>
-
-</div>
-
-</div>
-
-</div>
-
-<script>
-
-const CONFIG = {
-
-GAS_URL:"https://script.google.com/macros/s/AKfycbyDDnDZt9SAx0JvSpSnNT7b9Jkc6Xr1Vk0p8cJ7B-QQF8ChyVgoyiOPBstvP5coWNhWVg/exec"
-
-}
-
-const locais=[
-
-{nome:"BARRA FREE"},
-{nome:"EXP 7"},
-{nome:"AC"},
-{nome:"MALL NOVO"},
-{nome:"RIO ANTIGO"},
-{nome:"AB"},
-{nome:"HOTZONE"},
-{nome:"ETA"},
-{nome:"EXP 5"},
-{nome:"CAG 1 CM2"},
-{nome:"CAG 2 CM2"}
-
-]
-
-const tipos=["CEDAE","REUSO","ÁGUA GELADA","PURGA","LADRÃO"]
-
-let usuario=null
-let leituras={}
-
-function login(){
-
-usuario=document.getElementById("user").value
-
-if(!usuario){
-alert("Digite o usuário")
-return
-}
-
-document.getElementById("login").style.display="none"
-document.getElementById("app").style.display="block"
-
-document.getElementById("usuario").innerText="Usuário: "+usuario
-
-render()
-
-}
-
-function render(){
-
-const lista=document.getElementById("lista")
-
-lista.innerHTML=""
-
-locais.forEach(local=>{
-
-tipos.forEach(tipo=>{
-
-const key=local.nome+"-"+tipo
-
-lista.innerHTML+=`
-
-<div class="card hidrometro">
-
-<b>${local.nome} - ${tipo}</b>
-
-<input id="ant-${key}" placeholder="Leitura anterior">
-
-<input id="atu-${key}" placeholder="Leitura atual">
-
-<input type="file" id="foto-${key}">
-
-<button onclick="salvar('${local.nome}','${tipo}')">Salvar</button>
-
-</div>
-
-`
-
-})
-
-})
-
-}
-
-function salvar(local,tipo){
-
-const key=local+"-"+tipo
-
-const anterior=document.getElementById("ant-"+key).value
-const atual=document.getElementById("atu-"+key).value
-
-const file=document.getElementById("foto-"+key).files[0]
-
-if(!atual){
-alert("Leitura atual obrigatória")
-return
-}
-
-if(!file){
-alert("Foto obrigatória")
-return
-}
-
-const reader=new FileReader()
-
-reader.onload=e=>{
-
-leituras[key]={
-
-local:local,
-tipo:tipo,
-anterior:anterior,
-atual:atual,
-consumo:atual-anterior,
-variacao:"",
-justificativa:"",
-foto:e.target.result,
-salvo:true
-
-}
-
-updateProgress()
-
-}
-
-reader.readAsDataURL(file)
-
-}
-
-function updateProgress(){
-
-const total=locais.length*tipos.length
-
-const ok=Object.keys(leituras).length
-
-const percent=Math.round((ok/total)*100)
-
-const bar=document.getElementById("bar")
-
-bar.style.width=percent+"%"
-bar.innerText=percent+"%"
-
-}
-
-async function finalizar(){
-
-const dados={
-
-usuario:usuario,
-dataInicio:new Date(),
-leituras:Object.values(leituras)
-
-}
-
-try{
-
-const r=await fetch(CONFIG.GAS_URL,{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(dados)
-})
-
-const res=await r.json()
-
-if(res.success){
-
-alert("Leitura enviada com sucesso")
-
-}else{
-
-alert("Erro: "+res.message)
-
-}
-
-}catch(e){
-
-alert("Erro de conexão")
-
-}
-
-}
-
-</script>
-
+    <div class="container">
+        <!-- Tela de Login -->
+        <div id="loginScreen" class="login-screen">
+            <h2>🔐 Login - Leitura de Hidrômetros</h2>
+            <div id="loginError" class="error-message"></div>
+            <div class="form-group">
+                <label>Usuário</label>
+                <input type="text" id="username" placeholder="Digite seu usuário">
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="password" placeholder="Digite sua senha">
+            </div>
+            <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
+        </div>
+
+        <!-- Tela QR Code -->
+        <div id="qrScreen" class="qr-screen">
+            <div class="header">
+                <h1>👋 Olá, <span id="nomeTecnico"></span></h1>
+                <p id="statusSessao">Nenhuma sessão ativa</p>
+            </div>
+            
+            <div class="info-sessao">
+                <p><strong>Instruções:</strong></p>
+                <p>1. Escaneie o QR code da oficina para iniciar a ronda</p>
+                <p>2. Leia todos os 55 hidrômetros</p>
+                <p>3. Escaneie o mesmo QR code para finalizar</p>
+            </div>
+
+            <div class="qr-instruction">
+                <div class="qr-icon">📱</div>
+                <h3>Escaneie o QR Code</h3>
+                <p>Use a câmera do celular ou app de leitura QR</p>
+                <br>
+                <p><small>Ou simule:</small></p>
+                <button class="btn btn-success" onclick="simularQR()">Simular QR Iniciar</button>
+            </div>
+            
+            <button class="btn btn-danger" onclick="logout()">Sair</button>
+        </div>
+
+        <!-- Tela de Leituras -->
+        <div id="leituraScreen" class="leitura-screen">
+            <div class="header">
+                <h1>💧 Leitura de Hidrômetros</h1>
+                <p id="infoSessaoLeitura">Sessão ativa</p>
+            </div>
+
+            <div class="progresso-geral">
+                <div class="progresso-texto">
+                    <span>Progresso Geral</span>
+                    <span id="progressoTexto">0/55</span>
+                </div>
+                <div class="progresso-barra">
+                    <div id="progressoBarra" class="progresso-preenchido" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div id="locaisContainer"></div>
+            
+            <div style="height: 100px;"></div>
+        </div>
+
+        <!-- Botão Finalizar -->
+        <div id="finalizarSection" class="finalizar-section">
+            <button id="btnFinalizar" class="btn btn-success" onclick="finalizarRonda()" disabled>
+                ✅ Finalizar Ronda (0/55 completos)
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p id="loadingText">Processando...</p>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO - SUBSTITUA PELA SUA URL DO APPS SCRIPT
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbye4InrLztYM-82j8-lR3Hocjf2S9dJ4-yFrbLBDRJ8Z_zgf4DwDxFVv79KlQyAWU4sXQ/exec';
+        
+        let tecnico = null;
+        let sessao = null;
+        let hidrometros = [];
+        let dataInicio = null;
+        
+        const LOCAIS = [
+            'BARRA FREE', 'EXP 7', 'AC', 'MALL NOVO', 'RIO ANTIGO', 
+            'AB', 'HOTZONE', 'ETA', 'EXP 5', 'CAG 1 CM2', 'CAG 2 CM2'
+        ];
+        
+        const TIPOS = ['CEDAE', 'REUSO', 'ÁGUA GELADA', 'PURGA', 'LADRÃO'];
+        
+        // Verificar sessão salva
+        window.onload = function() {
+            const saved = localStorage.getItem('tecnico');
+            if (saved) {
+                tecnico = JSON.parse(saved);
+                mostrarTelaQR();
+            }
+        };
+        
+        // Login
+        async function fazerLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showError('loginError', 'Preencha usuário e senha');
+                return;
+            }
+            
+            showLoading('Autenticando...');
+            
+            try {
+                // Tenta POST primeiro, se falhar usa GET
+                let response;
+                try {
+                    response = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'login',
+                            usuario: username,
+                            senha: password
+                        })
+                    });
+                } catch(e) {
+                    // Fallback para GET
+                    response = await fetch(`${APPS_SCRIPT_URL}?action=login&usuario=${encodeURIComponent(username)}&senha=${encodeURIComponent(password)}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    tecnico = { nome: data.nome, usuario: data.usuario };
+                    localStorage.setItem('tecnico', JSON.stringify(tecnico));
+                    mostrarTelaQR();
+                } else {
+                    showError('loginError', data.message || 'Usuário ou senha inválidos');
+                }
+            } catch (error) {
+                showError('loginError', 'Erro de conexão: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('tecnico');
+            location.reload();
+        }
+        
+        function mostrarTelaQR() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('qrScreen').style.display = 'block';
+            document.getElementById('nomeTecnico').textContent = tecnico.nome;
+        }
+        
+        // Simular QR Code
+        async function simularQR() {
+            if (!sessao) {
+                // Iniciar sessão
+                showLoading('Iniciando ronda...');
+                
+                try {
+                    const response = await fetch(`${APPS_SCRIPT_URL}?action=iniciar&usuario=${encodeURIComponent(tecnico.usuario)}`);
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.message || 'Erro ao iniciar');
+                    }
+                    
+                    sessao = {
+                        id: data.sessaoId,
+                        inicio: new Date(),
+                        tecnico: data.usuario
+                    };
+                    dataInicio = new Date().toISOString();
+                    
+                    // Mapear hidrômetros do servidor
+                    hidrometros = data.hidrometros.map(h => ({
+                        id: h.id,
+                        local: h.local,
+                        tipo: h.tipo,
+                        leituraAnterior: h.leituraAnterior,
+                        leituraAtual: '',
+                        foto: null,
+                        justificativa: '',
+                        variacao: 0
+                    }));
+                    
+                    mostrarTelaLeitura();
+                    
+                } catch (error) {
+                    alert('Erro ao iniciar sessão: ' + error.message);
+                    console.error(error);
+                } finally {
+                    hideLoading();
+                }
+            } else {
+                // Finalizar sessão
+                finalizarRonda();
+            }
+        }
+        
+        function mostrarTelaLeitura() {
+            document.getElementById('qrScreen').style.display = 'none';
+            document.getElementById('leituraScreen').style.display = 'block';
+            document.getElementById('finalizarSection').classList.add('show');
+            
+            renderizarLocais();
+            atualizarProgresso();
+        }
+        
+        function renderizarLocais() {
+            const container = document.getElementById('locaisContainer');
+            container.innerHTML = '';
+            
+            LOCAIS.forEach((local, index) => {
+                const localHidrometros = hidrometros.filter(h => h.local === local);
+                const completos = localHidrometros.filter(h => isHidrometroCompleto(h)).length;
+                const total = localHidrometros.length;
+                const isCompleto = completos === total;
+                
+                const card = document.createElement('div');
+                card.className = 'local-card';
+                card.innerHTML = `
+                    <div class="local-header ${isCompleto ? 'completo' : ''}" onclick="toggleLocal(${index})">
+                        <span class="local-nome">${local}</span>
+                        <div class="local-status">
+                            <span class="local-progresso">${completos}/${total}</span>
+                            <span class="local-check">${isCompleto ? '✅' : '⏳'}</span>
+                        </div>
+                    </div>
+                    <div class="local-content" id="local-${index}">
+                        ${localHidrometros.map(h => renderizarHidrometro(h)).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        function renderizarHidrometro(h) {
+            return `
+                <div class="hidrometro-item ${isHidrometroCompleto(h) ? 'completo' : ''}" id="item-${h.id}">
+                    <div class="hidrometro-tipo">
+                        <span class="icon">💧</span>
+                        ${h.tipo}
+                    </div>
+                    <div class="leitura-anterior">
+                        Leitura anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" step="0.01"
+                               id="input-${h.id}" 
+                               placeholder="Digite a leitura atual" 
+                               value="${h.leituraAtual}"
+                               onchange="atualizarLeitura('${h.id}', this.value)"
+                               onkeyup="atualizarLeitura('${h.id}', this.value)">
+                    </div>
+                    <div id="alerta-${h.id}" class="alerta-variacao">
+                        ⚠️ Variação: <span id="variacao-${h.id}">0%</span>
+                    </div>
+                    <div id="justificativa-${h.id}" class="justificativa">
+                        <textarea placeholder="Justifique a anomalia..." 
+                                  onchange="atualizarJustificativa('${h.id}', this.value)">${h.justificativa}</textarea>
+                    </div>
+                    <div class="foto-section">
+                        <label class="foto-btn ${h.foto ? 'tem-foto' : ''}" id="btn-foto-${h.id}">
+                            <input type="file" accept="image/*" capture="environment" 
+                                   onchange="capturarFoto('${h.id}', this)">
+                            <span>${h.foto ? '📷 Foto capturada' : '📷 Tirar foto'}</span>
+                        </label>
+                        <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" 
+                             src="${h.foto || ''}" onclick="removerFoto('${h.id}')">
+                    </div>
+                </div>
+            `;
+        }
+        
+        function toggleLocal(index) {
+            const content = document.getElementById(`local-${index}`);
+            content.classList.toggle('expandido');
+        }
+        
+        function atualizarLeitura(id, valor) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+            
+            h.leituraAtual = parseFloat(valor) || '';
+            
+            if (h.leituraAtual !== '') {
+                const diferenca = h.leituraAtual - h.leituraAnterior;
+                h.variacao = h.leituraAnterior > 0 ? (diferenca / h.leituraAnterior) * 100 : 0;
+                
+                const alerta = document.getElementById(`alerta-${id}`);
+                const justificativa = document.getElementById(`justificativa-${id}`);
+                const variacaoSpan = document.getElementById(`variacao-${id}`);
+                const input = document.getElementById(`input-${id}`);
+                
+                variacaoSpan.textContent = `${h.variacao.toFixed(1)}% (Consumo: ${diferenca.toFixed(2)} m³)`;
+                
+                const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+                
+                if (precisaJustificar) {
+                    alerta.classList.add('show');
+                    justificativa.classList.add('show');
+                    input.classList.add('erro');
+                } else {
+                    alerta.classList.remove('show');
+                    justificativa.classList.remove('show');
+                    input.classList.remove('erro');
+                }
+            }
+            
+            atualizarUI(id);
+        }
+        
+        function atualizarJustificativa(id, valor) {
+            const h = hidrometros.find(x => x.id === id);
+            if (h) h.justificativa = valor;
+            atualizarUI(id);
+        }
+        
+        function capturarFoto(id, input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const h = hidrometros.find(x => x.id === id);
+                if (h) {
+                    h.foto = e.target.result;
+                    atualizarUI(id);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removerFoto(id) {
+            if (!confirm('Remover foto?')) return;
+            const h = hidrometros.find(x => x.id === id);
+            if (h) {
+                h.foto = null;
+                atualizarUI(id);
+            }
+        }
+        
+        function isHidrometroCompleto(h) {
+            const temLeitura = h.leituraAtual !== '' && !isNaN(h.leituraAtual);
+            if (!temLeitura) return false;
+            
+            const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+            const temJustificativa = !precisaJustificar || (h.justificativa && h.justificativa.trim() !== '');
+            const temFoto = h.foto !== null;
+            
+            return temLeitura && temFoto && temJustificativa;
+        }
+        
+        function atualizarUI(id) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+            
+            const item = document.getElementById(`item-${id}`);
+            const btnFoto = document.getElementById(`btn-foto-${id}`);
+            const preview = document.getElementById(`preview-${id}`);
+            
+            if (h.foto) {
+                btnFoto.classList.add('tem-foto');
+                btnFoto.querySelector('span').textContent = '📷 Foto capturada';
+                preview.src = h.foto;
+                preview.classList.add('show');
+            } else {
+                btnFoto.classList.remove('tem-foto');
+                btnFoto.querySelector('span').textContent = '📷 Tirar foto';
+                preview.classList.remove('show');
+            }
+            
+            if (isHidrometroCompleto(h)) {
+                item.classList.add('completo');
+            } else {
+                item.classList.remove('completo');
+            }
+            
+            atualizarProgresso();
+            renderizarLocais();
+        }
+        
+        function atualizarProgresso() {
+            const total = hidrometros.length;
+            const completos = hidrometros.filter(h => isHidrometroCompleto(h)).length;
+            const percentual = total > 0 ? (completos / total) * 100 : 0;
+            
+            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;
+            document.getElementById('progressoBarra').style.width = `${percentual}%`;
+            
+            const btnFinalizar = document.getElementById('btnFinalizar');
+            btnFinalizar.textContent = `✅ Finalizar Ronda (${completos}/${total} completos)`;
+            btnFinalizar.disabled = completos !== total;
+            
+            if (completos === total && total > 0) {
+                btnFinalizar.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            }
+        }
+        
+        async function finalizarRonda() {
+            const incompletos = hidrometros.filter(h => !isHidrometroCompleto(h));
+            if (incompletos.length > 0) {
+                alert(`Ainda faltam ${incompletos.length} hidrômetros!`);
+                return;
+            }
+            
+            if (!confirm('Confirmar finalização da ronda?')) return;
+            
+            showLoading('Salvando leituras...');
+            
+            try {
+                const leiturasFormatadas = hidrometros.map(h => ({
+                    id: h.id,
+                    local: h.local,
+                    tipo: h.tipo,
+                    anterior: h.leituraAnterior,
+                    atual: h.leituraAtual,
+                    consumo: (h.leituraAtual - h.leituraAnterior).toFixed(2),
+                    variacao: h.variacao.toFixed(1) + '%',
+                    justificativa: h.justificativa,
+                    foto: h.foto
+                }));
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'salvar',
+                        usuario: tecnico.usuario,
+                        idSessao: sessao.id,
+                        dataInicio: dataInicio,
+                        leituras: leiturasFormatadas
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Ronda finalizada com sucesso! ✅\\nID: ' + data.data.id);
+                    sessao = null;
+                    localStorage.removeItem('tecnico');
+                    location.reload();
+                } else {
+                    throw new Error(data.message);
+                }
+                
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+                console.error(error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loading').classList.add('show');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+        
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 5000);
+        }
+    </script>
 </body>
 </html>
-```
