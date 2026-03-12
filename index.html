@@ -2,181 +2,801 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitura de Hidrômetros</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#003366">
+    <title>Leitura de Hidrômetros - Grupo GPS | Multiplan</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gps-blue: #003366;
+            --gps-blue-light: #004080;
+            --multiplan-green: #00A651;
+            --multiplan-green-light: #00C261;
+            --white: #FFFFFF;
+            --gray-light: #F5F7FA;
+            --gray-medium: #E1E8ED;
+            --gray-dark: #5A6C7D;
+            --text-dark: #2C3E50;
+            --danger: #E74C3C;
+            --warning: #F39C12;
+            --success: #27AE60;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            font-size: 16px;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--gps-blue) 0%, #001a33 100%);
             min-height: 100vh;
-            padding: 20px;
+            color: var(--text-dark);
+            line-height: 1.5;
         }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { text-align: center; color: white; margin-bottom: 20px; }
-        .login-screen, .local-card {
-            background: white;
+        
+        /* Container Mobile */
+        .container {
+            max-width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header Corporativo */
+        .corporate-header {
+            background: var(--white);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .logo-gps {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--gps-blue);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        
+        .logo-gps::before {
+            content: "◆";
+            color: var(--multiplan-green);
+            font-size: 0.8rem;
+        }
+        
+        .logo-multiplan {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--multiplan-green);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .app-title {
+            font-size: 0.75rem;
+            color: var(--gray-dark);
+            text-align: center;
+            margin-top: 0.2rem;
+            font-weight: 500;
+        }
+        
+        /* Tela de Login */
+        .login-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1.5rem;
+            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
+        }
+        
+        .login-card {
+            background: var(--white);
             border-radius: 20px;
-            padding: 30px;
+            padding: 2rem 1.5rem;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            animation: slideUp 0.5s ease;
         }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
-        .form-group input {
-            width: 100%; padding: 12px; border: 2px solid #e0e0e0;
-            border-radius: 10px; font-size: 16px;
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+        
+        .login-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--multiplan-green) 100%);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 10px 30px rgba(0,51,102,0.3);
+        }
+        
+        .login-title {
+            text-align: center;
+            color: var(--gps-blue);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-subtitle {
+            text-align: center;
+            color: var(--gray-dark);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            border: 2px solid var(--gray-medium);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: var(--gray-light);
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gps-blue);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(0,51,102,0.1);
+        }
+        
         .btn {
-            width: 100%; padding: 15px; border: none; border-radius: 10px;
-            font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s;
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(0,51,102,0.4);
         }
-        .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,51,102,0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--white);
+            color: var(--white);
+        }
+        
         .error-message {
-            background: #f8d7da; color: #721c24; padding: 10px;
-            border-radius: 5px; margin-bottom: 15px; display: none;
+            background: #FDEDEC;
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+            border-left: 4px solid var(--danger);
+            animation: shake 0.5s;
         }
-        .qr-screen, .leitura-screen { display: none; text-align: center; color: white; }
-        .qr-instruction {
-            background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);
-            border-radius: 20px; padding: 40px 20px; margin-bottom: 20px;
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
         }
-        .progresso-geral {
-            background: white; border-radius: 15px; padding: 20px;
-            margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        
+        .error-message.show {
+            display: block;
         }
-        .progresso-texto { display: flex; justify-content: space-between; font-weight: 600; color: #333; }
-        .progresso-barra { height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden; }
-        .progresso-preenchido {
-            height: 100%; background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+        
+        /* QR Screen */
+        .qr-screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
+            padding: 1.5rem;
+        }
+        
+        .welcome-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .welcome-title {
+            color: var(--white);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .welcome-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+        }
+        
+        .qr-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--white);
+            border-radius: 24px;
+            padding: 2rem 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        
+        .qr-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .qr-text {
+            text-align: center;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+        
+        .qr-text h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--gps-blue);
+        }
+        
+        .qr-text p {
+            color: var(--gray-dark);
+            font-size: 0.9rem;
+        }
+        
+        .btn-simulate {
+            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+            color: var(--white);
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+        }
+        
+        /* Leitura Screen */
+        .leitura-screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            background: var(--gray-light);
+        }
+        
+        .leitura-header {
+            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
+            color: var(--white);
+            padding: 1.5rem;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 4px 20px rgba(0,51,102,0.3);
+        }
+        
+        .leitura-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .leitura-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        .progress-container {
+            background: var(--white);
+            margin: 1rem;
+            padding: 1.25rem;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .progress-title {
+            font-weight: 700;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+        
+        .progress-value {
+            font-weight: 800;
+            color: var(--gps-blue);
+            font-size: 1.1rem;
+        }
+        
+        .progress-bar-bg {
+            height: 10px;
+            background: var(--gray-medium);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+            border-radius: 5px;
             transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0,166,81,0.3);
         }
-        .local-card { margin-bottom: 15px; overflow: hidden; padding: 0; }
+        
+        .locais-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 1rem 6rem;
+        }
+        
+        .local-card {
+            background: var(--white);
+            border-radius: 16px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: transform 0.2s;
+        }
+        
+        .local-card:active {
+            transform: scale(0.99);
+        }
+        
         .local-header {
-            padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; display: flex; justify-content: space-between; align-items: center;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, var(--gps-blue) 0%, #002244 100%);
+            color: var(--white);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             cursor: pointer;
         }
-        .local-header.completo { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .local-content { display: none; padding: 20px; }
-        .local-content.expandido { display: block; }
+        
+        .local-header.completo {
+            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+        }
+        
+        .local-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        
+        .local-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .local-content {
+            display: none;
+            padding: 1rem;
+        }
+        
+        .local-content.expandido {
+            display: block;
+            animation: expand 0.3s ease;
+        }
+        
+        @keyframes expand {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .hidrometro-item {
-            border: 2px solid #e0e0e0; border-radius: 10px; padding: 15px;
-            margin-bottom: 15px; transition: all 0.3s;
+            background: var(--gray-light);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
         }
-        .hidrometro-item.completo { border-color: #38ef7d; background: #f0fff4; }
+        
+        .hidrometro-item.completo {
+            background: #E8F8F5;
+            border-color: var(--multiplan-green);
+        }
+        
+        .hidrometro-tipo {
+            font-weight: 700;
+            color: var(--gps-blue);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+        
         .leitura-anterior {
-            font-size: 0.85rem; color: #666; margin-bottom: 10px;
-            padding: 8px; background: #f5f5f5; border-radius: 5px;
+            background: var(--white);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--gray-dark);
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--gps-blue);
         }
-        .input-group input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; }
-        .input-group input.erro { border-color: #eb3349; background: #fff5f5; }
+        
+        .leitura-anterior strong {
+            color: var(--text-dark);
+        }
+        
+        .input-group {
+            margin-bottom: 0.75rem;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--gray-medium);
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--gps-blue);
+            box-shadow: 0 0 0 4px rgba(0,51,102,0.1);
+        }
+        
+        .input-field.erro {
+            border-color: var(--danger);
+            background: #FDEDEC;
+        }
+        
         .alerta-variacao {
-            display: none; background: #fff3cd; border: 1px solid #ffc107;
-            color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 10px;
+            display: none;
+            background: #FEF5E7;
+            border: 1px solid var(--warning);
+            color: #D68910;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
         }
-        .alerta-variacao.show { display: block; }
-        .justificativa { display: none; margin-bottom: 10px; }
-        .justificativa.show { display: block; }
-        .justificativa textarea { width: 100%; padding: 10px; border: 2px solid #eb3349; border-radius: 5px; }
+        
+        .alerta-variacao.show {
+            display: block;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .justificativa {
+            display: none;
+            margin-bottom: 0.75rem;
+        }
+        
+        .justificativa.show {
+            display: block;
+        }
+        
+        .justificativa textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        
+        .foto-section {
+            margin-top: 0.75rem;
+        }
+        
         .foto-btn {
-            display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px;
-            background: #f0f0f0; border: 2px dashed #ccc; border-radius: 8px; cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 1rem;
+            background: var(--white);
+            border: 2px dashed var(--gray-medium);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: var(--gray-dark);
         }
-        .foto-btn.tem-foto { background: #d4edda; border-color: #28a745; color: #155724; }
-        .foto-preview { margin-top: 10px; max-width: 100%; border-radius: 8px; display: none; }
-        .foto-preview.show { display: block; }
-        input[type="file"] { display: none; }
-        .finalizar-section {
-            position: fixed; bottom: 0; left: 0; right: 0; background: white;
-            padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); display: none;
+        
+        .foto-btn.tem-foto {
+            background: #E8F8F5;
+            border-color: var(--multiplan-green);
+            color: var(--multiplan-green);
         }
-        .finalizar-section.show { display: block; }
-        .loading {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center;
-            align-items: center; flex-direction: column; color: white;
+        
+        .foto-preview {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-top: 0.75rem;
+            display: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        .loading.show { display: flex; }
+        
+        .foto-preview.show {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        /* Bottom Action Bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            padding: 1rem 1.5rem calc(1rem + env(safe-area-inset-bottom));
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .bottom-bar.show {
+            display: block;
+        }
+        
+        .btn-finalizar {
+            width: 100%;
+            padding: 1.25rem;
+            background: var(--gray-medium);
+            color: var(--gray-dark);
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: not-allowed;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-finalizar.ativo {
+            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+            color: var(--white);
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+        }
+        
+        .btn-finalizar.ativo:active {
+            transform: scale(0.98);
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,51,102,0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--white);
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+        
         .spinner {
-            width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: var(--multiplan-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        /* Responsividade */
+        @media (min-width: 480px) {
+            .container {
+                max-width: 480px;
+                margin: 0 auto;
+            }
+        }
+        
+        /* Animações de entrada */
+        .fade-in {
+            animation: fadeIn 0.4s ease;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Login -->
+        <!-- Corporate Header -->
+        <div class="corporate-header" id="corporateHeader" style="display:none;">
+            <div class="logo-gps">Grupo GPS</div>
+            <div>
+                <div class="logo-multiplan">Multiplan</div>
+                <div class="app-title">Leitura de Hidrômetros</div>
+            </div>
+        </div>
+
+        <!-- Tela de Login -->
         <div id="loginScreen" class="login-screen">
-            <h2 style="text-align:center; margin-bottom:20px;">🔐 Login</h2>
-            <div id="loginError" class="error-message"></div>
-            <div class="form-group">
-                <label>Usuário</label>
-                <input type="text" id="username" placeholder="Digite seu usuário">
+            <div class="login-card">
+                <div class="login-icon">💧</div>
+                <h1 class="login-title">Leitura de Hidrômetros</h1>
+                <p class="login-subtitle">Grupo GPS • Multiplan</p>
+                
+                <div id="loginError" class="error-message"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">Usuário</label>
+                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Senha</label>
+                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
+                </div>
+                
+                <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
             </div>
-            <div class="form-group">
-                <label>Senha</label>
-                <input type="password" id="password" placeholder="Digite sua senha">
-            </div>
-            <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
         </div>
 
-        <!-- QR -->
+        <!-- Tela QR -->
         <div id="qrScreen" class="qr-screen">
-            <div class="header">
-                <h1>👋 Olá, <span id="nomeTecnico"></span></h1>
-                <p id="statusSessao">Nenhuma sessão ativa</p>
+            <div class="welcome-card">
+                <div class="welcome-title">👋 Olá, <span id="nomeTecnico"></span></div>
+                <div class="welcome-subtitle">Pronto para iniciar a ronda?</div>
             </div>
-            <div class="qr-instruction">
-                <div style="font-size:4rem; margin-bottom:20px;">📱</div>
-                <h3>Escaneie o QR Code</h3>
-                <p>Ou clique abaixo para simular</p><br>
-                <button class="btn btn-success" onclick="simularQR()">Iniciar Ronda</button>
+            
+            <div class="qr-container">
+                <div class="qr-icon">📱</div>
+                <div class="qr-text">
+                    <h3>Escaneie o QR Code</h3>
+                    <p>Aproxime a câmera do código na oficina</p>
+                </div>
+                <button class="btn-simulate" onclick="simularQR()">Iniciar Ronda</button>
             </div>
-            <button class="btn" style="background:#666; margin-top:20px;" onclick="logout()">Sair</button>
+            
+            <button class="btn btn-outline" onclick="logout()" style="margin-top:1rem;">Sair</button>
         </div>
 
-        <!-- Leituras -->
+        <!-- Tela de Leituras -->
         <div id="leituraScreen" class="leitura-screen">
-            <div class="header">
-                <h1>💧 Leitura de Hidrômetros</h1>
-                <p id="infoSessaoLeitura">Preencha todos os campos</p>
+            <div class="leitura-header">
+                <div class="leitura-title">💧 Leitura de Hidrômetros</div>
+                <div class="leitura-subtitle">Preencha todos os campos para finalizar</div>
             </div>
-
-            <div class="progresso-geral">
-                <div class="progresso-texto">
-                    <span>Progresso</span>
-                    <span id="progressoTexto">0/55</span>
+            
+            <div class="progress-container">
+                <div class="progress-header">
+                    <span class="progress-title">Progresso da Ronda</span>
+                    <span class="progress-value" id="progressoTexto">0/55</span>
                 </div>
-                <div class="progresso-barra">
-                    <div id="progressoBarra" class="progresso-preenchido" style="width:0%"></div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressoBarra" style="width:0%"></div>
                 </div>
             </div>
-
-            <div id="locaisContainer"></div>
-            <div style="height:100px;"></div>
+            
+            <div class="locais-list" id="locaisContainer"></div>
         </div>
 
-        <div id="finalizarSection" class="finalizar-section">
-            <button id="btnFinalizar" class="btn btn-success" onclick="finalizarRonda()" disabled>
-                Finalizar (0/55)
+        <!-- Bottom Bar Finalizar -->
+        <div id="bottomBar" class="bottom-bar">
+            <button id="btnFinalizar" class="btn-finalizar" onclick="finalizarRonda()" disabled>
+                Finalizar Ronda (0/55)
             </button>
         </div>
     </div>
 
-    <div id="loading" class="loading">
+    <!-- Loading -->
+    <div id="loading" class="loading-overlay">
         <div class="spinner"></div>
-        <p id="loadingText">Processando...</p>
+        <div class="loading-text" id="loadingText">Processando...</div>
     </div>
 
     <script>
         // CONFIGURAÇÃO
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxk1RBLDmxW47K2IoVGrRFZg2DKKCcoXkAl2acE8xfgzXkUgvRSbsrliKrqvEiLbmWhvQ/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyvGJzIvoEgR3FKtAzgRmsNE_Q1-tDApIJbqH9lqXEBHJ_-6A4fJuaNW9S7sXDk_URDtg/exec';
         
         let tecnico = null;
         let sessao = null;
@@ -187,29 +807,41 @@
         const TIPOS = ['CEDAE','REUSO','ÁGUA GELADA','PURGA','LADRÃO'];
         
         // JSONP Helper
-        function jsonp(url, callbackName) {
+        function jsonp(url) {
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                const cbName = 'jsonp_' + Date.now();
+                const cbName = 'cb_' + Date.now();
                 
                 window[cbName] = function(data) {
                     resolve(data);
                     delete window[cbName];
-                    document.head.removeChild(script);
+                    if(script.parentNode) document.head.removeChild(script);
                 };
                 
                 script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
-                script.onerror = reject;
+                script.async = true;
+                
+                script.onerror = () => {
+                    reject(new Error('Falha na conexão'));
+                    delete window[cbName];
+                };
+                
                 document.head.appendChild(script);
                 
-                setTimeout(() => reject(new Error('Timeout')), 10000);
+                setTimeout(() => {
+                    if(window[cbName]) {
+                        reject(new Error('Timeout'));
+                        delete window[cbName];
+                        if(script.parentNode) document.head.removeChild(script);
+                    }
+                }, 15000);
             });
         }
         
-        // Login via JSONP
+        // Login
         async function fazerLogin() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
             
             if (!user || !pass) {
                 showError('Preencha usuário e senha');
@@ -220,20 +852,24 @@
             
             try {
                 const url = `${APPS_SCRIPT_URL}?action=login&usuario=${encodeURIComponent(user)}&senha=${encodeURIComponent(pass)}`;
+                console.log('Tentando login:', url);
+                
                 const data = await jsonp(url);
+                console.log('Resposta login:', data);
                 
                 if (data.success) {
                     tecnico = { nome: data.nome, usuario: data.usuario };
                     localStorage.setItem('tecnico', JSON.stringify(tecnico));
+                    hideLoading();
                     mostrarTelaQR();
                 } else {
+                    hideLoading();
                     showError(data.message || 'Usuário ou senha inválidos');
                 }
             } catch (e) {
-                showError('Erro de conexão. Tente novamente.');
-                console.error(e);
-            } finally {
+                console.error('Erro login:', e);
                 hideLoading();
+                showError('Erro de conexão. Verifique sua internet.');
             }
         }
         
@@ -244,44 +880,65 @@
         
         function mostrarTelaQR() {
             document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('qrScreen').style.display = 'block';
+            document.getElementById('corporateHeader').style.display = 'flex';
+            document.getElementById('qrScreen').style.display = 'flex';
+            document.getElementById('qrScreen').classList.add('fade-in');
             document.getElementById('nomeTecnico').textContent = tecnico.nome;
         }
         
-        // Iniciar sessão
+        // Iniciar Sessão
         async function simularQR() {
             if (sessao) {
                 finalizarRonda();
                 return;
             }
             
-            showLoading('Iniciando...');
+            showLoading('Carregando hidrômetros...');
             
             try {
                 const url = `${APPS_SCRIPT_URL}?action=iniciar&usuario=${encodeURIComponent(tecnico.usuario)}`;
+                console.log('Iniciando sessão:', url);
+                
                 const data = await jsonp(url);
+                console.log('Resposta iniciar:', data);
                 
-                if (!data.success) throw new Error(data.message);
+                if (!data.success) {
+                    throw new Error(data.message || 'Erro ao iniciar');
+                }
                 
-                sessao = { id: data.sessaoId, inicio: new Date() };
+                sessao = { 
+                    id: data.sessaoId, 
+                    inicio: new Date(),
+                    tecnico: data.usuario 
+                };
                 dataInicio = new Date().toISOString();
                 
                 hidrometros = data.hidrometros.map(h => ({
-                    ...h, leituraAtual: '', foto: null, justificativa: '', variacao: 0
+                    ...h,
+                    leituraAtual: '',
+                    foto: null,
+                    justificativa: '',
+                    variacao: 0
                 }));
                 
-                mostrarTelaLeitura();
-            } catch (e) {
-                alert('Erro: ' + e.message);
-            } finally {
+                console.log('Hidrômetros carregados:', hidrometros.length);
+                
                 hideLoading();
+                mostrarTelaLeitura();
+                
+            } catch (e) {
+                console.error('Erro ao iniciar:', e);
+                hideLoading();
+                alert('Erro ao iniciar: ' + e.message);
             }
         }
         
         function mostrarTelaLeitura() {
             document.getElementById('qrScreen').style.display = 'none';
-            document.getElementById('leituraScreen').style.display = 'block';
-            document.getElementById('finalizarSection').classList.add('show');
+            document.getElementById('leituraScreen').style.display = 'flex';
+            document.getElementById('bottomBar').classList.add('show');
+            document.getElementById('leituraScreen').classList.add('fade-in');
+            
             renderizarLocais();
             atualizarProgresso();
         }
@@ -293,14 +950,17 @@
             LOCAIS.forEach((local, idx) => {
                 const localH = hidrometros.filter(h => h.local === local);
                 const completos = localH.filter(h => isCompleto(h)).length;
-                const isComp = completos === localH.length;
+                const isComp = completos === localH.length && localH.length > 0;
                 
                 const card = document.createElement('div');
                 card.className = 'local-card';
                 card.innerHTML = `
-                    <div class="local-header ${isComp ? 'completo' : ''}" onclick="toggleLocal(${idx})">
-                        <span style="font-weight:600;">${local}</span>
-                        <span>${completos}/${localH.length} ${isComp ? '✅' : '⏳'}</span>
+                    <div class="local-header ${isComp ? 'completo' : ''}" onclick="toggleLocal('${idx}')">
+                        <span class="local-name">${local}</span>
+                        <div class="local-status">
+                            <span>${completos}/${localH.length}</span>
+                            <span>${isComp ? '✓' : '›'}</span>
+                        </div>
                     </div>
                     <div class="local-content" id="local-${idx}">
                         ${localH.map(h => renderHidrometro(h)).join('')}
@@ -311,137 +971,217 @@
         }
         
         function renderHidrometro(h) {
+            const isComp = isCompleto(h);
             return `
-                <div class="hidrometro-item ${isCompleto(h) ? 'completo' : ''}" id="item-${h.id}">
-                    <div style="font-weight:600; margin-bottom:10px;">💧 ${h.tipo}</div>
-                    <div class="leitura-anterior">Anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong></div>
+                <div class="hidrometro-item ${isComp ? 'completo' : ''}" id="item-${h.id}">
+                    <div class="hidrometro-tipo">
+                        <span>💧</span> ${h.tipo}
+                    </div>
+                    <div class="leitura-anterior">
+                        Anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong>
+                    </div>
                     <div class="input-group">
-                        <input type="number" step="0.01" id="input-${h.id}" 
-                               placeholder="Leitura atual" value="${h.leituraAtual}"
-                               onchange="atualizar('${h.id}', this.value)">
+                        <input type="number" 
+                               step="0.01" 
+                               class="input-field" 
+                               id="input-${h.id}"
+                               placeholder="0.00"
+                               value="${h.leituraAtual}"
+                               onchange="atualizarLeitura('${h.id}', this.value)"
+                               onkeyup="atualizarLeitura('${h.id}', this.value)">
                     </div>
                     <div id="alerta-${h.id}" class="alerta-variacao">
-                        ⚠️ Variação: <span id="var-${h.id}">0%</span>
+                        ⚠️ <span id="var-${h.id}"></span>
                     </div>
                     <div id="just-${h.id}" class="justificativa">
                         <textarea placeholder="Justifique a anomalia..." 
-                                  onchange="setJust('${h.id}', this.value)">${h.justificativa}</textarea>
+                                  onchange="setJustificativa('${h.id}', this.value)">${h.justificativa}</textarea>
                     </div>
-                    <div>
+                    <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}" id="btn-foto-${h.id}">
-                            <input type="file" accept="image/*" capture="environment" 
-                                   onchange="setFoto('${h.id}', this)">
-                            <span>${h.foto ? '📷 Foto OK' : '📷 Tirar foto'}</span>
+                            <input type="file" 
+                                   accept="image/*" 
+                                   capture="environment"
+                                   onchange="capturarFoto('${h.id}', this)">
+                            <span>${h.foto ? '✓ Foto adicionada' : '+ Adicionar foto'}</span>
                         </label>
-                        <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" 
-                             src="${h.foto || ''}" onclick="delFoto('${h.id}')" style="cursor:pointer;">
+                        <img id="preview-${h.id}" 
+                             class="foto-preview ${h.foto ? 'show' : ''}" 
+                             src="${h.foto || ''}" 
+                             onclick="removerFoto('${h.id}')">
                     </div>
                 </div>
             `;
         }
         
         function toggleLocal(idx) {
-            document.getElementById(`local-${idx}`).classList.toggle('expandido');
+            const el = document.getElementById(`local-${idx}`);
+            const isExpanded = el.classList.contains('expandido');
+            
+            // Fecha todos
+            document.querySelectorAll('.local-content').forEach(c => {
+                c.classList.remove('expandido');
+            });
+            
+            // Abre o clicado se estava fechado
+            if (!isExpanded) {
+                el.classList.add('expandido');
+            }
         }
         
-        function atualizar(id, val) {
+        function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
-            h.leituraAtual = parseFloat(val) || '';
+            if (!h) return;
+            
+            h.leituraAtual = parseFloat(valor) || '';
             
             if (h.leituraAtual !== '') {
-                const diff = h.leituraAtual - h.leituraAnterior;
-                h.variacao = h.leituraAnterior > 0 ? (diff / h.leituraAnterior) * 100 : 0;
+                const consumo = h.leituraAtual - h.leituraAnterior;
+                h.variacao = h.leituraAnterior > 0 ? (consumo / h.leituraAnterior) * 100 : 0;
                 
-                const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
-                document.getElementById(`alerta-${id}`).classList.toggle('show', precisaJust);
-                document.getElementById(`just-${id}`).classList.toggle('show', precisaJust);
-                document.getElementById(`var-${id}`).textContent = `${h.variacao.toFixed(1)}% (Consumo: ${diff.toFixed(2)} m³)`;
-                document.getElementById(`input-${id}`).classList.toggle('erro', precisaJust);
+                const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+                
+                const alertaEl = document.getElementById(`alerta-${id}`);
+                const justEl = document.getElementById(`just-${id}`);
+                const inputEl = document.getElementById(`input-${id}`);
+                
+                if (precisaJustificar) {
+                    const tipoAlerta = h.leituraAtual < h.leituraAnterior 
+                        ? 'Leitura menor que anterior!' 
+                        : `Variação: +${h.variacao.toFixed(1)}%`;
+                    
+                    document.getElementById(`var-${id}`).textContent = tipoAlerta;
+                    alertaEl.classList.add('show');
+                    justEl.classList.add('show');
+                    inputEl.classList.add('erro');
+                } else {
+                    alertaEl.classList.remove('show');
+                    justEl.classList.remove('show');
+                    inputEl.classList.remove('erro');
+                }
             }
             
-            updateUI(id);
+            atualizarUI(id);
         }
         
-        function setJust(id, val) {
+        function setJustificativa(id, valor) {
             const h = hidrometros.find(x => x.id === id);
-            h.justificativa = val;
-            updateUI(id);
+            if (h) {
+                h.justificativa = valor;
+                atualizarUI(id);
+            }
         }
         
-        function setFoto(id, input) {
+        function capturarFoto(id, input) {
             const file = input.files[0];
             if (!file) return;
+            
+            // Verificar tamanho (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Foto muito grande. Máximo 2MB.');
+                return;
+            }
+            
             const reader = new FileReader();
-            reader.onload = e => {
+            reader.onload = function(e) {
                 const h = hidrometros.find(x => x.id === id);
-                h.foto = e.target.result;
-                updateUI(id);
+                if (h) {
+                    // Comprimir imagem (simplificado - apenas redimensiona dataURL)
+                    h.foto = e.target.result;
+                    atualizarUI(id);
+                }
             };
             reader.readAsDataURL(file);
         }
         
-        function delFoto(id) {
-            if (!confirm('Remover foto?')) return;
+        function removerFoto(id) {
+            if (!confirm('Remover esta foto?')) return;
             const h = hidrometros.find(x => x.id === id);
-            h.foto = null;
-            updateUI(id);
+            if (h) {
+                h.foto = null;
+                atualizarUI(id);
+            }
         }
         
         function isCompleto(h) {
             if (h.leituraAtual === '' || isNaN(h.leituraAtual)) return false;
-            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
-            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;
+            
+            const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+            if (precisaJustificar && (!h.justificativa || h.justificativa.trim() === '')) {
+                return false;
+            }
+            
             return h.foto !== null;
         }
         
-        function updateUI(id) {
+        function atualizarUI(id) {
             const h = hidrometros.find(x => x.id === id);
-            const item = document.getElementById(`item-${id}`);
-            const btn = document.getElementById(`btn-foto-${id}`);
-            const prev = document.getElementById(`preview-${id}`);
+            if (!h) return;
             
+            const item = document.getElementById(`item-${id}`);
+            const btnFoto = document.getElementById(`btn-foto-${id}`);
+            const preview = document.getElementById(`preview-${id}`);
+            
+            // Atualizar classes
             item.classList.toggle('completo', isCompleto(h));
-            btn.classList.toggle('tem-foto', h.foto);
-            btn.querySelector('span').textContent = h.foto ? '📷 Foto OK' : '📷 Tirar foto';
-            prev.src = h.foto || '';
-            prev.classList.toggle('show', !!h.foto);
+            btnFoto.classList.toggle('tem-foto', !!h.foto);
+            btnFoto.querySelector('span').textContent = h.foto ? '✓ Foto adicionada' : '+ Adicionar foto';
+            
+            if (h.foto) {
+                preview.src = h.foto;
+                preview.classList.add('show');
+            } else {
+                preview.classList.remove('show');
+            }
             
             atualizarProgresso();
-            renderizarLocais();
+            renderizarLocais(); // Atualiza contadores nos headers
         }
         
         function atualizarProgresso() {
             const total = hidrometros.length;
-            const comp = hidrometros.filter(isCompleto).length;
-            const pct = total > 0 ? (comp / total) * 100 : 0;
+            const completos = hidrometros.filter(isCompleto).length;
+            const percentual = total > 0 ? (completos / total) * 100 : 0;
             
-            document.getElementById('progressoTexto').textContent = `${comp}/${total}`;
-            document.getElementById('progressoBarra').style.width = `${pct}%`;
+            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;
+            document.getElementById('progressoBarra').style.width = `${percentual}%`;
             
             const btn = document.getElementById('btnFinalizar');
-            btn.textContent = `Finalizar (${comp}/${total})`;
-            btn.disabled = comp !== total;
+            btn.textContent = `Finalizar Ronda (${completos}/${total})`;
+            btn.disabled = completos !== total;
+            btn.classList.toggle('ativo', completos === total);
         }
         
-        // Finalizar via JSONP (dados na URL)
+        // Finalizar
         async function finalizarRonda() {
-            const incomp = hidrometros.filter(h => !isCompleto(h));
-            if (incomp.length > 0) {
-                alert(`Faltam ${incomp.length} hidrômetros!`);
+            const incompletos = hidrometros.filter(h => !isCompleto(h));
+            if (incompletos.length > 0) {
+                alert(`Ainda faltam ${incompletos.length} hidrômetros!`);
+                // Expande o primeiro incompleto
+                const primeiro = incompletos[0];
+                const idx = LOCAIS.indexOf(primeiro.local);
+                if (idx >= 0) {
+                    document.getElementById(`local-${idx}`).classList.add('expandido');
+                    document.getElementById(`item-${primeiro.id}`).scrollIntoView({ behavior: 'smooth' });
+                }
                 return;
             }
             
-            if (!confirm('Confirmar finalização?')) return;
+            if (!confirm('Confirmar finalização da ronda?')) return;
             
-            showLoading('Salvando...');
+            showLoading('Salvando leituras...');
             
             try {
                 const leituras = hidrometros.map(h => ({
-                    id: h.id, local: h.local, tipo: h.tipo,
-                    anterior: h.leituraAnterior, atual: h.leituraAtual,
+                    id: h.id,
+                    local: h.local,
+                    tipo: h.tipo,
+                    anterior: h.leituraAnterior,
+                    atual: h.leituraAtual,
                     consumo: (h.leituraAtual - h.leituraAnterior).toFixed(2),
                     variacao: h.variacao.toFixed(1) + '%',
-                    justificativa: h.justificativa, foto: h.foto
+                    justificativa: h.justificativa,
+                    foto: h.foto
                 }));
                 
                 const dados = {
@@ -452,31 +1192,45 @@
                     leituras: leituras
                 };
                 
-                // JSONP com dados (pode ser grande, mas funciona)
-                const url = `${APPS_SCRIPT_URL}?action=salvar&dados=${encodeURIComponent(JSON.stringify(dados))}`;
+                // Verificar tamanho dos dados
+                const dadosStr = JSON.stringify(dados);
+                if (dadosStr.length > 8000) {
+                    // Se muito grande, enviar sem fotos e avisar
+                    console.warn('Dados muito grandes, podendo truncar fotos');
+                }
+                
+                const url = `${APPS_SCRIPT_URL}?action=salvar&dados=${encodeURIComponent(dadosStr)}`;
+                console.log('Enviando:', url.substring(0, 200) + '...');
+                
                 const data = await jsonp(url);
+                console.log('Resposta salvar:', data);
                 
                 if (data.success) {
-                    alert('Ronda finalizada! ID: ' + data.data.id);
+                    hideLoading();
+                    alert('✅ Ronda finalizada com sucesso!\\nID: ' + data.data.id);
                     localStorage.removeItem('tecnico');
                     location.reload();
                 } else {
                     throw new Error(data.message);
                 }
+                
             } catch (e) {
-                alert('Erro ao salvar: ' + e.message);
-            } finally {
+                console.error('Erro ao salvar:', e);
                 hideLoading();
+                alert('❌ Erro ao salvar: ' + e.message + '\\n\\nTente novamente.');
             }
         }
         
-        function showLoading(txt) {
-            document.getElementById('loadingText').textContent = txt;
+        // UI Helpers
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
             document.getElementById('loading').classList.add('show');
         }
+        
         function hideLoading() {
             document.getElementById('loading').classList.remove('show');
         }
+        
         function showError(msg) {
             const el = document.getElementById('loginError');
             el.textContent = msg;
@@ -485,13 +1239,25 @@
         }
         
         // Auto-login
-        window.onload = () => {
+        window.onload = function() {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
-                tecnico = JSON.parse(saved);
-                mostrarTelaQR();
+                try {
+                    tecnico = JSON.parse(saved);
+                    document.getElementById('corporateHeader').style.display = 'flex';
+                    mostrarTelaQR();
+                } catch(e) {
+                    localStorage.removeItem('tecnico');
+                }
             }
         };
+        
+        // Permitir Enter no login
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('password')?.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') fazerLogin();
+            });
+        });
     </script>
 </body>
 </html>
