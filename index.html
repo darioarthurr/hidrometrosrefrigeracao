@@ -1,53 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Leitura Hidrometros</title>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+text-align:center;
+padding:20px;
+}
+
+.container{
+background:white;
+padding:20px;
+border-radius:10px;
+max-width:400px;
+margin:auto;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+input,button{
+width:100%;
+padding:10px;
+margin-top:10px;
+font-size:16px;
+}
+
+#reader{
+width:100%;
+margin-top:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="loginScreen" class="container">
+
+<h2>Login</h2>
+
+<input id="username" placeholder="Usuário">
+
+<input id="password" type="password" placeholder="Senha">
+
+<button onclick="fazerLogin()">Entrar</button>
+
+</div>
+
+<div id="qrScreen" class="container" style="display:none">
+
+<h2>Bem vindo <span id="nomeTecnico"></span></h2>
+
+<p>Escaneie o QR da torre</p>
+
+<div id="reader"></div>
+
+</div>
 
 <script>
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBbY3PpzZfmzw7raBf1k5714hlsmI5YpoHHLFWSDILMHiaV0vYKNLbuoWjX12RBAB5SA/exec"
+const APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbwBbY3PpzZfmzw7raBf1k5714hlsmI5YpoHHLFWSDILMHiaV0vYKNLbuoWjX12RBAB5SA/exec"
 
 let tecnico=null
-let sessao=null
-let hidrometros=[]
 
 async function fazerLogin(){
 
 const user=document.getElementById("username").value
 const pass=document.getElementById("password").value
 
-const res = await fetch(`${APPS_SCRIPT_URL}?action=login&user=${user}&pass=${pass}`)
+const res=await fetch(`${APPS_SCRIPT_URL}?action=login&user=${user}&pass=${pass}`)
 
-const data = await res.json()
+const data=await res.json()
 
 if(data.success){
 
 tecnico=data
 
-localStorage.setItem("tecnico",JSON.stringify(tecnico))
-
-mostrarTelaQR()
-
-}else{
-
-alert(data.message)
-
-}
-
-}
-
-function mostrarTelaQR(){
-
 document.getElementById("loginScreen").style.display="none"
 
 document.getElementById("qrScreen").style.display="block"
 
-document.getElementById("nomeTecnico").innerText=tecnico.nome
+document.getElementById("nomeTecnico").innerText=data.nome
 
-iniciarScannerQR()
+iniciarScanner()
+
+}else{
+
+alert("Login inválido")
 
 }
 
-function iniciarScannerQR(){
+}
 
-const qr = new Html5Qrcode("reader")
+function iniciarScanner(){
+
+const qr=new Html5Qrcode("reader")
 
 qr.start(
 {facingMode:"environment"},
@@ -56,9 +110,9 @@ qr.start(
 
 if(decoded==="TORRES-HIDROMETROS"){
 
-qr.stop()
+alert("QR reconhecido")
 
-iniciarSessao()
+qr.stop()
 
 }
 
@@ -68,102 +122,7 @@ iniciarSessao()
 
 }
 
-async function iniciarSessao(){
-
-const res = await fetch(`${APPS_SCRIPT_URL}?action=iniciar&tecnico=${tecnico.usuario}`)
-
-const data = await res.json()
-
-sessao={
-id:data.sessaoId,
-inicio:new Date()
-}
-
-hidrometros=data.hidrometros.map(h=>({
-
-...h,
-leituraAtual:"",
-foto:null,
-justificativa:"",
-variacao:0
-
-}))
-
-mostrarTelaLeitura()
-
-}
-
-async function finalizarRonda(){
-
-const dados={
-action:"salvar",
-sessao:sessao,
-tecnico:tecnico.usuario,
-leituras:hidrometros.map(h=>({
-
-id:h.id,
-local:h.local,
-tipo:h.tipo,
-leituraAnterior:h.leituraAnterior,
-leituraAtual:h.leituraAtual,
-consumo:h.leituraAtual-h.leituraAnterior,
-variacao:h.variacao,
-foto:h.foto,
-justificativa:h.justificativa
-
-}))
-
-}
-
-await fetch(APPS_SCRIPT_URL,{
-method:"POST",
-body:JSON.stringify(dados)
-})
-
-alert("Ronda finalizada")
-
-}
-
-function capturarFoto(id,input){
-
-const file=input.files[0]
-
-const reader=new FileReader()
-
-reader.onload=function(e){
-
-const img=new Image()
-
-img.src=e.target.result
-
-img.onload=function(){
-
-const canvas=document.createElement("canvas")
-
-const MAX=1280
-
-const scale=MAX/img.width
-
-canvas.width=MAX
-
-canvas.height=img.height*scale
-
-const ctx=canvas.getContext("2d")
-
-ctx.drawImage(img,0,0,canvas.width,canvas.height)
-
-const compressed=canvas.toDataURL("image/jpeg",0.7)
-
-const h=hidrometros.find(x=>x.id===id)
-
-h.foto=compressed
-
-}
-
-}
-
-reader.readAsDataURL(file)
-
-}
-
 </script>
+
+</body>
+</html>
