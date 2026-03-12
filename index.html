@@ -1,154 +1,106 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Sistema de Leitura de Hidrômetros</title>
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
 
 body{
 font-family:Arial;
-background:#f4f6f8;
 margin:0;
+background:#f3f4f6;
 }
 
 header{
 background:#0b2a5b;
 color:white;
-padding:15px;
-display:flex;
-justify-content:space-between;
-align-items:center;
+padding:14px;
+text-align:center;
+font-size:20px;
 }
 
-.logo{
-font-size:22px;
-font-weight:bold;
-}
-
-.logo span{
+header span{
 color:#1bb34a;
 }
 
 .container{
-max-width:900px;
-margin:auto;
-padding:20px;
+padding:15px;
 }
 
 .card{
 background:white;
-padding:25px;
+padding:18px;
 border-radius:8px;
-box-shadow:0 0 10px rgba(0,0,0,0.1);
-margin-bottom:20px;
+margin-bottom:15px;
+box-shadow:0 0 8px rgba(0,0,0,0.1);
 }
 
 input,select{
 width:100%;
-padding:10px;
+padding:12px;
 margin-top:5px;
-margin-bottom:15px;
-border:1px solid #ccc;
-border-radius:5px;
+margin-bottom:10px;
 }
 
 button{
+width:100%;
+padding:12px;
 background:#0b2a5b;
 color:white;
-padding:12px;
 border:none;
-border-radius:5px;
-cursor:pointer;
-width:100%;
-}
-
-button:hover{
-background:#163c78;
 }
 
 .hidden{
 display:none;
 }
 
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th,td{
-padding:10px;
-border-bottom:1px solid #ddd;
-text-align:left;
-}
-
 </style>
+
 </head>
 
 <body>
 
 <header>
-<div class="logo">
 Grupo GPS <span>Multiplan</span>
-</div>
-<div id="usuarioLogado"></div>
 </header>
 
 <div class="container">
 
-<div id="loginCard" class="card">
+<div id="login" class="card">
 
-<h2>Login</h2>
+<h3>Login</h3>
 
-<label>Usuário</label>
-<input id="user">
-
-<label>Senha</label>
-<input id="pass" type="password">
+<input id="user" placeholder="Usuário">
+<input id="pass" type="password" placeholder="Senha">
 
 <button onclick="login()">Entrar</button>
 
 </div>
 
-<div id="sistema" class="hidden">
+<div id="app" class="hidden">
 
 <div class="card">
 
-<h3>Registrar Leitura</h3>
+<h3>Leitura</h3>
 
-<label>Hidrômetro</label>
-<select id="hidrometro"></select>
+<select id="hidro"></select>
 
-<label>Leitura Anterior</label>
 <input id="anterior" readonly>
 
-<label>Leitura Atual</label>
-<input id="atual">
+<input id="atual" placeholder="Leitura Atual">
 
-<label>Justificativa (se necessário)</label>
-<input id="justificativa">
+<input type="file" id="foto" accept="image/*" capture="camera">
 
-<button onclick="salvar()">Salvar Leitura</button>
+<button onclick="registrar()">Registrar</button>
 
 </div>
 
 <div class="card">
 
-<h3>Hidrômetros Ativos</h3>
+<h3>Histórico</h3>
 
-<table>
-
-<thead>
-<tr>
-<th>ID</th>
-<th>Local</th>
-<th>Tipo</th>
-</tr>
-</thead>
-
-<tbody id="lista"></tbody>
-
-</table>
+<div id="historico"></div>
 
 </div>
 
@@ -158,110 +110,95 @@ Grupo GPS <span>Multiplan</span>
 
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbxNhjzybtMpi6kKK9U8wb0oZXm6gqgK54aeDBvngzjAaiR9dsfqIY_QQVjAHRH5wK0DiA/exec"
+const API="https://script.google.com/macros/s/AKfycbykjrah5er_sxiBM2jDmxBxLBUZox7NJQbS6v-DCUFG_h6MUtNX8ezKmL71Zyp4pvYtIg/exec"
 
 let usuario=""
 
 async function login(){
 
-let user=document.getElementById("user").value
-let pass=document.getElementById("pass").value
+let u=user.value
+let p=pass.value
 
-let url=API+"?action=login&user="+user+"&pass="+pass
+let r=await fetch(API+"?action=login&user="+u+"&pass="+p)
+let d=await r.json()
 
-let r=await fetch(url)
+if(d.success){
 
-let data=await r.json()
+usuario=d.usuario
 
-if(data.success){
+login.classList.add("hidden")
+app.classList.remove("hidden")
 
-usuario=data.usuario
-
-document.getElementById("loginCard").classList.add("hidden")
-
-document.getElementById("sistema").classList.remove("hidden")
-
-document.getElementById("usuarioLogado").innerText=data.nome
-
-carregarHidrometros()
-
-}else{
-
-alert("Login inválido")
+carregar()
 
 }
 
 }
 
-async function carregarHidrometros(){
+async function carregar(){
 
 let r=await fetch(API+"?action=hidrometros")
-
 let dados=await r.json()
 
-let select=document.getElementById("hidrometro")
-let tabela=document.getElementById("lista")
-
-select.innerHTML=""
-tabela.innerHTML=""
+hidro.innerHTML=""
 
 dados.forEach(h=>{
 
-let opt=document.createElement("option")
-opt.value=h.id
-opt.text=h.id+" - "+h.local
+let o=document.createElement("option")
+o.value=h.id
+o.text=h.id+" - "+h.local
 
-select.appendChild(opt)
-
-let tr=document.createElement("tr")
-
-tr.innerHTML=`
-<td>${h.id}</td>
-<td>${h.local}</td>
-<td>${h.tipo}</td>
-`
-
-tabela.appendChild(tr)
+hidro.appendChild(o)
 
 })
 
 }
 
-async function salvar(){
+async function registrar(){
 
-let id=document.getElementById("hidrometro").value
-let anterior=document.getElementById("anterior").value
-let atual=document.getElementById("atual").value
+if(!foto.files[0]){
+alert("Foto obrigatória")
+return
+}
+
+let file=foto.files[0]
+
+let reader=new FileReader()
+
+reader.onload=async function(){
+
+let base64=reader.result
+
+let anterior=0
+let atual=Number(document.getElementById("atual").value)
 
 let consumo=atual-anterior
 
-let justificativa=document.getElementById("justificativa").value
-
-let dados={
+let payload={
 
 action:"salvarLeitura",
 sessao:"R"+Date.now(),
 tecnico:usuario,
-hidrometro:id,
+hidrometro:hidro.value,
 local:"",
 tipo:"",
 anterior:anterior,
 atual:atual,
 consumo:consumo,
-variacao:0,
-foto:"",
-justificativa:justificativa
+foto:base64
 
 }
 
-fetch(API,{
-
+await fetch(API,{
 method:"POST",
-body:JSON.stringify(dados)
-
+body:JSON.stringify(payload)
 })
 
-alert("Leitura registrada")
+alert("Leitura enviada")
+
+}
+
+reader.readAsDataURL(file)
 
 }
 
