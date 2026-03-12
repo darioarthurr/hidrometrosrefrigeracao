@@ -1,105 +1,193 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Leitura Hidrometros</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gestão de Leituras de Hidrômetros</title>
 
+<!-- Scanner QR -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-
-body{
-font-family:Arial;
-background:#f4f4f4;
-text-align:center;
-padding:20px;
+:root{
+  --gps-blue:#0b2f6b;
+  --multiplan-green:#1f9e55;
+  --bg:#f3f5f8;
+  --card:#ffffff;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --accent:#2563eb;
 }
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  background:white;
+  border-bottom:1px solid var(--border);
+  padding:14px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.brand{
+  font-weight:700;
+  font-size:20px;
+}
+
+.brand .gps{color:var(--gps-blue)}
+.brand .multiplan{color:var(--multiplan-green)}
 
 .container{
-background:white;
-padding:20px;
-border-radius:10px;
-max-width:400px;
-margin:auto;
-box-shadow:0 0 10px rgba(0,0,0,0.1);
+  max-width:1000px;
+  margin:auto;
+  padding:20px;
 }
 
+.card{
+  background:var(--card);
+  border-radius:10px;
+  padding:20px;
+  box-shadow:0 4px 10px rgba(0,0,0,.05);
+  margin-bottom:20px;
+}
+
+h2{margin-top:0}
+
 input,button{
-width:100%;
-padding:10px;
-margin-top:10px;
-font-size:16px;
+  padding:10px;
+  font-size:15px;
+  width:100%;
+  border-radius:6px;
+  border:1px solid var(--border);
+}
+
+button{
+  cursor:pointer;
+  background:var(--accent);
+  color:white;
+  border:none;
+  margin-top:10px;
+}
+
+button.secondary{
+  background:#6b7280;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:14px;
+}
+
+.hidro{
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+}
+
+.hidro h4{
+  margin:0 0 5px 0;
+}
+
+small{
+  color:var(--muted);
 }
 
 #reader{
-width:100%;
-margin-top:20px;
+  width:100%;
+  margin-top:10px;
 }
-
 </style>
-
 </head>
 
 <body>
 
-<div id="loginScreen" class="container">
+<header>
+<div class="brand">
+<span class="gps">Grupo GPS</span> • <span class="multiplan">Multiplan</span>
+</div>
+<div id="usuarioLogado"></div>
+</header>
 
-<h2>Login</h2>
+<div class="container">
+
+<!-- LOGIN -->
+<div id="loginScreen" class="card">
+<h2>Acesso do Técnico</h2>
 
 <input id="username" placeholder="Usuário">
-
 <input id="password" type="password" placeholder="Senha">
 
-<button onclick="fazerLogin()">Entrar</button>
-
+<button onclick="login()">Entrar</button>
 </div>
 
-<div id="qrScreen" class="container" style="display:none">
-
-<h2>Bem vindo <span id="nomeTecnico"></span></h2>
-
-<p>Escaneie o QR da torre</p>
-
+<!-- QR -->
+<div id="qrScreen" class="card" style="display:none">
+<h2>Iniciar Ronda</h2>
+<p>Escaneie o QR Code da torre para liberar as leituras.</p>
 <div id="reader"></div>
+</div>
+
+<!-- LEITURAS -->
+<div id="leiturasScreen" style="display:none">
+
+<div class="card">
+<h2>Leitura de Hidrômetros</h2>
+<p>Técnico: <b id="nomeTecnico"></b></p>
+</div>
+
+<div id="listaHidrometros" class="grid"></div>
+
+<div class="card">
+<button onclick="finalizar()">Finalizar Ronda</button>
+</div>
+
+</div>
 
 </div>
 
 <script>
 
-const APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbwBbY3PpzZfmzw7raBf1k5714hlsmI5YpoHHLFWSDILMHiaV0vYKNLbuoWjX12RBAB5SA/exec"
+const API="https://script.google.com/macros/s/AKfycbwBbY3PpzZfmzw7raBf1k5714hlsmI5YpoHHLFWSDILMHiaV0vYKNLbuoWjX12RBAB5SA/exec"
 
 let tecnico=null
+let sessao=null
+let hidrometros=[]
 
-async function fazerLogin(){
+async function login(){
 
 const user=document.getElementById("username").value
 const pass=document.getElementById("password").value
 
-const res=await fetch(`${APPS_SCRIPT_URL}?action=login&user=${user}&pass=${pass}`)
-
+const res=await fetch(`${API}?action=login&user=${user}&pass=${pass}`)
 const data=await res.json()
 
-if(data.success){
+if(!data.success){
+alert("Usuário ou senha inválidos")
+return
+}
 
 tecnico=data
 
-document.getElementById("loginScreen").style.display="none"
-
-document.getElementById("qrScreen").style.display="block"
-
+document.getElementById("usuarioLogado").innerText=data.nome
 document.getElementById("nomeTecnico").innerText=data.nome
 
-iniciarScanner()
+document.getElementById("loginScreen").style.display="none"
+document.getElementById("qrScreen").style.display="block"
 
-}else{
-
-alert("Login inválido")
-
-}
+startQR()
 
 }
 
-function iniciarScanner(){
+function startQR(){
 
 const qr=new Html5Qrcode("reader")
 
@@ -110,15 +198,133 @@ qr.start(
 
 if(decoded==="TORRES-HIDROMETROS"){
 
-alert("QR reconhecido")
-
 qr.stop()
+iniciarSessao()
 
 }
 
+})
+
 }
 
-)
+async function iniciarSessao(){
+
+const res=await fetch(`${API}?action=iniciar&tecnico=${tecnico.usuario}`)
+const data=await res.json()
+
+sessao={
+id:data.sessaoId,
+inicio:new Date()
+}
+
+hidrometros=data.hidrometros.map(h=>({
+
+...h,
+leituraAtual:"",
+foto:null,
+justificativa:"",
+variacao:0
+
+}))
+
+document.getElementById("qrScreen").style.display="none"
+document.getElementById("leiturasScreen").style.display="block"
+
+render()
+
+}
+
+function render(){
+
+const lista=document.getElementById("listaHidrometros")
+lista.innerHTML=""
+
+hidrometros.forEach(h=>{
+
+const el=document.createElement("div")
+el.className="hidro"
+
+el.innerHTML=`
+<h4>${h.id}</h4>
+<small>${h.local}</small>
+
+<p>Anterior: ${h.leituraAnterior}</p>
+
+<input placeholder="Leitura atual"
+onchange="setLeitura('${h.id}',this.value)">
+
+<input type="file"
+accept="image/*"
+capture="environment"
+onchange="foto('${h.id}',this)">
+
+<textarea placeholder="Justificativa"
+onchange="just('${h.id}',this.value)"></textarea>
+`
+
+lista.appendChild(el)
+
+})
+
+}
+
+function setLeitura(id,val){
+
+const h=hidrometros.find(x=>x.id===id)
+h.leituraAtual=parseFloat(val)
+
+}
+
+function just(id,val){
+
+const h=hidrometros.find(x=>x.id===id)
+h.justificativa=val
+
+}
+
+function foto(id,input){
+
+const file=input.files[0]
+const reader=new FileReader()
+
+reader.onload=e=>{
+const h=hidrometros.find(x=>x.id===id)
+h.foto=e.target.result
+}
+
+reader.readAsDataURL(file)
+
+}
+
+async function finalizar(){
+
+const dados={
+action:"salvar",
+sessao:sessao,
+tecnico:tecnico.usuario,
+leituras:hidrometros.map(h=>({
+
+id:h.id,
+local:h.local,
+tipo:h.tipo,
+leituraAnterior:h.leituraAnterior,
+leituraAtual:h.leituraAtual,
+consumo:h.leituraAtual-h.leituraAnterior,
+variacao:h.variacao,
+foto:h.foto,
+justificativa:h.justificativa
+
+}))
+}
+
+await fetch(API,{
+method:"POST",
+body:JSON.stringify(dados)
+})
+
+alert("Ronda enviada com sucesso")
+
+location.reload()
 
 }
 
