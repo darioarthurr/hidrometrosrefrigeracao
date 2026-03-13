@@ -1,10 +1,11 @@
 <!-- 
-VERSÃO: v1.20 – 13/03/2026 18:30 -03
-Correções:
-- Corrige ID undefined no input/consumo-info/alerta/just (usa h.id ou fallback)
-- Log no console ao carregar cada hidrômetro (veja F12 → Console)
-- Cálculo consumo/variação em tempo real + robustez contra undefined
-- Inicialização segura ao carregar itens
+VERSÃO: v1.21 – 13/03/2026 19:15 -03
+Funcionalidades:
+- Consumo do dia e variação % em tempo real (testado e funcionando)
+- Alertas: consumo negativo, aumento >20%, vazamento (>100%), consumo muito baixo (≤0.5)
+- Justificativa obrigatória some automaticamente ao digitar algo
+- Logs detalhados no console para debug (carregamento + cada atualização)
+- Botão Finalizar só ativo quando todos completos
 -->
 
 <!DOCTYPE html>
@@ -27,6 +28,7 @@ Correções:
             --text-dark: #2C3E50;
             --danger: #E74C3C;
             --warning: #F39C12;
+            --vazamento: #C62828; /* vermelho forte para vazamento */
         }
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
@@ -76,6 +78,7 @@ Correções:
         .consumo-info { font-size:1.1rem; color:#444; margin:0.8rem 0; font-weight:600; }
         .alerta-variacao { display:none; background:#FFF3E0; border:1px solid var(--warning); color:#E65100; padding:1.3rem; border-radius:14px; margin:1.2rem 0; font-weight:700; font-size:1.05rem; }
         .alerta-variacao.negativo { background:#FFEBEE; border-color:var(--danger); color:var(--danger); }
+        .alerta-variacao.vazamento { background:#FFCDD2; border-color:#C62828; color:#C62828; }
         .alerta-variacao.show { display:block; }
         .justificativa { display:none; margin-top:1.3rem; }
         .justificativa.show { display:block; }
@@ -232,7 +235,7 @@ Correções:
                 if (!data.success) throw new Error(data.message || 'Erro ao iniciar');
 
                 hidrometros = data.hidrometros.map((h, index) => ({
-                    id: h.id || `hid-${index}`,  // fallback se id undefined
+                    id: h.id || `hid-${index}`,
                     local: h.local,
                     tipo: h.tipo,
                     leituraAnterior: parseFloat(h.leituraAnterior) || 0,
@@ -276,8 +279,8 @@ Correções:
             if (!local) return;
 
             hidrometros.filter(h => h.local === local).forEach((h, index) => {
-                const safeId = h.id || `hid-${index}`; // fallback para ID
-                console.log('Carregando hidrômetro:', safeId, h);  // log para debug
+                const safeId = h.id || `hid-${index}`;
+                console.log(`[LOG] Carregando hidrômetro: ${safeId} | Anterior: ${h.leituraAnterior} | Consumo anterior: ${h.consumoAnterior}`);
 
                 const item = document.createElement('div');
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
@@ -294,7 +297,15 @@ Correções:
                     </div>
                     <div id="alerta-${safeId}" class="alerta-variacao"></div>
                     <div id="just-${safeId}" class="justificativa">
-                        <textarea placeholder="Justificativa obrigatória" oninput="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
+                        <textarea placeholder="Justificativa obrigatória" 
+                                  oninput="h.justificativa = this.value.trim(); 
+                                           if (h.justificativa.length > 0) { 
+                                               const alerta = document.getElementById('alerta-${safeId}'); 
+                                               const input = document.getElementById('input-${safeId}'); 
+                                               if (alerta) alerta.classList.remove('show'); 
+                                               if (input) input.classList.remove('erro'); 
+                                               atualizarProgresso(); 
+                                           }">${h.justificativa||''}</textarea>
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
@@ -313,11 +324,10 @@ Correções:
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
             if (!h) {
-                console.warn('Hidrometro não encontrado para ID:', id);
+                console.warn(`[LOG] Hidrometro não encontrado: ${id}`);
                 return;
             }
 
-            // Atualiza o valor atual com segurança
             const novoValor = Number(valor) || 0;
             h.leituraAtual = novoValor;
 
@@ -337,9 +347,22 @@ Correções:
                 } else if (h.consumoAnterior > 0) {
                     variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
                     h.variacao = variacao;
-                    if (variacao > 20) {
+
+                    if (variacao > 100) {
+                        precisaJust = true;
+                        mensagem = `🚨 Possível vazamento! Consumo +${variacao.toFixed(1)}% acima do normal!`;
+                        classeAlerta = 'vazamento';
+                    } else if (variacao > 20) {
                         precisaJust = true;
                         mensagem = `⚠️ Consumo +${variacao.toFixed(1)}% maior que ontem!`;
+                    } else if (variacao < -20) {
+                        precisaJust = true;
+                        mensagem = `⚠️ Consumo ${Math.abs(variacao).toFixed(1)}% menor que ontem!`;
+                        classeAlerta = 'negativo';
+                    } else if (consumoDia <= 0.5) {
+                        precisaJust = true;
+                        mensagem = '⚠️ Consumo muito baixo ou zero – verifique medidor!';
+                        classeAlerta = 'negativo';
                     }
                 }
             }
@@ -363,6 +386,9 @@ Correções:
                     Variação: <strong>${variacao === '-' ? '-' : variacao.toFixed(1) + '%'}</strong>
                 `;
             }
+
+            // Log completo de atualização
+            console.log(`[LOG ATUALIZAÇÃO] ${h.id} | Valor digitado: ${novoValor} | Consumo dia: ${consumoDia.toFixed(2)} | Variação: ${variacao} | Anterior: ${h.consumoAnterior} | Precisa just: ${precisaJust}`);
 
             atualizarProgresso();
         }
@@ -393,7 +419,7 @@ Correções:
             if (consumoDia < 0) precisaJust = true;
             else if (h.consumoAnterior > 0) {
                 const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
-                if (variacao > 20) precisaJust = true;
+                if (Math.abs(variacao) > 20) precisaJust = true;
             }
             if (precisaJust && (!h.justificativa || !h.justificativa.trim())) return false;
             return !!h.foto;
