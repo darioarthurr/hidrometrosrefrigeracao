@@ -19,7 +19,7 @@
             --danger: #E74C3C;
             --warning: #F39C12;
         }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
@@ -228,7 +228,7 @@
                     tipo: h.tipo,
                     leituraAnterior: parseFloat(h.leituraAnterior) || 0,
                     consumoAnterior: parseFloat(h.consumoAnterior) || 0,
-                    leituraAtual: '',
+                    leituraAtual: 0,
                     foto: null,
                     justificativa: '',
                     variacao: 0
@@ -273,7 +273,7 @@
                     <div class="hidrometro-tipo">${h.tipo}</div>
                     <div class="leitura-anterior">Leitura anterior: <strong>${h.leituraAnterior.toFixed(0)}</strong></div>
                     <div class="leitura-field">
-                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
+                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual}" 
                                oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
                     </div>
                     <div class="consumo-info" id="consumo-info-${h.id}">
@@ -302,9 +302,7 @@
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            // Correção: valor pode não ser string → convertemos com segurança
-            const inputValue = String(valor || '').trim();
-            h.leituraAtual = inputValue === '' ? 0 : parseFloat(inputValue);
+            h.leituraAtual = parseFloat(valor) || 0;
 
             const anterior = h.leituraAnterior;
             const atual = h.leituraAtual;
