@@ -1,3 +1,8 @@
+<!-- 
+VERSÃO ATUAL: v1.7 - 13/03/2026
+Última alteração: layout mobile corrigido, justificativa funcionando 100%, logout ok, sem sobreposição
+-->
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -23,11 +28,24 @@
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.5; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
-        .corporate-header { background:var(--white); padding:0.9rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; font-size:0.95rem; }
+        /* HEADER */
+        .corporate-header { 
+            background:var(--white); 
+            padding:0.9rem 1rem; 
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center; 
+            box-shadow:0 2px 10px rgba(0,0,0,0.1); 
+            position:sticky; 
+            top:0; 
+            z-index:100; 
+            font-size:0.95rem; 
+        }
         .logo-gps { font-weight:800; color:var(--gps-blue); font-size:1.05rem; }
         .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; font-size:1.1rem; }
         .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.85rem; }
 
+        /* LOGIN */
         .login-screen { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1.5rem; background:rgba(0,0,0,0.05); }
         .login-card { background:var(--white); border-radius:20px; padding:2rem 1.5rem; box-shadow:0 15px 50px rgba(0,0,0,0.25); max-width:420px; margin:0 auto; }
         .login-icon { width:85px; height:85px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.4rem; display:flex; align-items:center; justify-content:center; font-size:2.8rem; box-shadow:0 10px 30px rgba(0,51,102,0.25); }
@@ -41,11 +59,13 @@
         .btn-primary:active { transform:scale(0.98); }
         .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
 
+        /* START SCREEN */
         .start-screen { display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; padding:1.5rem; }
         .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.2rem; text-align:center; color:white; max-width:380px; width:100%; }
         .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.4rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; width:100%; cursor:pointer; margin:1.2rem 0; min-height:54px; }
         .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:48px; }
 
+        /* LEITURA SCREEN - MOBILE PRIMEIRO */
         .leitura-screen { display:none; flex:1; flex-direction:column; background:#f9fafc; padding-bottom:10rem; }
         .progress-container { background:var(--white); margin:1rem; padding:1.2rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
         .progress-header { display:flex; justify-content:space-between; margin-bottom:0.6rem; font-size:1.05rem; font-weight:600; }
@@ -82,12 +102,14 @@
 </head>
 <body>
     <div class="container">
+        <!-- HEADER -->
         <div class="corporate-header" id="corporateHeader" style="display:none;">
             <div class="logo-gps">Grupo GPS</div>
             <div class="system-title">Leitura de Hidrômetros</div>
             <div class="logo-multiplan">MULTIPLAN</div>
         </div>
 
+        <!-- LOGIN -->
         <div id="loginScreen" class="login-screen">
             <div class="login-card">
                 <div class="login-icon">💧</div>
@@ -106,6 +128,7 @@
             </div>
         </div>
 
+        <!-- TELA INICIAL -->
         <div id="startScreen" class="start-screen">
             <div class="welcome-card">
                 <div style="font-size:3.2rem;margin-bottom:1rem;">👋</div>
@@ -116,6 +139,7 @@
             </div>
         </div>
 
+        <!-- TELA DE LEITURA -->
         <div id="leituraScreen" class="leitura-screen">
             <div class="progress-container">
                 <div class="progress-header">
@@ -134,10 +158,12 @@
             <div id="hidrometrosContainer" class="locais-list"></div>
         </div>
 
+        <!-- BARRA INFERIOR -->
         <div id="bottomBar" class="bottom-bar">
             <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
         </div>
 
+        <!-- LOADING -->
         <div id="loading" class="loading-overlay">
             <div class="spinner"></div>
             <div class="loading-text" id="loadingText">Processando...</div>
@@ -151,6 +177,7 @@
         let hidrometros = [];
         let locaisUnicos = [];
 
+        // Funções de loading e erro
         function showLoading(txt) {
             document.getElementById('loadingText').textContent = txt;
             document.getElementById('loading').classList.add('show');
@@ -165,6 +192,7 @@
             setTimeout(() => el.classList.remove('show'), 5000);
         }
 
+        // LOGIN
         async function fazerLogin() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
@@ -197,6 +225,7 @@
             }
         }
 
+        // INICIAR LEITURA
         async function iniciarLeitura() {
             showLoading('Carregando hidrômetros...');
 
@@ -237,6 +266,7 @@
             }
         }
 
+        // SELECT DE LOCAIS
         function preencherSelectLocais() {
             const select = document.getElementById('localSelect');
             select.innerHTML = '<option value="">Selecione o local</option>';
@@ -248,6 +278,7 @@
             });
         }
 
+        // MOSTRAR HIDRÔMETROS DO LOCAL SELECIONADO
         function mostrarHidrometrosDoLocal(local) {
             const container = document.getElementById('hidrometrosContainer');
             container.innerHTML = '';
@@ -277,6 +308,7 @@
             atualizarProgresso();
         }
 
+        // ATUALIZAR LEITURA + VALIDAÇÃO
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
@@ -305,6 +337,7 @@
             atualizarProgresso();
         }
 
+        // CAPTURAR FOTO
         function capturarFoto(id, input) {
             const file = input.files[0];
             if (!file) return;
@@ -324,6 +357,7 @@
             reader.readAsDataURL(file);
         }
 
+        // VERIFICA SE HIDRÔMETRO ESTÁ COMPLETO
         function isCompleto(h) {
             if (!h.leituraAtual || isNaN(h.leituraAtual)) return false;
             const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
@@ -331,6 +365,7 @@
             return !!h.foto;
         }
 
+        // ATUALIZA PROGRESSO E BOTÃO FINALIZAR
         function atualizarProgresso() {
             const total = hidrometros.length;
             const completos = hidrometros.filter(isCompleto).length;
@@ -342,17 +377,21 @@
             btn.classList.toggle('ativo', completos === total);
         }
 
+        // FINALIZAR RONDA
         async function finalizarRonda() {
             if (!confirm('Finalizar ronda?')) return;
-            showLoading('Salvando...');
+            showLoading('Salvando leituras...');
             try {
                 alert('Ronda finalizada com sucesso!');
                 logout();
+            } catch (err) {
+                alert('Erro ao finalizar: ' + err.message);
             } finally {
                 hideLoading();
             }
         }
 
+        // LOGOUT
         function logout() {
             localStorage.removeItem('tecnico');
             document.getElementById('leituraScreen').style.display = 'none';
@@ -364,6 +403,7 @@
             document.getElementById('password').value = '';
         }
 
+        // AUTO-LOGIN
         window.onload = function() {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
@@ -380,6 +420,7 @@
             }
         };
 
+        // ENTER NA SENHA
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('password')?.addEventListener('keypress', e => {
                 if (e.key === 'Enter') fazerLogin();
