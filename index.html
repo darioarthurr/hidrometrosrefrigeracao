@@ -7,207 +7,428 @@
     <title>Leitura de Hidrômetros - Grupo GPS | Multiplan</title>
     <style>
         :root {
-            --gps-blue: #003366; --gps-blue-light: #004080;
-            --multiplan-green: #00A651; --multiplan-green-light: #00C261;
-            --white: #FFFFFF; --gray-light: #F5F7FA; --gray-medium: #E1E8ED;
-            --gray-dark: #5A6C7D; --text-dark: #2C3E50;
-            --danger: #E74C3C; --warning: #F39C12;
+            --gps-blue: #003366;
+            --gps-blue-light: #004080;
+            --multiplan-green: #00A651;
+            --multiplan-green-light: #00C261;
+            --white: #FFFFFF;
+            --gray-light: #F5F7FA;
+            --gray-medium: #E1E8ED;
+            --gray-dark: #5A6C7D;
+            --text-dark: #2C3E50;
+            --danger: #E74C3C;
+            --warning: #F39C12;
+            --success: #27AE60;
         }
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); }
-        .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
+       
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+       
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+            line-height: 1.5;
+        }
+       
+        .container {
+            max-width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+       
+        /* Header */
+        .corporate-header {
+            background: var(--white);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+       
+        .logo-gps {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--gps-blue);
+            letter-spacing: -0.5px;
+        }
+       
+        .logo-multiplan {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--multiplan-green);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+       
+        .app-title {
+            font-size: 0.7rem;
+            color: var(--gray-dark);
+            text-align: right;
+            margin-top: 0.1rem;
+        }
+       
+        /* Login - tela original */
+        .login-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+       
+        .login-card {
+            background: var(--white);
+            border-radius: 24px;
+            padding: 2.5rem 1.5rem;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            animation: slideUp 0.6s ease;
+        }
+       
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+       
+        .login-icon {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--multiplan-green) 100%);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 15px 40px rgba(0,51,102,0.3);
+        }
+       
+        .login-title {
+            text-align: center;
+            color: var(--gps-blue);
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+       
+        .login-subtitle {
+            text-align: center;
+            color: var(--gray-dark);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            font-weight: 500;
+        }
+       
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+       
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+       
+        .form-input {
+            width: 100%;
+            padding: 1.1rem 1.25rem;
+            border: 2px solid var(--gray-medium);
+            border-radius: 12px;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            background: var(--gray-light);
+        }
+       
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gps-blue);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(0,51,102,0.1);
+        }
+       
+        .btn {
+            width: 100%;
+            padding: 1.2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+       
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
+            color: var(--white);
+            box-shadow: 0 6px 20px rgba(0,51,102,0.4);
+        }
+       
+        .btn-primary:active {
+            transform: scale(0.97);
+            box-shadow: 0 3px 10px rgba(0,51,102,0.3);
+        }
+       
+        .error-message {
+            background: #FDEDEC;
+            color: var(--danger);
+            padding: 1rem 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: none;
+            border-left: 4px solid var(--danger);
+        }
+       
+        .error-message.show {
+            display: block;
+        }
 
-        /* ===== LOGIN ORIGINAL (exatamente como antes) ===== */
-        .login-screen { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1.5rem; }
-        .login-card { background:var(--white); border-radius:24px; padding:2.5rem 1.5rem; box-shadow:0 25px 80px rgba(0,0,0,0.4); max-width:400px; margin:0 auto; }
-        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.5rem; display:flex; align-items:center; justify-content:center; font-size:3rem; box-shadow:0 15px 40px rgba(0,51,102,0.3); }
-        .login-title { text-align:center; color:var(--gps-blue); font-size:1.6rem; font-weight:800; margin-bottom:0.3rem; }
-        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.95rem; margin-bottom:2rem; font-weight:500; }
-        .form-group { margin-bottom:1.25rem; }
-        .form-label { display:block; margin-bottom:0.5rem; color:var(--text-dark); font-weight:700; font-size:0.9rem; }
-        .form-input { width:100%; padding:1.1rem 1.25rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.1rem; background:var(--gray-light); }
-        .form-input:focus { outline:none; border-color:var(--gps-blue); background:var(--white); box-shadow:0 0 0 4px rgba(0,51,102,0.1); }
-        .btn-primary { width:100%; padding:1.2rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.1rem; font-weight:800; cursor:pointer; }
-        .error-message { background:#FDEDEC; color:var(--danger); padding:1rem 1.25rem; border-radius:10px; margin-bottom:1.25rem; display:none; border-left:4px solid var(--danger); }
+        /* Start Screen */
+        .start-screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
 
-        /* HEADER */
-        .corporate-header { background:var(--white); padding:1rem; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; }
-        .logo-gps { font-weight:800; font-size:1.1rem; color:var(--gps-blue); }
-        .system-title { font-weight:800; font-size:1.15rem; color:var(--gps-blue); flex:1; text-align:center; }
-        .logo-multiplan { font-weight:700; font-size:0.9rem; color:var(--multiplan-green); text-transform:uppercase; }
+        .welcome-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            color: white;
+            max-width: 380px;
+            margin-bottom: 2rem;
+        }
 
-        /* START SCREEN */
-        .start-screen { display:none; flex:1; flex-direction:column; padding:1.5rem; justify-content:center; align-items:center; }
-        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2rem; text-align:center; color:white; max-width:380px; }
-        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.5rem; border-radius:16px; font-size:1.3rem; font-weight:800; width:100%; margin-bottom:1rem; }
-        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:0.9rem; border-radius:12px; font-weight:700; width:100%; }
+        .btn-iniciar {
+            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
+            color: white;
+            padding: 1.5rem;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            width: 100%;
+            max-width: 380px;
+            cursor: pointer;
+        }
 
-        /* LEITURA (mantido igual) */
-        .leitura-screen { display:none; flex:1; flex-direction:column; background:var(--gray-light); }
-        .progress-container { background:var(--white); margin:1rem; padding:1.5rem; border-radius:20px; }
-        .local-selector { padding:0 1.25rem; margin-bottom:1rem; }
-        .local-selector select { width:100%; padding:1rem; border-radius:12px; font-size:1.1rem; font-weight:700; }
-        .locais-list { flex:1; overflow-y:auto; padding:0 1.25rem 7rem; }
-        .hidrometro-item { background:var(--white); border-radius:16px; padding:1.5rem; margin-bottom:1rem; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-        .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
-        .input-field { width:100%; padding:1.1rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.2rem; text-align:center; font-weight:700; }
-        .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
-        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1rem; border-radius:10px; margin:1rem 0; font-weight:700; }
-        .alerta-variacao.show { display:block; }
-        .justificativa { display:none; }
-        .justificativa.show { display:block; }
-        .justificativa textarea { width:100%; padding:1rem; border:2px solid var(--danger); border-radius:10px; min-height:100px; }
-        .foto-btn { width:100%; padding:1.2rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; cursor:pointer; }
-        .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); }
-        .foto-preview { width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-top:1rem; display:none; }
-        .foto-preview.show { display:block; }
+        .btn-sair {
+            background: transparent;
+            border: 2px solid rgba(255,255,255,0.6);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            max-width: 380px;
+            margin-top: 1rem;
+            cursor: pointer;
+        }
 
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.25rem 1.5rem; box-shadow:0 -6px 25px rgba(0,0,0,0.1); display:none; z-index:1000; }
-        .btn-finalizar { width:100%; padding:1.3rem; border:none; border-radius:14px; font-weight:800; font-size:1.1rem; }
-        .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; }
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,51,102,0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
 
-        .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.95); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
-        .spinner { width:70px; height:70px; border:5px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
-        @keyframes spin { to { transform:rotate(360deg); } }
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 70px;
+            height: 70px;
+            border: 5px solid rgba(255,255,255,0.2);
+            border-top-color: var(--multiplan-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- HEADER -->
+        <!-- Header -->
         <div class="corporate-header" id="corporateHeader" style="display:none;">
             <div class="logo-gps">Grupo GPS</div>
             <div class="system-title">Leitura de Hidrômetros</div>
             <div class="logo-multiplan">Multiplan</div>
         </div>
 
-        <!-- LOGIN ORIGINAL -->
+        <!-- Login -->
         <div id="loginScreen" class="login-screen">
             <div class="login-card">
                 <div class="login-icon">💧</div>
                 <h1 class="login-title">Leitura de Hidrômetros</h1>
                 <p class="login-subtitle">Grupo GPS • Multiplan</p>
+               
                 <div id="loginError" class="error-message"></div>
+               
                 <div class="form-group">
                     <label class="form-label">Usuário</label>
                     <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
                 </div>
+               
                 <div class="form-group">
                     <label class="form-label">Senha</label>
                     <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
                 </div>
-                <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
+               
+                <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
             </div>
         </div>
 
-        <!-- TELA INICIAL -->
+        <!-- Tela inicial após login -->
         <div id="startScreen" class="start-screen">
             <div class="welcome-card">
-                <div style="font-size:2rem; margin-bottom:1rem;">👋</div>
-                <div style="font-size:1.4rem; font-weight:700;">Olá, <span id="nomeTecnico"></span></div>
-                <div style="margin:1rem 0 2rem; opacity:0.9;">Pronto para iniciar a leitura?</div>
+                <div style="font-size:2.5rem; margin-bottom:1rem;">👋</div>
+                <div style="font-size:1.6rem; font-weight:700;">Olá, <span id="nomeTecnico"></span></div>
+                <div style="margin:1.5rem 0; font-size:1.1rem; opacity:0.9;">Pronto para iniciar a leitura?</div>
                 <button class="btn-iniciar" onclick="iniciarLeitura()">INICIAR LEITURA DOS HIDRÔMETROS</button>
                 <button class="btn-sair" onclick="logout()">SAIR</button>
             </div>
         </div>
 
-        <!-- TELA DE LEITURA (mantida) -->
-        <div id="leituraScreen" class="leitura-screen">
-            <div class="progress-container">
-                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
-                    <span class="progress-title">Progresso da Ronda</span>
-                    <span id="progressoTexto">0/55</span>
-                </div>
-                <div style="height:12px;background:var(--gray-medium);border-radius:6px;overflow:hidden;">
-                    <div id="progressoBarra" style="height:100%;background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%);width:0%;transition:width 0.6s;"></div>
-                </div>
-            </div>
-            <div class="local-selector">
-                <select id="localSelect" onchange="selecionarLocal(this.value)" style="width:100%;padding:1rem;border-radius:12px;font-size:1.1rem;"></select>
-            </div>
-            <div class="locais-list" id="localContent"></div>
+        <!-- Loading -->
+        <div id="loading" class="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loadingText">Processando...</div>
         </div>
-
-        <!-- BOTTOM BAR -->
-        <div id="bottomBar" class="bottom-bar">
-            <button id="btnFinalizar" class="btn-finalizar" onclick="finalizarRonda()" disabled>Finalizar Ronda (0/55)</button>
-        </div>
-    </div>
-
-    <!-- LOADING -->
-    <div id="loading" class="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-text" id="loadingText">Processando...</div>
     </div>
 
     <script>
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFQi8KsVmO6KuzGBoEg2glaULlH1eczAb7ofg0MPO0cnY1Mj5nmQzJv-kT8_grd3ZiCA/exec';
-        let tecnico = null, sessao = null, hidrometros = [], dataInicio = null;
-        const LOCAIS = ['BARRA FREE','EXP 7','AC','MALL NOVO','RIO ANTIGO','AB','HOTZONE','ETA','EXP 5','CAG 1 CM2','CAG 2 CM2'];
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYCCz1FXo_vHsgjEjVeOW2iitZO5lDMv1it7vN4lPmW_wPqog-WF0QL-vHu2_1JrYeCw/exec';
 
-        function showLoading(txt) { 
+        let tecnico = null;
+
+        function showLoading(txt) {
             document.getElementById('loadingText').textContent = txt;
             document.getElementById('loading').classList.add('show');
         }
-        function hideLoading() { document.getElementById('loading').classList.remove('show'); }
-        function showError(msg) {
-            const el = document.getElementById('loginError');
-            el.textContent = msg; el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 5000);
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
         }
 
-        async function fazerRequisicao(action, body) {
-            showLoading(action === 'login' ? 'Autenticando...' : 'Carregando...');
-            try {
-                const res = await fetch(APPS_SCRIPT_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action,...body})});
-                const data = await res.json();
-                if (!data.success) throw new Error(data.message);
-                return data;
-            } catch(err) { throw err; }
-            finally { hideLoading(); }
+        function showError(msg) {
+            const el = document.getElementById('loginError');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 5000);
         }
 
         async function fazerLogin() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
-            if (!user || !pass) return showError('Preencha usuário e senha');
+
+            if (!user || !pass) {
+                showError('Preencha usuário e senha');
+                return;
+            }
+
+            showLoading('Autenticando...');
+
             try {
-                const data = await fazerRequisicao('login', {usuario:user, senha:pass});
-                tecnico = {nome:data.nome, usuario:data.usuario};
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'login', usuario: user, senha: pass })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Usuário ou senha inválidos');
+                }
+
+                tecnico = { nome: data.nome, usuario: data.usuario };
                 localStorage.setItem('tecnico', JSON.stringify(tecnico));
-                mostrarTelaStart();
-            } catch(err) { showError(err.message); }
+
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('corporateHeader').style.display = 'flex';
+                document.getElementById('startScreen').style.display = 'flex';
+                document.getElementById('nomeTecnico').textContent = tecnico.nome;
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                hideLoading();
+            }
         }
 
-        function mostrarTelaStart() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('corporateHeader').style.display = 'flex';
-            document.getElementById('startScreen').style.display = 'flex';
-            document.getElementById('nomeTecnico').textContent = tecnico.nome;
-        }
-
-        async function iniciarLeitura() { /* mesma função da versão anterior */ }
         function logout() {
             localStorage.removeItem('tecnico');
             document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('leituraScreen').style.display = 'none';
-            document.getElementById('bottomBar').classList.remove('show');
             document.getElementById('corporateHeader').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
         }
 
-        // (o resto do código de leitura, menu suspenso, foto câmera, justificativa, progresso, etc. está igual à versão anterior)
-
-        window.onload = () => {
+        // Auto-login
+        window.onload = function() {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
-                tecnico = JSON.parse(saved);
-                mostrarTelaStart();
+                try {
+                    tecnico = JSON.parse(saved);
+                    document.getElementById('corporateHeader').style.display = 'flex';
+                    document.getElementById('startScreen').style.display = 'flex';
+                    document.getElementById('nomeTecnico').textContent = tecnico.nome;
+                } catch (e) {
+                    localStorage.removeItem('tecnico');
+                }
             } else {
                 document.getElementById('loginScreen').style.display = 'flex';
             }
         };
+
+        // Enter para logar
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    fazerLogin();
+                }
+            });
+        });
     </script>
 </body>
 </html>
