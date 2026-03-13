@@ -1,11 +1,11 @@
 <!-- 
-VERSÃO: v1.11 – 13/03/2026 14:20 -03
-Alterações desta versão:
-- Lógica ajustada para leitura do visor (não m³): calcula consumo do dia = atual - anterior
-- Justificativa abre se: consumo < 0 OU consumo > 20% do consumo anterior
-- Botão de foto movido para baixo do campo de leitura
-- Layout mobile melhorado: mais espaçamento, botões maiores, cards mais arejados
-- Mantida robustez anterior (logout, telas exclusivas, loading, etc.)
+VERSÃO: v1.12 – 13/03/2026 15:10 -03
+Alterações:
+- Exibe "Consumo do dia" (atual - anterior) abaixo da leitura
+- Justificativa abre se consumo < 0 OU consumo > 20% do consumo anterior
+- Botão foto abaixo do campo de leitura
+- Layout mobile melhorado (mais espaço, botões maiores)
+- Alertas diferenciados (amarelo para aumento, vermelho para negativo)
 -->
 
 <!DOCTYPE html>
@@ -69,7 +69,7 @@ Alterações desta versão:
         .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.6rem; border:none; border-radius:16px; font-size:1.35rem; font-weight:800; width:100%; cursor:pointer; margin:1.8rem 0; min-height:64px; }
         .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.3rem; border-radius:14px; font-weight:700; width:100%; cursor:pointer; min-height:58px; }
 
-        .leitura-screen { background:#f9fafc; padding:1.5rem 1rem 12rem; }
+        .leitura-screen { background:#f9fafc; padding:1.5rem 1rem 13rem; }
         .progress-container { background:var(--white); margin-bottom:1.5rem; padding:1.5rem; border-radius:20px; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
         .progress-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:1.15rem; font-weight:600; }
         .progress-bar-bg { height:16px; background:var(--gray-medium); border-radius:8px; overflow:hidden; }
@@ -80,16 +80,18 @@ Alterações desta versão:
         .hidrometro-item { background:var(--white); border-radius:20px; padding:1.8rem; margin-bottom:1.6rem; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
         .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
         .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.8rem; font-size:1.3rem; }
-        .leitura-anterior { color:#555; font-size:1.05rem; margin-bottom:1rem; font-weight:500; }
+        .leitura-anterior { color:#555; font-size:1.05rem; margin-bottom:0.8rem; font-weight:500; }
         .leitura-field { margin-bottom:1.2rem; }
         .input-field { width:100%; padding:1.4rem; border:2px solid var(--gray-medium); border-radius:14px; font-size:1.5rem; text-align:center; font-weight:700; min-height:60px; }
         .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
+        .consumo-info { font-size:1.1rem; color:#444; margin-bottom:1.2rem; font-weight:600; }
         .alerta-variacao { display:none; background:#FFF3E0; border:1px solid var(--warning); color:#E65100; padding:1.3rem; border-radius:14px; margin:1.2rem 0; font-weight:700; font-size:1.05rem; }
+        .alerta-variacao.negativo { background:#FFEBEE; border-color:var(--danger); color:var(--danger); }
         .alerta-variacao.show { display:block; }
         .justificativa { display:none; margin-top:1.3rem; }
         .justificativa.show { display:block; }
         .justificativa textarea { width:100%; padding:1.3rem; border:2px solid var(--danger); border-radius:14px; min-height:150px; font-size:1.1rem; }
-        .foto-section { margin-top:1.4rem; }
+        .foto-section { margin-top:1.5rem; }
         .foto-btn { width:100%; padding:1.4rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:14px; font-weight:800; font-size:1.15rem; cursor:pointer; text-align:center; min-height:60px; }
         .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
         .foto-preview { width:100%; max-height:280px; object-fit:cover; border-radius:14px; margin-top:1.3rem; display:none; box-shadow:0 6px 18px rgba(0,0,0,0.1); }
@@ -248,8 +250,7 @@ Alterações desta versão:
                     leituraAtual: '',
                     foto: null,
                     justificativa: '',
-                    variacao: 0,
-                    consumoAnterior: 0  // Para comparar consumo dia anterior (se disponível no futuro)
+                    variacao: 0
                 }));
 
                 locaisUnicos = [...new Set(hidrometros.map(h => h.local))];
@@ -285,6 +286,7 @@ Alterações desta versão:
             if (!local) return;
 
             hidrometros.filter(h => h.local === local).forEach(h => {
+                const consumoDia = h.leituraAtual - h.leituraAnterior;
                 const item = document.createElement('div');
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
                 item.innerHTML = `
@@ -294,6 +296,7 @@ Alterações desta versão:
                         <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
                                oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
                     </div>
+                    <div class="consumo-info">Consumo do dia: <strong>${isNaN(consumoDia) ? '-' : consumoDia.toFixed(2)}</strong></div>
                     <div id="alerta-${h.id}" class="alerta-variacao"></div>
                     <div id="just-${h.id}" class="justificativa">
                         <textarea placeholder="Justificativa obrigatória" oninput="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
@@ -319,24 +322,23 @@ Alterações desta versão:
 
             const anterior = h.leituraAnterior;
             const atual = h.leituraAtual;
-
             const consumoDia = atual - anterior;
 
             let precisaJust = false;
             let mensagem = '';
+            let classeAlerta = '';
 
-            if (atual !== '' && !isNaN(atual)) {
+            if (!isNaN(atual)) {
                 if (consumoDia < 0) {
                     precisaJust = true;
                     mensagem = '⚠️ Consumo menor que ontem!';
+                    classeAlerta = 'negativo';
                 } else if (anterior > 0) {
                     const percentual = (consumoDia / anterior) * 100;
                     if (percentual > 120) {  // > 20% de aumento
                         precisaJust = true;
                         mensagem = `⚠️ Consumo +${percentual.toFixed(1)}% maior que ontem!`;
                     }
-                } else if (consumoDia > 0) {
-                    // anterior = 0, consumo positivo → aceita sem alerta (primeira leitura)
                 }
             }
 
@@ -344,13 +346,15 @@ Alterações desta versão:
             const just = document.getElementById(`just-${id}`);
             const input = document.getElementById(`input-${id}`);
 
-            alerta.classList.toggle('show', precisaJust);
+            alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
+            alerta.textContent = mensagem;
+
             just.classList.toggle('show', precisaJust);
             input.classList.toggle('erro', precisaJust);
 
-            if (precisaJust) {
-                alerta.textContent = mensagem;
-            }
+            // Atualiza consumo do dia no DOM
+            const consumoEl = alerta.parentElement.querySelector('.consumo-info strong');
+            if (consumoEl) consumoEl.textContent = isNaN(consumoDia) ? '-' : consumoDia.toFixed(2);
 
             atualizarProgresso();
         }
