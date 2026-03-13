@@ -1,12 +1,10 @@
 <!-- 
-VERSÃO: v1.19 – 13/03/2026 18:00 -03
-Correções definitivas:
-- Atualização forçada de h.leituraAtual ANTES de calcular consumo/variação
-- Uso de Number(valor) com fallback para 0 (mais robusto que parseFloat)
-- Atualização do DOM com template literal segura e direta
-- Inicialização explícita de consumo/variação ao carregar cada hidrômetro
-- Alertas/justificativa funcionam em todos os itens
-- Botão Finalizar só ativo quando todos completos
+VERSÃO: v1.20 – 13/03/2026 18:30 -03
+Correções:
+- Corrige ID undefined no input/consumo-info/alerta/just (usa h.id ou fallback)
+- Log no console ao carregar cada hidrômetro (veja F12 → Console)
+- Cálculo consumo/variação em tempo real + robustez contra undefined
+- Inicialização segura ao carregar itens
 -->
 
 <!DOCTYPE html>
@@ -233,8 +231,8 @@ Correções definitivas:
 
                 if (!data.success) throw new Error(data.message || 'Erro ao iniciar');
 
-                hidrometros = data.hidrometros.map(h => ({
-                    id: h.id,
+                hidrometros = data.hidrometros.map((h, index) => ({
+                    id: h.id || `hid-${index}`,  // fallback se id undefined
                     local: h.local,
                     tipo: h.tipo,
                     leituraAnterior: parseFloat(h.leituraAnterior) || 0,
@@ -277,43 +275,49 @@ Correções definitivas:
 
             if (!local) return;
 
-            hidrometros.filter(h => h.local === local).forEach(h => {
+            hidrometros.filter(h => h.local === local).forEach((h, index) => {
+                const safeId = h.id || `hid-${index}`; // fallback para ID
+                console.log('Carregando hidrômetro:', safeId, h);  // log para debug
+
                 const item = document.createElement('div');
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
                 item.innerHTML = `
                     <div class="hidrometro-tipo">${h.tipo}</div>
                     <div class="leitura-anterior">Leitura anterior: <strong>${h.leituraAnterior.toFixed(0)}</strong></div>
                     <div class="leitura-field">
-                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual}" 
-                               oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
+                        <input type="number" step="0.01" class="input-field" id="input-${safeId}" value="${h.leituraAtual}" 
+                               oninput="atualizarLeitura('${safeId}', this.value)" placeholder="Leitura atual">
                     </div>
-                    <div class="consumo-info" id="consumo-info-${h.id}">
+                    <div class="consumo-info" id="consumo-info-${safeId}">
                         Consumo do dia: <strong>-</strong><br>
                         Variação: <strong>-</strong>
                     </div>
-                    <div id="alerta-${h.id}" class="alerta-variacao"></div>
-                    <div id="just-${h.id}" class="justificativa">
+                    <div id="alerta-${safeId}" class="alerta-variacao"></div>
+                    <div id="just-${safeId}" class="justificativa">
                         <textarea placeholder="Justificativa obrigatória" oninput="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
-                            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${h.id}', this)">
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${safeId}', this)">
                             Tirar foto da leitura
                         </label>
-                        <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto||''}">
+                        <img id="preview-${safeId}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto||''}">
                     </div>
                 `;
                 container.appendChild(item);
-                atualizarLeitura(h.id, h.leituraAtual);
+                atualizarLeitura(safeId, h.leituraAtual);
             });
             atualizarProgresso();
         }
 
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
-            if (!h) return;
+            if (!h) {
+                console.warn('Hidrometro não encontrado para ID:', id);
+                return;
+            }
 
-            // FORÇA atualização do valor atual com segurança
+            // Atualiza o valor atual com segurança
             const novoValor = Number(valor) || 0;
             h.leituraAtual = novoValor;
 
