@@ -1,11 +1,11 @@
 <!-- 
-VERSÃO: v1.26 – 13/03/2026 21:45 -03
+VERSÃO: v1.27 – 13/03/2026 22:15 -03
 Correções:
-- Alerta agora aparece corretamente ao digitar leitura e some ao justificar
-- Borda vermelha some ao justificar
-- Progresso atualiza em tempo real
-- Reavaliação dinâmica de alerta/borda/progresso ao digitar justificativa
-- Logs para confirmar o estado
+- Campo de justificativa agora aparece quando precisaJust = true (mesmo após foto ou leitura)
+- Alerta e borda vermelha somem ao preencher justificativa
+- Progresso atualiza corretamente
+- Chamada de reavaliarAlertaEProgresso em todos os eventos relevantes
+- Logs para justificar o estado do campo justificativa
 -->
 
 <!DOCTYPE html>
@@ -327,7 +327,6 @@ Correções:
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            // Recalcula precisaJust com valores atuais
             const consumoDia = h.leituraAtual - h.leituraAnterior;
             let precisaJust = false;
             let mensagem = '';
@@ -360,6 +359,7 @@ Correções:
             }
 
             const alerta = document.getElementById(`alerta-${id}`);
+            const just = document.getElementById(`just-${id}`);
             const input = document.getElementById(`input-${id}`);
 
             if (alerta) {
@@ -371,11 +371,19 @@ Correções:
                 }
             }
 
+            if (just) {
+                if (precisaJust) {
+                    just.classList.add('show');
+                } else {
+                    just.classList.remove('show');
+                }
+            }
+
             if (input) {
                 input.classList.toggle('erro', precisaJust);
             }
 
-            console.log(`[LOG REAVALIAÇÃO] ${h.id} | Precisa just agora: ${precisaJust} | Justificativa: "${h.justificativa}" | Alerta show: ${alerta ? alerta.classList.contains('show') : 'não encontrado'}`);
+            console.log(`[LOG REAVALIAÇÃO] ${h.id} | Precisa just agora: ${precisaJust} | Justificativa visível: ${just ? just.classList.contains('show') : 'não encontrado'} | Borda erro: ${input ? input.classList.contains('erro') : 'não encontrado'}`);
 
             atualizarProgresso();
         }
@@ -424,12 +432,17 @@ Correções:
             }
 
             const alerta = document.getElementById(`alerta-${id}`);
+            const just = document.getElementById(`just-${id}`);
             const input = document.getElementById(`input-${id}`);
             const consumoInfo = document.getElementById(`consumo-info-${id}`);
 
             if (alerta) {
                 alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
                 alerta.textContent = mensagem;
+            }
+
+            if (just) {
+                just.classList.toggle('show', precisaJust);
             }
 
             if (input) input.classList.toggle('erro', precisaJust);
@@ -443,11 +456,11 @@ Correções:
 
             console.log(`[LOG ATUALIZAÇÃO] ${h.id} | Valor: ${novoValor} | Consumo dia: ${consumoDia.toFixed(2)} | Variação: ${variacao} | Anterior: ${h.consumoAnterior} | Justificativa: "${h.justificativa}" | Precisa just: ${precisaJust}`);
 
-            atualizarProgresso();
+            reavaliarAlertaEProgresso(id);
         }
 
         function forceUpdateProgress() {
-            console.log('[LOG FORÇADO PROGRESSO] Reavaliando todos os itens após justificativa...');
+            console.log('[LOG FORÇADO PROGRESSO] Reavaliando todos os itens...');
             hidrometros.forEach(h => reavaliarAlertaEProgresso(h.id));
         }
 
@@ -464,7 +477,7 @@ Correções:
                     preview.classList.add('show');
                     input.parentElement.classList.add('tem-foto');
                     input.parentElement.innerHTML = 'Foto adicionada ✓';
-                    atualizarProgresso();
+                    reavaliarAlertaEProgresso(id);
                 }
             };
             reader.readAsDataURL(file);
