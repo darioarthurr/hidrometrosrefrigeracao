@@ -1,10 +1,12 @@
 <!-- 
-VERSÃO: v1.12 – 13/03/2026 15:10 -03
-Alterações:
-- Exibe "Consumo do dia" e "Variação % do consumo" (baseado em consumo anterior)
-- Justificativa obrigatória se: consumo dia < 0 OU variação consumo > +20%
-- Se consumo anterior = 0 ou não existir → não dispara alerta de aumento
-- Layout mantido (botão foto abaixo do input, espaçamento bom)
+VERSÃO: v1.13 – 13/03/2026 16:00 -03
+Correções finais:
+- Cálculo de consumo do dia em tempo real (atual - anterior)
+- Variação % correta: (consumo_dia - consumo_anterior) / consumo_anterior * 100
+- Proteção contra divisão por zero
+- Alerta para consumo < 0 ou variação > +20%
+- Atualiza DOM (consumo e variação) automaticamente
+- Justificativa obrigatória quando necessário
 -->
 
 <!DOCTYPE html>
@@ -236,7 +238,7 @@ Alterações:
                     local: h.local,
                     tipo: h.tipo,
                     leituraAnterior: parseFloat(h.leituraAnterior) || 0,
-                    consumoAnterior: parseFloat(h.consumoAnterior) || 0,  // Novo campo!
+                    consumoAnterior: parseFloat(h.consumoAnterior) || 0,
                     leituraAtual: '',
                     foto: null,
                     justificativa: '',
@@ -276,9 +278,6 @@ Alterações:
             if (!local) return;
 
             hidrometros.filter(h => h.local === local).forEach(h => {
-                const consumoDia = h.leituraAtual - h.leituraAnterior;
-                const variacao = h.consumoAnterior > 0 ? ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100 : 0;
-
                 const item = document.createElement('div');
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
                 item.innerHTML = `
@@ -288,9 +287,9 @@ Alterações:
                         <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
                                oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
                     </div>
-                    <div class="consumo-info">
-                        Consumo do dia: <strong>${isNaN(consumoDia) ? '-' : consumoDia.toFixed(2)}</strong><br>
-                        Variação: <strong>${h.consumoAnterior > 0 ? variacao.toFixed(1) + '%' : '-'}</strong>
+                    <div class="consumo-info" id="consumo-info-${h.id}">
+                        Consumo do dia: <strong>-</strong><br>
+                        Variação: <strong>-</strong>
                     </div>
                     <div id="alerta-${h.id}" class="alerta-variacao"></div>
                     <div id="just-${h.id}" class="justificativa">
@@ -305,6 +304,7 @@ Alterações:
                     </div>
                 `;
                 container.appendChild(item);
+                atualizarLeitura(h.id, h.leituraAtual); // inicializa consumo/variação
             });
             atualizarProgresso();
         }
@@ -319,9 +319,10 @@ Alterações:
             const atual = h.leituraAtual;
             const consumoDia = atual - anterior;
 
-            let precisaJust = false;
+            let variacao = '-';
             let mensagem = '';
             let classeAlerta = '';
+            let precisaJust = false;
 
             if (!isNaN(atual)) {
                 if (consumoDia < 0) {
@@ -329,7 +330,7 @@ Alterações:
                     mensagem = '⚠️ Consumo menor que ontem!';
                     classeAlerta = 'negativo';
                 } else if (h.consumoAnterior > 0) {
-                    const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
+                    variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
                     h.variacao = variacao;
                     if (variacao > 20) {
                         precisaJust = true;
@@ -341,6 +342,7 @@ Alterações:
             const alerta = document.getElementById(`alerta-${id}`);
             const just = document.getElementById(`just-${id}`);
             const input = document.getElementById(`input-${id}`);
+            const consumoInfo = document.getElementById(`consumo-info-${id}`);
 
             alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
             alerta.textContent = mensagem;
@@ -348,12 +350,10 @@ Alterações:
             just.classList.toggle('show', precisaJust);
             input.classList.toggle('erro', precisaJust);
 
-            // Atualiza consumo e variação no DOM
-            const consumoEl = alerta.parentElement.querySelector('.consumo-info');
-            if (consumoEl) {
-                consumoEl.innerHTML = `
-                    Consumo do dia: <strong>${isNaN(consumoDia) ? '-' : consumoDia.toFixed(2)}</strong><br>
-                    Variação: <strong>${h.consumoAnterior > 0 ? h.variacao.toFixed(1) + '%' : '-'}</strong>
+            if (consumoInfo) {
+                consumoInfo.innerHTML = `
+                    Consumo do dia: <strong>${consumoDia.toFixed(2)}</strong><br>
+                    Variação: <strong>${variacao === '-' ? '-' : variacao.toFixed(1) + '%'}</strong>
                 `;
             }
 
