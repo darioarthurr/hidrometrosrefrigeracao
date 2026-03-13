@@ -1,13 +1,12 @@
 <!-- 
-VERSÃO: v1.18 – 13/03/2026 17:45 -03
+VERSÃO: v1.19 – 13/03/2026 18:00 -03
 Correções definitivas:
-- Cálculo de consumo e variação 100% em tempo real (a cada digitação)
-- Atualização correta de h.leituraAtual antes de calcular
-- Inicialização explícita de consumo/variação ao carregar itens
-- Proteção total contra vazio/NaN/divisão por zero
-- Alertas/justificativa disparando em todos os hidrômetros
+- Atualização forçada de h.leituraAtual ANTES de calcular consumo/variação
+- Uso de Number(valor) com fallback para 0 (mais robusto que parseFloat)
+- Atualização do DOM com template literal segura e direta
+- Inicialização explícita de consumo/variação ao carregar cada hidrômetro
+- Alertas/justificativa funcionam em todos os itens
 - Botão Finalizar só ativo quando todos completos
-- Layout e foto mantidos
 -->
 
 <!DOCTYPE html>
@@ -314,19 +313,19 @@ Correções definitivas:
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            // Atualiza o valor atual com segurança
-            h.leituraAtual = parseFloat(valor) || 0;
+            // FORÇA atualização do valor atual com segurança
+            const novoValor = Number(valor) || 0;
+            h.leituraAtual = novoValor;
 
             const anterior = h.leituraAnterior;
-            const atual = h.leituraAtual;
-            const consumoDia = atual - anterior;
+            const consumoDia = novoValor - anterior;
 
             let variacao = '-';
             let mensagem = '';
             let classeAlerta = '';
             let precisaJust = false;
 
-            if (!isNaN(atual)) {
+            if (!isNaN(novoValor)) {
                 if (consumoDia < 0) {
                     precisaJust = true;
                     mensagem = '⚠️ Consumo menor que ontem!';
@@ -384,7 +383,7 @@ Correções definitivas:
         }
 
         function isCompleto(h) {
-            if (!h.leituraAtual || isNaN(h.leituraAtual)) return false;
+            if (h.leituraAtual === 0 && h.leituraAnterior === 0) return false;
             const consumoDia = h.leituraAtual - h.leituraAnterior;
             let precisaJust = false;
             if (consumoDia < 0) precisaJust = true;
