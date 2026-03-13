@@ -1,11 +1,11 @@
 <!-- 
-VERSÃO: v1.8 – 13/03/2025
-Alterações desta versão:
-- Tela de leitura não sobrepõe login/start
-- Logout força volta completa ao login
-- Justificativa aparece automaticamente quando leitura < anterior OU variação > 20%
-- Progresso atualiza em tempo real
-- Layout mobile limpo e touch-friendly
+VERSÃO: v1.9 – 13/03/2026 01:30 PM -03
+Correções desta versão:
+- showScreen() garante que apenas uma tela fique visível (evita sobreposição)
+- logout() limpa estado + telas + localStorage
+- Justificativa aparece e é obrigatória quando leitura < anterior OU variação > 20%
+- Layout mobile/desktop limpo (padding/margin maior, botões altos)
+- Progresso e Finalizar atualizam em tempo real
 - Loading sempre some
 -->
 
@@ -37,7 +37,7 @@ Alterações desta versão:
         /* HEADER */
         .corporate-header { 
             background:var(--white); 
-            padding:0.9rem 1rem; 
+            padding:1rem; 
             display:flex; 
             justify-content:space-between; 
             align-items:center; 
@@ -45,64 +45,68 @@ Alterações desta versão:
             position:sticky; 
             top:0; 
             z-index:100; 
-            font-size:0.95rem; 
+            font-size:1rem; 
         }
-        .logo-gps { font-weight:800; color:var(--gps-blue); font-size:1.05rem; }
-        .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; font-size:1.1rem; }
-        .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.85rem; }
+        .logo-gps { font-weight:800; color:var(--gps-blue); }
+        .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; }
+        .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.9rem; }
+
+        /* TELAS COMUNS */
+        .screen { display:none; flex:1; flex-direction:column; }
+        .screen.active { display:flex; }
 
         /* LOGIN */
-        .login-screen { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1.5rem; background:rgba(0,0,0,0.05); }
-        .login-card { background:var(--white); border-radius:20px; padding:2rem 1.5rem; box-shadow:0 15px 50px rgba(0,0,0,0.25); max-width:420px; margin:0 auto; }
-        .login-icon { width:85px; height:85px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.4rem; display:flex; align-items:center; justify-content:center; font-size:2.8rem; box-shadow:0 10px 30px rgba(0,51,102,0.25); }
-        .login-title { text-align:center; color:var(--gps-blue); font-size:1.55rem; font-weight:800; margin-bottom:0.4rem; }
-        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.92rem; margin-bottom:1.8rem; }
-        .form-group { margin-bottom:1.2rem; }
-        .form-label { display:block; margin-bottom:0.4rem; font-weight:700; font-size:0.9rem; }
-        .form-input { width:100%; padding:1.1rem; border:2px solid var(--gray-medium); border-radius:10px; font-size:1.1rem; background:var(--gray-light); transition:border-color 0.2s; }
+        .login-screen { justify-content:center; padding:1.5rem 1rem; background:rgba(0,0,0,0.05); }
+        .login-card { background:var(--white); border-radius:20px; padding:2rem 1.5rem; box-shadow:0 15px 50px rgba(0,0,0,0.25); max-width:420px; width:100%; margin:0 auto; }
+        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.5rem; display:flex; align-items:center; justify-content:center; font-size:3rem; box-shadow:0 12px 30px rgba(0,51,102,0.3); }
+        .login-title { text-align:center; color:var(--gps-blue); font-size:1.6rem; font-weight:800; margin-bottom:0.5rem; }
+        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.95rem; margin-bottom:2rem; }
+        .form-group { margin-bottom:1.3rem; }
+        .form-label { display:block; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem; }
+        .form-input { width:100%; padding:1.1rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.1rem; background:var(--gray-light); transition:border-color 0.2s; }
         .form-input:focus { border-color:var(--gps-blue); background:white; outline:none; box-shadow:0 0 0 3px rgba(0,51,102,0.1); }
-        .btn-primary { width:100%; padding:1.15rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:10px; font-size:1.1rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
+        .btn-primary { width:100%; padding:1.2rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.1rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
         .btn-primary:active { transform:scale(0.98); }
-        .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
+        .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1.3rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
 
         /* START SCREEN */
-        .start-screen { display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; padding:1.5rem; }
-        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.2rem; text-align:center; color:white; max-width:380px; width:100%; }
-        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.4rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; width:100%; cursor:pointer; margin:1.2rem 0; min-height:54px; }
-        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:48px; }
+        .start-screen { justify-content:center; align-items:center; padding:1.5rem; }
+        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.5rem 2rem; text-align:center; color:white; max-width:400px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.2); }
+        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.4rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; width:100%; cursor:pointer; margin:1.5rem 0; min-height:56px; }
+        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:50px; }
 
         /* LEITURA SCREEN */
-        .leitura-screen { display:none; flex:1; flex-direction:column; background:#f9fafc; padding-bottom:10rem; }
-        .progress-container { background:var(--white); margin:1rem; padding:1.2rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.6rem; font-size:1.05rem; font-weight:600; }
-        .progress-bar-bg { height:12px; background:var(--gray-medium); border-radius:6px; overflow:hidden; }
+        .leitura-screen { background:#f9fafc; padding-bottom:11rem; }
+        .progress-container { background:var(--white); margin:1rem; padding:1.3rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.7rem; font-size:1.1rem; font-weight:600; }
+        .progress-bar-bg { height:14px; background:var(--gray-medium); border-radius:7px; overflow:hidden; }
         .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); transition:width 0.4s ease; }
-        .local-selector { margin:0 1rem 1rem; }
-        .local-selector select { width:100%; padding:1.1rem; border-radius:12px; font-size:1.1rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
+        .local-selector { margin:0 1rem 1.2rem; }
+        .local-selector select { width:100%; padding:1.2rem; border-radius:12px; font-size:1.15rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
         .locais-list { padding:0 1rem; }
-        .hidrometro-item { background:var(--white); border-radius:16px; padding:1.4rem; margin-bottom:1.2rem; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+        .hidrometro-item { background:var(--white); border-radius:16px; padding:1.5rem; margin-bottom:1.3rem; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
         .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
-        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.6rem; font-size:1.15rem; }
-        .leitura-anterior { color:#666; font-size:0.95rem; margin-bottom:0.8rem; }
-        .input-field { width:100%; padding:1.2rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.35rem; text-align:center; font-weight:700; margin-bottom:0.8rem; }
+        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.7rem; font-size:1.2rem; }
+        .leitura-anterior { color:#666; font-size:0.98rem; margin-bottom:0.9rem; }
+        .input-field { width:100%; padding:1.3rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.4rem; text-align:center; font-weight:700; margin-bottom:0.9rem; }
         .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
-        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1rem; border-radius:10px; margin:0.8rem 0; font-weight:700; font-size:0.95rem; }
+        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1.1rem; border-radius:10px; margin:0.9rem 0; font-weight:700; font-size:0.98rem; }
         .alerta-variacao.show { display:block; }
-        .justificativa { display:none; margin-top:1rem; }
+        .justificativa { display:none; margin-top:1.1rem; }
         .justificativa.show { display:block; }
-        .justificativa textarea { width:100%; padding:1rem; border:2px solid var(--danger); border-radius:10px; min-height:120px; font-size:1rem; }
-        .foto-btn { width:100%; padding:1.2rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; margin-top:1rem; cursor:pointer; text-align:center; min-height:52px; }
+        .justificativa textarea { width:100%; padding:1.1rem; border:2px solid var(--danger); border-radius:10px; min-height:130px; font-size:1rem; }
+        .foto-btn { width:100%; padding:1.3rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; margin-top:1.1rem; cursor:pointer; text-align:center; min-height:54px; }
         .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
-        .foto-preview { width:100%; max-height:240px; object-fit:cover; border-radius:12px; margin-top:1rem; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .foto-preview { width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-top:1.1rem; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
         .foto-preview.show { display:block; }
 
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.2rem 1.5rem 2rem; box-shadow:0 -8px 30px rgba(0,0,0,0.12); display:none; z-index:1000; }
-        .btn-finalizar { width:100%; padding:1.4rem; border:none; border-radius:14px; font-size:1.2rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:52px; }
+        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.3rem 1.5rem 2.2rem; box-shadow:0 -8px 30px rgba(0,0,0,0.12); display:none; z-index:1000; }
+        .btn-finalizar { width:100%; padding:1.5rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:56px; }
         .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; cursor:pointer; }
 
         .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.95); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
         .loading-overlay.show { display:flex; }
-        .spinner { width:70px; height:70px; border:6px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
+        .spinner { width:80px; height:80px; border:8px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
     </style>
 </head>
@@ -116,7 +120,7 @@ Alterações desta versão:
         </div>
 
         <!-- LOGIN -->
-        <div id="loginScreen" class="login-screen">
+        <div id="loginScreen" class="login-screen screen active">
             <div class="login-card">
                 <div class="login-icon">💧</div>
                 <h1 class="login-title">Leitura de Hidrômetros</h1>
@@ -134,8 +138,8 @@ Alterações desta versão:
             </div>
         </div>
 
-        <!-- TELA INICIAL -->
-        <div id="startScreen" class="start-screen">
+        <!-- START SCREEN -->
+        <div id="startScreen" class="start-screen screen">
             <div class="welcome-card">
                 <div style="font-size:3.2rem;margin-bottom:1rem;">👋</div>
                 <h2>Olá, <span id="nomeTecnico"></span></h2>
@@ -145,8 +149,8 @@ Alterações desta versão:
             </div>
         </div>
 
-        <!-- TELA DE LEITURA -->
-        <div id="leituraScreen" class="leitura-screen">
+        <!-- LEITURA SCREEN -->
+        <div id="leituraScreen" class="leitura-screen screen">
             <div class="progress-container">
                 <div class="progress-header">
                     <span>Progresso da Ronda</span>
@@ -164,7 +168,7 @@ Alterações desta versão:
             <div id="hidrometrosContainer" class="locais-list"></div>
         </div>
 
-        <!-- BARRA INFERIOR -->
+        <!-- BOTTOM BAR -->
         <div id="bottomBar" class="bottom-bar">
             <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
         </div>
@@ -198,6 +202,13 @@ Alterações desta versão:
             setTimeout(() => el.classList.remove('show'), 5000);
         }
 
+        // FUNÇÃO CENTRAL PARA MOSTRAR TELA (EVITA SOBREPOSIÇÃO)
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+            const screen = document.getElementById(screenId);
+            if (screen) screen.classList.add('active');
+        }
+
         // LOGIN
         async function fazerLogin() {
             const user = document.getElementById('username').value.trim();
@@ -219,9 +230,8 @@ Alterações desta versão:
                 tecnico = {nome: data.nome, usuario: data.usuario};
                 localStorage.setItem('tecnico', JSON.stringify(tecnico));
 
-                document.getElementById('loginScreen').style.display = 'none';
+                showScreen('startScreen');
                 document.getElementById('corporateHeader').style.display = 'flex';
-                document.getElementById('startScreen').style.display = 'flex';
                 document.getElementById('nomeTecnico').textContent = tecnico.nome;
 
             } catch (err) {
@@ -258,8 +268,7 @@ Alterações desta versão:
 
                 locaisUnicos = [...new Set(hidrometros.map(h => h.local))];
 
-                document.getElementById('startScreen').style.display = 'none';
-                document.getElementById('leituraScreen').style.display = 'flex';
+                showScreen('leituraScreen');
                 document.getElementById('bottomBar').style.display = 'block';
 
                 preencherSelectLocais();
@@ -397,36 +406,35 @@ Alterações desta versão:
             }
         }
 
-        // LOGOUT - FORÇA VOLTA AO LOGIN
+        // LOGOUT - LIMPA TUDO
         function logout() {
             localStorage.removeItem('tecnico');
             tecnico = null;
             hidrometros = [];
             locaisUnicos = [];
-            document.getElementById('leituraScreen').style.display = 'none';
-            document.getElementById('bottomBar').style.display = 'none';
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('loginScreen').classList.add('active');
             document.getElementById('corporateHeader').style.display = 'none';
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('bottomBar').style.display = 'none';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
         }
 
-        // AUTO-LOGIN
+        // AUTO-LOGIN E INICIALIZAÇÃO
         window.onload = function() {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
                 try {
                     tecnico = JSON.parse(saved);
                     document.getElementById('corporateHeader').style.display = 'flex';
-                    document.getElementById('startScreen').style.display = 'flex';
+                    document.getElementById('startScreen').classList.add('active');
                     document.getElementById('nomeTecnico').textContent = tecnico.nome;
                 } catch (e) {
                     localStorage.removeItem('tecnico');
-                    document.getElementById('loginScreen').style.display = 'flex';
+                    document.getElementById('loginScreen').classList.add('active');
                 }
             } else {
-                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('loginScreen').classList.add('active');
             }
         };
 
