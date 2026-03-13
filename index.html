@@ -18,271 +18,42 @@
             --text-dark: #2C3E50;
             --danger: #E74C3C;
             --warning: #F39C12;
-            --success: #27AE60;
         }
-       
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-       
-        body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
-            min-height: 100vh;
-            color: var(--text-dark);
-            line-height: 1.5;
-        }
-       
-        .container {
-            max-width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-       
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); }
+        .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
+
         /* Header */
-        .corporate-header {
-            background: var(--white);
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-       
-        .logo-gps {
-            font-weight: 800;
-            font-size: 1.1rem;
-            color: var(--gps-blue);
-            letter-spacing: -0.5px;
-        }
-       
-        .logo-multiplan {
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--multiplan-green);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-       
-        .app-title {
-            font-size: 0.7rem;
-            color: var(--gray-dark);
-            text-align: right;
-            margin-top: 0.1rem;
-        }
-       
-        /* Login - tela original */
-        .login-screen {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 1.5rem;
-        }
-       
-        .login-card {
-            background: var(--white);
-            border-radius: 24px;
-            padding: 2.5rem 1.5rem;
-            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto;
-            animation: slideUp 0.6s ease;
-        }
-       
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-       
-        .login-icon {
-            width: 90px;
-            height: 90px;
-            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--multiplan-green) 100%);
-            border-radius: 50%;
-            margin: 0 auto 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            box-shadow: 0 15px 40px rgba(0,51,102,0.3);
-        }
-       
-        .login-title {
-            text-align: center;
-            color: var(--gps-blue);
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin-bottom: 0.3rem;
-        }
-       
-        .login-subtitle {
-            text-align: center;
-            color: var(--gray-dark);
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-            font-weight: 500;
-        }
-       
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-       
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-dark);
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-       
-        .form-input {
-            width: 100%;
-            padding: 1.1rem 1.25rem;
-            border: 2px solid var(--gray-medium);
-            border-radius: 12px;
-            font-size: 1.1rem;
-            transition: all 0.3s;
-            background: var(--gray-light);
-        }
-       
-        .form-input:focus {
-            outline: none;
-            border-color: var(--gps-blue);
-            background: var(--white);
-            box-shadow: 0 0 0 4px rgba(0,51,102,0.1);
-        }
-       
-        .btn {
-            width: 100%;
-            padding: 1.2rem;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-       
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
-            color: var(--white);
-            box-shadow: 0 6px 20px rgba(0,51,102,0.4);
-        }
-       
-        .btn-primary:active {
-            transform: scale(0.97);
-            box-shadow: 0 3px 10px rgba(0,51,102,0.3);
-        }
-       
-        .error-message {
-            background: #FDEDEC;
-            color: var(--danger);
-            padding: 1rem 1.25rem;
-            border-radius: 10px;
-            margin-bottom: 1.25rem;
-            font-size: 0.95rem;
-            font-weight: 600;
-            display: none;
-            border-left: 4px solid var(--danger);
-        }
-       
-        .error-message.show {
-            display: block;
-        }
+        .corporate-header { background:var(--white); padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; }
+        .logo-gps { font-weight:800; font-size:1.1rem; color:var(--gps-blue); }
+        .system-title { font-weight:800; font-size:1.15rem; color:var(--gps-blue); flex:1; text-align:center; }
+        .logo-multiplan { font-weight:700; font-size:0.9rem; color:var(--multiplan-green); text-transform:uppercase; }
+
+        /* Login - original */
+        .login-screen { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1.5rem; }
+        .login-card { background:var(--white); border-radius:24px; padding:2.5rem 1.5rem; box-shadow:0 25px 80px rgba(0,0,0,0.4); max-width:400px; margin:0 auto; }
+        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.5rem; display:flex; align-items:center; justify-content:center; font-size:3rem; box-shadow:0 15px 40px rgba(0,51,102,0.3); }
+        .login-title { text-align:center; color:var(--gps-blue); font-size:1.6rem; font-weight:800; margin-bottom:0.3rem; }
+        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.95rem; margin-bottom:2rem; font-weight:500; }
+        .form-group { margin-bottom:1.25rem; }
+        .form-label { display:block; margin-bottom:0.5rem; color:var(--text-dark); font-weight:700; font-size:0.9rem; }
+        .form-input { width:100%; padding:1.1rem 1.25rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.1rem; background:var(--gray-light); }
+        .form-input:focus { outline:none; border-color:var(--gps-blue); background:var(--white); box-shadow:0 0 0 4px rgba(0,51,102,0.1); }
+        .btn-primary { width:100%; padding:1.2rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.1rem; font-weight:800; cursor:pointer; }
+        .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1rem; display:none; border-left:4px solid var(--danger); }
+        .error-message.show { display:block; }
 
         /* Start Screen */
-        .start-screen {
-            display: none;
-            flex: 1;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 1.5rem;
-        }
-
-        .welcome-card {
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 2rem;
-            text-align: center;
-            color: white;
-            max-width: 380px;
-            margin-bottom: 2rem;
-        }
-
-        .btn-iniciar {
-            background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
-            color: white;
-            padding: 1.5rem;
-            border: none;
-            border-radius: 16px;
-            font-size: 1.3rem;
-            font-weight: 800;
-            width: 100%;
-            max-width: 380px;
-            cursor: pointer;
-        }
-
-        .btn-sair {
-            background: transparent;
-            border: 2px solid rgba(255,255,255,0.6);
-            color: white;
-            padding: 1rem;
-            border-radius: 12px;
-            font-weight: 700;
-            width: 100%;
-            max-width: 380px;
-            margin-top: 1rem;
-            cursor: pointer;
-        }
+        .start-screen { display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; padding:1.5rem; }
+        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.5rem; text-align:center; color:white; max-width:400px; }
+        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.5rem; border:none; border-radius:16px; font-size:1.3rem; font-weight:800; width:100%; cursor:pointer; margin:1.5rem 0; }
+        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; }
 
         /* Loading */
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,51,102,0.95);
-            z-index: 9999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-        }
-
-        .loading-overlay.show {
-            display: flex;
-        }
-
-        .spinner {
-            width: 70px;
-            height: 70px;
-            border: 5px solid rgba(255,255,255,0.2);
-            border-top-color: var(--multiplan-green);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 1.5rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
+        .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.95); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
+        .loading-overlay.show { display:flex; }
+        .spinner { width:70px; height:70px; border:5px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:1rem; }
+        @keyframes spin { to { transform:rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -300,29 +71,25 @@
                 <div class="login-icon">💧</div>
                 <h1 class="login-title">Leitura de Hidrômetros</h1>
                 <p class="login-subtitle">Grupo GPS • Multiplan</p>
-               
                 <div id="loginError" class="error-message"></div>
-               
                 <div class="form-group">
                     <label class="form-label">Usuário</label>
                     <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
                 </div>
-               
                 <div class="form-group">
                     <label class="form-label">Senha</label>
                     <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
                 </div>
-               
-                <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
+                <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
             </div>
         </div>
 
-        <!-- Tela inicial após login -->
+        <!-- Tela inicial -->
         <div id="startScreen" class="start-screen">
             <div class="welcome-card">
-                <div style="font-size:2.5rem; margin-bottom:1rem;">👋</div>
-                <div style="font-size:1.6rem; font-weight:700;">Olá, <span id="nomeTecnico"></span></div>
-                <div style="margin:1.5rem 0; font-size:1.1rem; opacity:0.9;">Pronto para iniciar a leitura?</div>
+                <div style="font-size:2.8rem; margin-bottom:1rem;">👋</div>
+                <h2 style="margin-bottom:0.5rem;">Olá, <span id="nomeTecnico"></span></h2>
+                <p style="margin-bottom:2rem; opacity:0.9;">Pronto para iniciar a leitura?</p>
                 <button class="btn-iniciar" onclick="iniciarLeitura()">INICIAR LEITURA DOS HIDRÔMETROS</button>
                 <button class="btn-sair" onclick="logout()">SAIR</button>
             </div>
@@ -374,6 +141,8 @@
                     body: JSON.stringify({ action: 'login', usuario: user, senha: pass })
                 });
 
+                if (!response.ok) throw new Error('Erro na conexão com o servidor');
+
                 const data = await response.json();
 
                 if (!data.success) {
@@ -389,6 +158,7 @@
                 document.getElementById('nomeTecnico').textContent = tecnico.nome;
 
             } catch (err) {
+                console.error('Erro no login:', err);
                 showError(err.message);
             } finally {
                 hideLoading();
@@ -402,6 +172,44 @@
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+        }
+
+        async function iniciarLeitura() {
+            if (!tecnico) {
+                alert('Sessão expirada. Faça login novamente.');
+                logout();
+                return;
+            }
+
+            showLoading('Iniciando leitura...');
+
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'iniciar', usuario: tecnico.usuario })
+                });
+
+                if (!response.ok) throw new Error('Erro ao iniciar sessão');
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Não foi possível iniciar a leitura');
+                }
+
+                // Aqui você pode salvar os hidrômetros ou redirecionar para a tela de leitura
+                alert('Leitura iniciada com sucesso! ID da sessão: ' + data.sessaoId);
+                // Exemplo: redirecionar ou carregar a próxima tela
+                // document.getElementById('startScreen').style.display = 'none';
+                // document.getElementById('leituraScreen').style.display = 'flex';  // se você tiver essa tela
+
+            } catch (err) {
+                console.error('Erro ao iniciar:', err);
+                alert('Erro ao iniciar: ' + err.message);
+            } finally {
+                hideLoading();
+            }
         }
 
         // Auto-login
@@ -421,12 +229,10 @@
             }
         };
 
-        // Enter para logar
+        // Enter no campo senha
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('password').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    fazerLogin();
-                }
+                if (e.key === 'Enter') fazerLogin();
             });
         });
     </script>
