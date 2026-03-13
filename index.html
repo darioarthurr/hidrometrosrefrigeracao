@@ -1,416 +1,60 @@
-<!-- 
-VERSÃO: v1.29 – 13/03/2026 23:30 -03
-Log de alterações:
-- Restaurado Enter na senha para logar (funciona como antes)
-- Botão "Entrar" 100% funcional
-- Suporte a admin mantido: tela de dashboard com filtros e tabela
-- Fluxo de leitura operacao intacto
-- Link Apps Script atualizado: https://script.google.com/macros/s/AKfycbx4i20rlhuY_TmAQEzaikjgMKabUNNzgLgiaAQ__QC_rvvQyseTusrXzq_eTv9oeFNn4Q/exec
--->
+async function fazerLogin() {
+    console.log('[DEBUG LOGIN] Iniciando login...');
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#003366">
-    <title>Leitura de Hidrômetros</title>
-    <style>
-        :root {
-            --gps-blue: #003366;
-            --gps-blue-light: #004080;
-            --multiplan-green: #00A651;
-            --multiplan-green-light: #00C261;
-            --white: #FFFFFF;
-            --gray-light: #F5F7FA;
-            --gray-medium: #E1E8ED;
-            --gray-dark: #5A6C7D;
-            --text-dark: #2C3E50;
-            --danger: #E74C3C;
-            --warning: #F39C12;
-            --vazamento: #C62828;
-        }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
-        .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
+    const user = document.getElementById('username')?.value?.trim();
+    const pass = document.getElementById('password')?.value?.trim();
 
-        .corporate-header { background:var(--white); padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 12px rgba(0,0,0,0.12); position:sticky; top:0; z-index:100; }
-        .logo-gps { font-weight:800; color:var(--gps-blue); font-size:1.1rem; }
-        .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; font-size:1.15rem; }
-        .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.9rem; }
+    if (!user || !pass) {
+        showError('Preencha usuário e senha');
+        console.log('[DEBUG LOGIN] Campos vazios');
+        return;
+    }
 
-        .screen { display:none; flex:1; flex-direction:column; }
-        .screen.active { display:flex; }
+    console.log('[DEBUG LOGIN] Usuário:', user);
 
-        .login-screen { justify-content:center; padding:2rem 1.2rem; background:rgba(0,0,0,0.04); }
-        .login-card { background:var(--white); border-radius:24px; padding:2.4rem 1.8rem; box-shadow:0 15px 50px rgba(0,0,0,0.22); max-width:440px; width:100%; margin:0 auto; }
-        .login-icon { width:100px; height:100px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.8rem; display:flex; align-items:center; justify-content:center; font-size:3.5rem; box-shadow:0 12px 32px rgba(0,51,102,0.28); }
-        .login-title { text-align:center; color:var(--gps-blue); font-size:1.8rem; font-weight:800; margin-bottom:0.6rem; }
-        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:1rem; margin-bottom:2.4rem; }
-        .form-group { margin-bottom:1.5rem; }
-        .form-label { display:block; margin-bottom:0.6rem; font-weight:700; font-size:1rem; }
-        .form-input { width:100%; padding:1.2rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.15rem; background:var(--gray-light); transition:border-color 0.2s; }
-        .form-input:focus { border-color:var(--gps-blue); background:white; outline:none; box-shadow:0 0 0 4px rgba(0,51,102,0.12); }
-        .btn-primary { width:100%; padding:1.3rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.15rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
-        .btn-primary:active { transform:scale(0.98); }
-        .error-message { background:#FDEDEC; color:var(--danger); padding:1.2rem; border-radius:10px; margin-bottom:1.5rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
+    showLoading('Autenticando...');
 
-        .start-screen { justify-content:center; align-items:center; padding:2rem 1.2rem; }
-        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); border-radius:24px; padding:3rem 2.2rem; text-align:center; color:white; max-width:420px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); }
-        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.6rem; border:none; border-radius:16px; font-size:1.35rem; font-weight:800; width:100%; cursor:pointer; margin:1.8rem 0; min-height:64px; }
-        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.3rem; border-radius:14px; font-weight:700; width:100%; cursor:pointer; min-height:58px; }
-
-        .leitura-screen { background:#f9fafc; padding:1.5rem 1rem 13rem; }
-        .progress-container { background:var(--white); margin-bottom:1.5rem; padding:1.5rem; border-radius:20px; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
-        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:1.15rem; font-weight:600; }
-        .progress-bar-bg { height:16px; background:var(--gray-medium); border-radius:8px; overflow:hidden; }
-        .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); transition:width 0.5s ease; }
-        .local-selector { margin:0 0 1.5rem; }
-        .local-selector select { width:100%; padding:1.3rem; border-radius:14px; font-size:1.2rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
-        .locais-list { padding:0; }
-        .hidrometro-item { background:var(--white); border-radius:20px; padding:1.8rem; margin-bottom:1.6rem; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
-        .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
-        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.8rem; font-size:1.3rem; }
-        .leitura-anterior { color:#555; font-size:1.05rem; margin-bottom:0.6rem; font-weight:500; }
-        .leitura-field { margin-bottom:1rem; }
-        .input-field { width:100%; padding:1.4rem; border:2px solid var(--gray-medium); border-radius:14px; font-size:1.5rem; text-align:center; font-weight:700; min-height:60px; }
-        .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
-        .consumo-info { font-size:1.1rem; color:#444; margin:0.8rem 0; font-weight:600; }
-        .alerta-variacao { display:none; background:#FFF3E0; border:1px solid var(--warning); color:#E65100; padding:1.3rem; border-radius:14px; margin:1.2rem 0; font-weight:700; font-size:1.05rem; }
-        .alerta-variacao.negativo { background:#FFEBEE; border-color:var(--danger); color:var(--danger); }
-        .alerta-variacao.vazamento { background:#FFCDD2; border-color:#C62828; color:#C62828; }
-        .alerta-variacao.show { display:block; }
-        .justificativa { display:none; margin-top:1.3rem; }
-        .justificativa.show { display:block; }
-        .justificativa textarea { width:100%; padding:1.3rem; border:2px solid var(--danger); border-radius:14px; min-height:150px; font-size:1.1rem; }
-        .foto-section { margin-top:1.5rem; }
-        .foto-btn { width:100%; padding:1.4rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:14px; font-weight:800; font-size:1.15rem; cursor:pointer; text-align:center; min-height:60px; }
-        .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
-        .foto-preview { width:100%; max-height:280px; object-fit:cover; border-radius:14px; margin-top:1.3rem; display:none; box-shadow:0 6px 18px rgba(0,0,0,0.1); }
-        .foto-preview.show { display:block; }
-
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.4rem 1.6rem 2.5rem; box-shadow:0 -10px 35px rgba(0,0,0,0.14); display:none; z-index:1000; }
-        .btn-finalizar { width:100%; padding:1.6rem; border:none; border-radius:16px; font-size:1.35rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:64px; }
-        .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; cursor:pointer; }
-
-        .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.96); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
-        .loading-overlay.show { display:flex; }
-        .spinner { width:90px; height:90px; border:10px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
-        @keyframes spin { to { transform:rotate(360deg); } }
-
-        /* Estilos tela admin */
-        .admin-screen { background:#f0f4f8; padding:1.5rem; }
-        .admin-header { text-align:center; color:var(--gps-blue); margin-bottom:1.5rem; }
-        .filter-row { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
-        .filter-group { flex:1; min-width:200px; }
-        .filter-group label { display:block; margin-bottom:0.5rem; font-weight:600; }
-        .filter-group select, .filter-group input { width:100%; padding:0.8rem; border:1px solid #ccc; border-radius:8px; }
-        .dashboard-cards { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
-        .card { background:white; border-radius:12px; padding:1.2rem; box-shadow:0 4px 12px rgba(0,0,0,0.08); flex:1; min-width:220px; text-align:center; }
-        .card h3 { margin:0 0 0.5rem; color:var(--gps-blue); }
-        .card p { font-size:1.8rem; font-weight:800; margin:0; color:var(--multiplan-green); }
-        .leituras-table { background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-        .leituras-table table { width:100%; border-collapse:collapse; }
-        .leituras-table th, .leituras-table td { padding:0.8rem; text-align:left; border-bottom:1px solid #eee; }
-        .leituras-table th { background:var(--gps-blue); color:white; }
-        .foto-thumb { width:60px; height:60px; object-fit:cover; border-radius:6px; cursor:pointer; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="corporate-header" id="corporateHeader" style="display:none;">
-            <div class="logo-gps">Grupo GPS</div>
-            <div class="system-title">Leitura de Hidrômetros</div>
-            <div class="logo-multiplan">MULTIPLAN</div>
-        </div>
-
-        <div id="loginScreen" class="login-screen screen active">
-            <div class="login-card">
-                <div class="login-icon">💧</div>
-                <h1 class="login-title">Leitura de Hidrômetros</h1>
-                <p class="login-subtitle">Grupo GPS • Multiplan</p>
-                <div id="loginError" class="error-message"></div>
-                <div class="form-group">
-                    <label class="form-label">Usuário</label>
-                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Senha</label>
-                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
-                </div>
-                <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
-            </div>
-        </div>
-
-        <div id="startScreen" class="start-screen screen">
-            <div class="welcome-card">
-                <div style="font-size:3.5rem;margin-bottom:1.2rem;">👋</div>
-                <h2>Olá, <span id="nomeTecnico"></span></h2>
-                <p style="margin:1.8rem 0;">Pronto para iniciar a leitura?</p>
-                <button class="btn-iniciar" onclick="iniciarLeitura()">INICIAR LEITURA DOS HIDRÔMETROS</button>
-                <button class="btn-sair" onclick="logout()">SAIR</button>
-            </div>
-        </div>
-
-        <div id="leituraScreen" class="leitura-screen screen">
-            <div class="progress-container">
-                <div class="progress-header">
-                    <span>Progresso da Ronda</span>
-                    <span id="progressoTexto">0/55</span>
-                </div>
-                <div class="progress-bar-bg"><div id="progressoBarra" class="progress-bar-fill" style="width:0%"></div></div>
-            </div>
-
-            <div class="local-selector">
-                <select id="localSelect" onchange="mostrarHidrometrosDoLocal(this.value)">
-                    <option value="">Selecione o local</option>
-                </select>
-            </div>
-
-            <div id="hidrometrosContainer" class="locais-list"></div>
-        </div>
-
-        <!-- Tela Admin -->
-        <div id="adminScreen" class="admin-screen screen">
-            <h2 class="admin-header">Dashboard - Leituras Realizadas</h2>
-
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label>Local</label>
-                    <select id="adminLocalFilter">
-                        <option value="">Todos os locais</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Data específica</label>
-                    <input type="date" id="adminDataFilter">
-                </div>
-                <div class="filter-group">
-                    <label>Mês/Ano</label>
-                    <input type="month" id="adminMesFilter">
-                </div>
-                <div class="filter-group" style="align-self:flex-end;">
-                    <button class="btn-primary" onclick="carregarLeiturasAdmin()">Filtrar</button>
-                </div>
-            </div>
-
-            <div class="dashboard-cards">
-                <div class="card">
-                    <h3>Total de Leituras</h3>
-                    <p id="totalLeituras">0</p>
-                </div>
-                <div class="card">
-                    <h3>Média de Consumo</h3>
-                    <p id="mediaConsumo">0.00 m³</p>
-                </div>
-                <div class="card">
-                    <h3>Alertas Recentes</h3>
-                    <p id="alertasRecentes">0</p>
-                </div>
-            </div>
-
-            <div class="leituras-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data/Hora</th>
-                            <th>Local</th>
-                            <th>Tipo</th>
-                            <th>Leitura Ant.</th>
-                            <th>Leitura Atual</th>
-                            <th>Consumo</th>
-                            <th>Variação</th>
-                            <th>Justificativa</th>
-                            <th>Foto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leiturasBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="bottomBar" class="bottom-bar">
-            <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
-        </div>
-
-        <div id="loading" class="loading-overlay">
-            <div class="spinner"></div>
-            <div class="loading-text" id="loadingText">Processando...</div>
-        </div>
-    </div>
-
-    <script>
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4i20rlhuY_TmAQEzaikjgMKabUNNzgLgiaAQ__QC_rvvQyseTusrXzq_eTv9oeFNn4Q/exec';
-
-        let tecnico = null;
-        let hidrometros = [];
-        let locaisUnicos = [];
-
-        function showLoading(txt) {
-            document.getElementById('loadingText').textContent = txt;
-            document.getElementById('loading').classList.add('show');
-        }
-        function hideLoading() {
-            document.getElementById('loading').classList.remove('show');
-        }
-        function showError(msg) {
-            const el = document.getElementById('loginError');
-            el.textContent = msg;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 5000);
-        }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        }
-
-        async function fazerLogin() {
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value.trim();
-            if (!user || !pass) return showError('Preencha usuário e senha');
-
-            showLoading('Autenticando...');
-
-            try {
-                const res = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-                    body: JSON.stringify({action: 'login', usuario: user, senha: pass})
-                });
-                const data = await res.json();
-
-                if (!data.success) throw new Error(data.message || 'Usuário ou senha inválidos');
-
-                tecnico = {nome: data.nome, usuario: data.usuario, tipo: data.tipo || 'operacao'};
-                localStorage.setItem('tecnico', JSON.stringify(tecnico));
-
-                document.getElementById('corporateHeader').style.display = 'flex';
-
-                if (tecnico.tipo === 'admin') {
-                    showScreen('adminScreen');
-                    carregarFiltrosAdmin();
-                    carregarLeiturasAdmin();
-                } else {
-                    showScreen('startScreen');
-                    document.getElementById('nomeTecnico').textContent = tecnico.nome;
-                }
-
-            } catch (err) {
-                showError(err.message);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Restaura Enter na senha para login
-        document.addEventListener('DOMContentLoaded', () => {
-            const passwordInput = document.getElementById('password');
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        fazerLogin();
-                    }
-                });
-            }
+    try {
+        console.log('[DEBUG LOGIN] Enviando POST para Apps Script...');
+        const res = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {'Content-Type': 'text/plain;charset=utf-8'},
+            body: JSON.stringify({action: 'login', usuario: user, senha: pass})
         });
 
-        // ... (copie aqui todas as funções de leitura que já funcionavam: atualizarLeitura, capturarFoto, isCompleto, atualizarProgresso, finalizarRonda, logout, etc.)
+        console.log('[DEBUG LOGIN] Resposta recebida:', res.status, res.statusText);
 
-        // Funções admin
-        function carregarFiltrosAdmin() {
-            // Pode adicionar locais dinamicamente se quiser
+        if (!res.ok) {
+            throw new Error(`Erro HTTP ${res.status}: ${res.statusText}`);
         }
 
-        async function carregarLeiturasAdmin() {
-            showLoading('Carregando leituras...');
+        const data = await res.json();
+        console.log('[DEBUG LOGIN] Dados do servidor:', data);
 
-            try {
-                const local = document.getElementById('adminLocalFilter').value;
-                const data = document.getElementById('adminDataFilter').value;
-                const mes = document.getElementById('adminMesFilter').value;
-
-                const res = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-                    body: JSON.stringify({
-                        action: 'get_leituras_admin',
-                        local: local,
-                        data: data,
-                        mes: mes
-                    })
-                });
-                const result = await res.json();
-
-                if (!result.success) throw new Error(result.message || 'Erro ao carregar');
-
-                renderizarLeiturasAdmin(result.leituras);
-                atualizarDashboardAdmin(result.leituras);
-            } catch (err) {
-                alert('Erro ao carregar leituras: ' + err.message);
-            } finally {
-                hideLoading();
-            }
+        if (!data.success) {
+            throw new Error(data.message || 'Usuário ou senha inválidos');
         }
 
-        function renderizarLeiturasAdmin(leituras) {
-            const tbody = document.getElementById('leiturasBody');
-            tbody.innerHTML = '';
+        tecnico = {nome: data.nome, usuario: data.usuario, tipo: data.tipo || 'operacao'};
+        localStorage.setItem('tecnico', JSON.stringify(tecnico));
 
-            leituras.forEach(l => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${l.dataHora}</td>
-                    <td>${l.local}</td>
-                    <td>${l.tipo}</td>
-                    <td>${l.leituraAnterior}</td>
-                    <td>${l.leituraAtual}</td>
-                    <td>${l.consumo.toFixed(2)}</td>
-                    <td>${l.variacao !== '-' ? l.variacao.toFixed(1) + '%' : '-'}</td>
-                    <td>${l.justificativa || '-'}</td>
-                    <td>${l.foto ? `<img src="${l.foto}" class="foto-thumb" onclick="window.open('${l.foto}', '_blank')">` : '-'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+        document.getElementById('corporateHeader').style.display = 'flex';
+
+        if (tecnico.tipo === 'admin') {
+            console.log('[DEBUG LOGIN] Usuário admin detectado');
+            showScreen('adminScreen');
+            carregarFiltrosAdmin();
+            carregarLeiturasAdmin();
+        } else {
+            console.log('[DEBUG LOGIN] Usuário operacao detectado');
+            showScreen('startScreen');
+            document.getElementById('nomeTecnico').textContent = tecnico.nome;
         }
 
-        function atualizarDashboardAdmin(leituras) {
-            document.getElementById('totalLeituras').textContent = leituras.length;
-
-            const somaConsumo = leituras.reduce((acc, l) => acc + (l.consumo || 0), 0);
-            const media = leituras.length ? (somaConsumo / leituras.length).toFixed(2) : '0.00';
-            document.getElementById('mediaConsumo').textContent = media + ' m³';
-
-            const alertas = leituras.filter(l => {
-                const v = typeof l.variacao === 'number' ? l.variacao : 0;
-                return Math.abs(v) > 50 || (l.consumo || 0) < 0;
-            }).length;
-            document.getElementById('alertasRecentes').textContent = alertas;
-        }
-
-        window.onload = function() {
-            const saved = localStorage.getItem('tecnico');
-            if (saved) {
-                try {
-                    tecnico = JSON.parse(saved);
-                    document.getElementById('corporateHeader').style.display = 'flex';
-                    if (tecnico.tipo === 'admin') {
-                        showScreen('adminScreen');
-                        carregarFiltrosAdmin();
-                        carregarLeiturasAdmin();
-                    } else {
-                        showScreen('startScreen');
-                        document.getElementById('nomeTecnico').textContent = tecnico.nome;
-                    }
-                } catch (e) {
-                    localStorage.removeItem('tecnico');
-                    document.getElementById('loginScreen').classList.add('active');
-                }
-            } else {
-                document.getElementById('loginScreen').classList.add('active');
-            }
-        };
-    </script>
-</body>
-</html>
+    } catch (err) {
+        console.error('[DEBUG LOGIN] Erro:', err);
+        showError(err.message || 'Erro ao conectar ao servidor');
+    } finally {
+        hideLoading();
+    }
+}
