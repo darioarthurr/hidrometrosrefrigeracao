@@ -1,12 +1,12 @@
 <!-- 
-VERSÃO: v1.30 – 13/03/2026 23:59 -03
-Correção final: login funcionando como antes (Enter + botão)
-- Labels corretos (sem aviso amarelo)
-- type="button" no botão
-- Enter na senha restaurado
-- Suporte a admin mantido
-- Fluxo de leitura operacao intacto
-- Link Apps Script: seu endpoint atual
+VERSÃO: v1.27 – 13/03/2026 22:15 -03
+Correções:
+- Campo de justificativa agora aparece quando precisaJust = true (mesmo após foto ou leitura)
+- Alerta e borda vermelha somem ao preencher justificativa
+- Progresso atualiza corretamente
+- Chamada de reavaliarAlertaEProgresso em todos os eventos relevantes
+- Logs para justificar o estado do campo justificativa
+- ROLBACK para a versão funcional
 -->
 
 <!DOCTYPE html>
@@ -98,23 +98,6 @@ Correção final: login funcionando como antes (Enter + botão)
         .loading-overlay.show { display:flex; }
         .spinner { width:90px; height:90px; border:10px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
-
-        /* Estilos admin */
-        .admin-screen { background:#f0f4f8; padding:1.5rem; }
-        .admin-header { text-align:center; color:var(--gps-blue); margin-bottom:1.5rem; }
-        .filter-row { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
-        .filter-group { flex:1; min-width:200px; }
-        .filter-group label { display:block; margin-bottom:0.5rem; font-weight:600; }
-        .filter-group select, .filter-group input { width:100%; padding:0.8rem; border:1px solid #ccc; border-radius:8px; }
-        .dashboard-cards { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
-        .card { background:white; border-radius:12px; padding:1.2rem; box-shadow:0 4px 12px rgba(0,0,0,0.08); flex:1; min-width:220px; text-align:center; }
-        .card h3 { margin:0 0 0.5rem; color:var(--gps-blue); }
-        .card p { font-size:1.8rem; font-weight:800; margin:0; color:var(--multiplan-green); }
-        .leituras-table { background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-        .leituras-table table { width:100%; border-collapse:collapse; }
-        .leituras-table th, .leituras-table td { padding:0.8rem; text-align:left; border-bottom:1px solid #eee; }
-        .leituras-table th { background:var(--gps-blue); color:white; }
-        .foto-thumb { width:60px; height:60px; object-fit:cover; border-radius:6px; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -132,14 +115,14 @@ Correção final: login funcionando como antes (Enter + botão)
                 <p class="login-subtitle">Grupo GPS • Multiplan</p>
                 <div id="loginError" class="error-message"></div>
                 <div class="form-group">
-                    <label class="form-label" for="username">Usuário</label>
+                    <label class="form-label">Usuário</label>
                     <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="password">Senha</label>
+                    <label class="form-label">Senha</label>
                     <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
                 </div>
-                <button type="button" class="btn-primary" onclick="fazerLogin()">Entrar</button>
+                <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
             </div>
         </div>
 
@@ -171,64 +154,6 @@ Correção final: login funcionando como antes (Enter + botão)
             <div id="hidrometrosContainer" class="locais-list"></div>
         </div>
 
-        <div id="adminScreen" class="admin-screen screen">
-            <h2 class="admin-header">Dashboard - Leituras Realizadas</h2>
-
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label for="adminLocalFilter">Local</label>
-                    <select id="adminLocalFilter">
-                        <option value="">Todos os locais</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="adminDataFilter">Data específica</label>
-                    <input type="date" id="adminDataFilter">
-                </div>
-                <div class="filter-group">
-                    <label for="adminMesFilter">Mês/Ano</label>
-                    <input type="month" id="adminMesFilter">
-                </div>
-                <div class="filter-group" style="align-self:flex-end;">
-                    <button class="btn-primary" onclick="carregarLeiturasAdmin()">Filtrar</button>
-                </div>
-            </div>
-
-            <div class="dashboard-cards">
-                <div class="card">
-                    <h3>Total de Leituras</h3>
-                    <p id="totalLeituras">0</p>
-                </div>
-                <div class="card">
-                    <h3>Média de Consumo</h3>
-                    <p id="mediaConsumo">0.00 m³</p>
-                </div>
-                <div class="card">
-                    <h3>Alertas Recentes</h3>
-                    <p id="alertasRecentes">0</p>
-                </div>
-            </div>
-
-            <div class="leituras-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data/Hora</th>
-                            <th>Local</th>
-                            <th>Tipo</th>
-                            <th>Leitura Ant.</th>
-                            <th>Leitura Atual</th>
-                            <th>Consumo</th>
-                            <th>Variação</th>
-                            <th>Justificativa</th>
-                            <th>Foto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leiturasBody"></tbody>
-                </table>
-            </div>
-        </div>
-
         <div id="bottomBar" class="bottom-bar">
             <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
         </div>
@@ -240,7 +165,7 @@ Correção final: login funcionando como antes (Enter + botão)
     </div>
 
     <script>
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4i20rlhuY_TmAQEzaikjgMKabUNNzgLgiaAQ__QC_rvvQyseTusrXzq_eTv9oeFNn4Q/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyVN-BQ4mDQFRgLoNtDyL4nHatb-kxj9FUYDL4-l3od_MWAvhzkmhm9ouwJrGLPADyDtw/exec';
 
         let tecnico = null;
         let hidrometros = [];
@@ -262,7 +187,8 @@ Correção final: login funcionando como antes (Enter + botão)
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+            const screen = document.getElementById(screenId);
+            if (screen) screen.classList.add('active');
         }
 
         async function fazerLogin() {
@@ -282,19 +208,12 @@ Correção final: login funcionando como antes (Enter + botão)
 
                 if (!data.success) throw new Error(data.message || 'Usuário ou senha inválidos');
 
-                tecnico = {nome: data.nome, usuario: data.usuario, tipo: data.tipo || 'operacao'};
+                tecnico = {nome: data.nome, usuario: data.usuario};
                 localStorage.setItem('tecnico', JSON.stringify(tecnico));
 
+                showScreen('startScreen');
                 document.getElementById('corporateHeader').style.display = 'flex';
-
-                if (tecnico.tipo === 'admin') {
-                    showScreen('adminScreen');
-                    carregarFiltrosAdmin();
-                    carregarLeiturasAdmin();
-                } else {
-                    showScreen('startScreen');
-                    document.getElementById('nomeTecnico').textContent = tecnico.nome;
-                }
+                document.getElementById('nomeTecnico').textContent = tecnico.nome;
 
             } catch (err) {
                 showError(err.message);
@@ -303,20 +222,322 @@ Correção final: login funcionando como antes (Enter + botão)
             }
         }
 
-        // Restaura Enter na senha
-        document.addEventListener('DOMContentLoaded', () => {
-            const passwordInput = document.getElementById('password');
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', e => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        fazerLogin();
-                    }
-                });
-            }
-        });
+        async function iniciarLeitura() {
+            showLoading('Carregando hidrômetros...');
 
-        // ... (coloque aqui todas as funções do seu código anterior que funcionavam: atualizarLeitura, capturarFoto, isCompleto, atualizarProgresso, finalizarRonda, logout, carregarLeiturasAdmin, etc.)
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                    body: JSON.stringify({action: 'iniciar', usuario: tecnico.usuario})
+                });
+                const data = await res.json();
+
+                if (!data.success) throw new Error(data.message || 'Erro ao iniciar');
+
+                hidrometros = data.hidrometros.map((h, index) => ({
+                    id: h.id || `hid-${index}`,
+                    local: h.local,
+                    tipo: h.tipo,
+                    leituraAnterior: parseFloat(h.leituraAnterior) || 0,
+                    consumoAnterior: parseFloat(h.consumoAnterior) || 0,
+                    leituraAtual: 0,
+                    foto: null,
+                    justificativa: '',
+                    variacao: 0
+                }));
+
+                locaisUnicos = [...new Set(hidrometros.map(h => h.local))];
+
+                showScreen('leituraScreen');
+                document.getElementById('bottomBar').style.display = 'block';
+
+                preencherSelectLocais();
+                mostrarHidrometrosDoLocal(locaisUnicos[0] || '');
+
+            } catch (err) {
+                alert('Erro ao iniciar: ' + err.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function preencherSelectLocais() {
+            const select = document.getElementById('localSelect');
+            select.innerHTML = '<option value="">Selecione o local</option>';
+            locaisUnicos.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.textContent = l;
+                select.appendChild(opt);
+            });
+        }
+
+        function mostrarHidrometrosDoLocal(local) {
+            const container = document.getElementById('hidrometrosContainer');
+            container.innerHTML = '';
+
+            if (!local) return;
+
+            hidrometros.filter(h => h.local === local).forEach((h, index) => {
+                const safeId = h.id || `hid-${index}`;
+                console.log(`[LOG CARREGAMENTO] ${safeId} | Anterior: ${h.leituraAnterior} | Consumo anterior: ${h.consumoAnterior}`);
+
+                const item = document.createElement('div');
+                item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
+                item.innerHTML = `
+                    <div class="hidrometro-tipo">${h.tipo}</div>
+                    <div class="leitura-anterior">Leitura anterior: <strong>${h.leituraAnterior.toFixed(0)}</strong></div>
+                    <div class="leitura-field">
+                        <input type="number" step="0.01" class="input-field" id="input-${safeId}" value="${h.leituraAtual}" 
+                               oninput="atualizarLeitura('${safeId}', this.value)" placeholder="Leitura atual">
+                    </div>
+                    <div class="consumo-info" id="consumo-info-${safeId}">
+                        Consumo do dia: <strong>-</strong><br>
+                        Variação: <strong>-</strong>
+                    </div>
+                    <div id="alerta-${safeId}" class="alerta-variacao"></div>
+                    <div id="just-${safeId}" class="justificativa">
+                        <textarea placeholder="Justificativa obrigatória" 
+                                  oninput="const safeId = '${safeId}'; 
+                                           const h = hidrometros.find(x => x.id === safeId); 
+                                           if (h) { 
+                                               h.justificativa = this.value.trim(); 
+                                               setTimeout(() => { 
+                                                   reavaliarAlertaEProgresso(safeId); 
+                                               }, 500); 
+                                           }">
+                            ${h.justificativa||''}
+                        </textarea>
+                    </div>
+                    <div class="foto-section">
+                        <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${safeId}', this)">
+                            Tirar foto da leitura
+                        </label>
+                        <img id="preview-${safeId}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto||''}">
+                    </div>
+                `;
+                container.appendChild(item);
+                atualizarLeitura(safeId, h.leituraAtual);
+            });
+            atualizarProgresso();
+        }
+
+        function reavaliarAlertaEProgresso(id) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+
+            const consumoDia = h.leituraAtual - h.leituraAnterior;
+            let precisaJust = false;
+            let mensagem = '';
+            let classeAlerta = '';
+
+            if (consumoDia < 0) {
+                precisaJust = true;
+                mensagem = '⚠️ Consumo menor que ontem!';
+                classeAlerta = 'negativo';
+            } else if (h.consumoAnterior > 0) {
+                const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
+                h.variacao = variacao;
+
+                if (variacao > 100) {
+                    precisaJust = true;
+                    mensagem = `🚨 Possível vazamento! Consumo +${variacao.toFixed(1)}% acima do normal!`;
+                    classeAlerta = 'vazamento';
+                } else if (variacao > 20) {
+                    precisaJust = true;
+                    mensagem = `⚠️ Consumo +${variacao.toFixed(1)}% maior que ontem!`;
+                } else if (variacao < -20) {
+                    precisaJust = true;
+                    mensagem = `⚠️ Consumo ${Math.abs(variacao).toFixed(1)}% menor que ontem!`;
+                    classeAlerta = 'negativo';
+                } else if (consumoDia <= 0.5) {
+                    precisaJust = true;
+                    mensagem = '⚠️ Consumo muito baixo ou zero – verifique medidor!';
+                    classeAlerta = 'negativo';
+                }
+            }
+
+            const alerta = document.getElementById(`alerta-${id}`);
+            const just = document.getElementById(`just-${id}`);
+            const input = document.getElementById(`input-${id}`);
+
+            if (alerta) {
+                if (precisaJust) {
+                    alerta.className = 'alerta-variacao show ' + classeAlerta;
+                    alerta.textContent = mensagem;
+                } else {
+                    alerta.classList.remove('show');
+                }
+            }
+
+            if (just) {
+                if (precisaJust) {
+                    just.classList.add('show');
+                } else {
+                    just.classList.remove('show');
+                }
+            }
+
+            if (input) {
+                input.classList.toggle('erro', precisaJust);
+            }
+
+            console.log(`[LOG REAVALIAÇÃO] ${h.id} | Precisa just agora: ${precisaJust} | Justificativa visível: ${just ? just.classList.contains('show') : 'não encontrado'} | Borda erro: ${input ? input.classList.contains('erro') : 'não encontrado'}`);
+
+            atualizarProgresso();
+        }
+
+        function atualizarLeitura(id, valor) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+
+            const novoValor = Number(valor) || 0;
+            h.leituraAtual = novoValor;
+
+            const anterior = h.leituraAnterior;
+            const consumoDia = novoValor - anterior;
+
+            let variacao = '-';
+            let mensagem = '';
+            let classeAlerta = '';
+            let precisaJust = false;
+
+            if (!isNaN(novoValor)) {
+                if (consumoDia < 0) {
+                    precisaJust = true;
+                    mensagem = '⚠️ Consumo menor que ontem!';
+                    classeAlerta = 'negativo';
+                } else if (h.consumoAnterior > 0) {
+                    variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
+                    h.variacao = variacao;
+
+                    if (variacao > 100) {
+                        precisaJust = true;
+                        mensagem = `🚨 Possível vazamento! Consumo +${variacao.toFixed(1)}% acima do normal!`;
+                        classeAlerta = 'vazamento';
+                    } else if (variacao > 20) {
+                        precisaJust = true;
+                        mensagem = `⚠️ Consumo +${variacao.toFixed(1)}% maior que ontem!`;
+                    } else if (variacao < -20) {
+                        precisaJust = true;
+                        mensagem = `⚠️ Consumo ${Math.abs(variacao).toFixed(1)}% menor que ontem!`;
+                        classeAlerta = 'negativo';
+                    } else if (consumoDia <= 0.5) {
+                        precisaJust = true;
+                        mensagem = '⚠️ Consumo muito baixo ou zero – verifique medidor!';
+                        classeAlerta = 'negativo';
+                    }
+                }
+            }
+
+            const alerta = document.getElementById(`alerta-${id}`);
+            const just = document.getElementById(`just-${id}`);
+            const input = document.getElementById(`input-${id}`);
+            const consumoInfo = document.getElementById(`consumo-info-${id}`);
+
+            if (alerta) {
+                alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
+                alerta.textContent = mensagem;
+            }
+
+            if (just) {
+                just.classList.toggle('show', precisaJust);
+            }
+
+            if (input) input.classList.toggle('erro', precisaJust);
+
+            if (consumoInfo) {
+                consumoInfo.innerHTML = `
+                    Consumo do dia: <strong>${consumoDia.toFixed(2)}</strong><br>
+                    Variação: <strong>${variacao === '-' ? '-' : variacao.toFixed(1) + '%'}</strong>
+                `;
+            }
+
+            console.log(`[LOG ATUALIZAÇÃO] ${h.id} | Valor: ${novoValor} | Consumo dia: ${consumoDia.toFixed(2)} | Variação: ${variacao} | Anterior: ${h.consumoAnterior} | Justificativa: "${h.justificativa}" | Precisa just: ${precisaJust}`);
+
+            reavaliarAlertaEProgresso(id);
+        }
+
+        function forceUpdateProgress() {
+            console.log('[LOG FORÇADO PROGRESSO] Reavaliando todos os itens...');
+            hidrometros.forEach(h => reavaliarAlertaEProgresso(h.id));
+        }
+
+        function capturarFoto(id, input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const h = hidrometros.find(x => x.id === id);
+                if (h) {
+                    h.foto = e.target.result;
+                    const preview = document.getElementById(`preview-${id}`);
+                    preview.src = h.foto;
+                    preview.classList.add('show');
+                    input.parentElement.classList.add('tem-foto');
+                    input.parentElement.innerHTML = 'Foto adicionada ✓';
+                    reavaliarAlertaEProgresso(id);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function isCompleto(h) {
+            if (h.leituraAtual === 0 && h.leituraAnterior === 0) return false;
+
+            const consumoDia = h.leituraAtual - h.leituraAnterior;
+            let precisaJust = false;
+
+            if (consumoDia < 0) precisaJust = true;
+            else if (h.consumoAnterior > 0) {
+                const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
+                if (Math.abs(variacao) > 20 || consumoDia <= 0.5) precisaJust = true;
+            }
+
+            const hasJust = h.justificativa && h.justificativa.trim() !== '';
+            if (precisaJust && !hasJust) return false;
+
+            return !!h.foto;
+        }
+
+        function atualizarProgresso() {
+            const total = hidrometros.length;
+            const completos = hidrometros.filter(isCompleto).length;
+            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;
+            document.getElementById('progressoBarra').style.width = `${total ? (completos/total)*100 : 0}%`;
+
+            const btn = document.getElementById('btnFinalizar');
+            btn.disabled = completos !== total;
+            btn.classList.toggle('ativo', completos === total);
+
+            console.log(`[LOG PROGRESSO] ${completos}/${total} completos | Botão ativo: ${!btn.disabled}`);
+        }
+
+        async function finalizarRonda() {
+            if (!confirm('Finalizar ronda?')) return;
+            showLoading('Salvando leituras...');
+            try {
+                alert('Ronda finalizada com sucesso!');
+                logout();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('tecnico');
+            tecnico = null;
+            hidrometros = [];
+            locaisUnicos = [];
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('loginScreen').classList.add('active');
+            document.getElementById('corporateHeader').style.display = 'none';
+            document.getElementById('bottomBar').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
 
         window.onload = function() {
             const saved = localStorage.getItem('tecnico');
@@ -324,14 +545,8 @@ Correção final: login funcionando como antes (Enter + botão)
                 try {
                     tecnico = JSON.parse(saved);
                     document.getElementById('corporateHeader').style.display = 'flex';
-                    if (tecnico.tipo === 'admin') {
-                        showScreen('adminScreen');
-                        carregarFiltrosAdmin();
-                        carregarLeiturasAdmin();
-                    } else {
-                        showScreen('startScreen');
-                        document.getElementById('nomeTecnico').textContent = tecnico.nome;
-                    }
+                    document.getElementById('startScreen').classList.add('active');
+                    document.getElementById('nomeTecnico').textContent = tecnico.nome;
                 } catch (e) {
                     localStorage.removeItem('tecnico');
                     document.getElementById('loginScreen').classList.add('active');
@@ -340,6 +555,12 @@ Correção final: login funcionando como antes (Enter + botão)
                 document.getElementById('loginScreen').classList.add('active');
             }
         };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('password')?.addEventListener('keypress', e => {
+                if (e.key === 'Enter') fazerLogin();
+            });
+        });
     </script>
 </body>
 </html>
