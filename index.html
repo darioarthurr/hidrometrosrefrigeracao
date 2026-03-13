@@ -1,11 +1,10 @@
 <!-- 
-VERSÃO: v1.24 – 13/03/2026 21:00 -03
-Correções finais para o seu caso:
-- Alerta some e progresso atualiza após digitar justificativa (força reavaliação)
-- isCompleto reavalia dinamicamente necessidade de justificativa
-- setTimeout 500ms + forceUpdateProgress() para sincronia perfeita
-- Logs específicos para justificativa e progresso forçado
-- Tudo mantido: consumo/variacao em tempo real, alertas de vazamento etc.
+VERSÃO: v1.25 – 13/03/2026 21:30 -03
+Correção crítica:
+- ReferenceError: h is not defined no oninput da textarea → resolvido passando safeId e buscando h por ID
+- Progresso agora atualiza após digitar justificativa
+- Logs mantidos para debug
+- Tudo o resto (consumo, variação, alertas) funcionando como antes
 -->
 
 <!DOCTYPE html>
@@ -298,14 +297,20 @@ Correções finais para o seu caso:
                     <div id="alerta-${safeId}" class="alerta-variacao"></div>
                     <div id="just-${safeId}" class="justificativa">
                         <textarea placeholder="Justificativa obrigatória" 
-                                  oninput="h.justificativa = this.value.trim(); 
-                                           setTimeout(() => {
-                                               const alerta = document.getElementById('alerta-${safeId}'); 
-                                               const input = document.getElementById('input-${safeId}'); 
-                                               if (alerta) alerta.classList.remove('show'); 
-                                               if (input) input.classList.remove('erro'); 
-                                               forceUpdateProgress(); 
-                                           }, 500);">${h.justificativa||''}</textarea>
+                                  oninput="const safeId = '${safeId}'; 
+                                           const h = hidrometros.find(x => x.id === safeId); 
+                                           if (h) { 
+                                               h.justificativa = this.value.trim(); 
+                                               setTimeout(() => { 
+                                                   const alerta = document.getElementById('alerta-' + safeId); 
+                                                   const input = document.getElementById('input-' + safeId); 
+                                                   if (alerta) alerta.classList.remove('show'); 
+                                                   if (input) input.classList.remove('erro'); 
+                                                   forceUpdateProgress(); 
+                                               }, 500); 
+                                           }">
+                            ${h.justificativa||''}
+                        </textarea>
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
@@ -435,7 +440,6 @@ Correções finais para o seu caso:
                 if (Math.abs(variacao) > 20 || consumoDia <= 0.5) precisaJust = true;
             }
 
-            // Reavaliação dinâmica: se precisa justificativa, verifica se tem texto AGORA
             const hasJust = h.justificativa && h.justificativa.trim() !== '';
             if (precisaJust && !hasJust) {
                 console.log(`[LOG COMPLETO] ${h.id} | Precisa just: true | Tem texto: false → NÃO completo`);
