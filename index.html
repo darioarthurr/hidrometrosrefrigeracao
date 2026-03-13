@@ -186,21 +186,29 @@
         let dataInicio = null;
         const LOCAIS = ['BARRA FREE','EXP 7','AC','MALL NOVO','RIO ANTIGO','AB','HOTZONE','ETA','EXP 5','CAG 1 CM2','CAG 2 CM2'];
 
-        // ====================== REQUISIÇÕES ======================
+           // ====================== REQUISIÇÕES (CORRIGIDO - loading sempre some) ======================
         async function fazerRequisicao(action, body) {
-            showLoading(action === 'login' ? 'Autenticando...' : action === 'iniciar' ? 'Carregando...' : 'Salvando...');
+            showLoading(action === 'login' ? 'Autenticando...' : 
+                        action === 'iniciar' ? 'Carregando hidrômetros...' : 
+                        'Salvando leituras...');
+            
             try {
                 const res = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
                     headers: {'Content-Type': 'text/plain;charset=utf-8'},
                     body: JSON.stringify({ action, ...body })
                 });
+                
                 const data = await res.json();
                 if (!data.success) throw new Error(data.message || 'Erro no servidor');
+                
                 return data;
+                
             } catch (err) {
-                hideLoading();
+                console.error(err);
                 throw err;
+            } finally {
+                hideLoading();   // ← ESSA LINHA É A SOLUÇÃO (sempre executa)
             }
         }
 
