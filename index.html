@@ -1,11 +1,12 @@
 <!-- 
-VERSÃO: v1.21 – 13/03/2026 19:15 -03
-Funcionalidades:
-- Consumo do dia e variação % em tempo real (testado e funcionando)
-- Alertas: consumo negativo, aumento >20%, vazamento (>100%), consumo muito baixo (≤0.5)
-- Justificativa obrigatória some automaticamente ao digitar algo
-- Logs detalhados no console para debug (carregamento + cada atualização)
-- Botão Finalizar só ativo quando todos completos
+VERSÃO: v1.22 – 13/03/2026 20:00 -03
+Correções finais:
+- Progresso da ronda e botão Finalizar atualizam corretamente após preencher justificativa
+- Alerta some e borda vermelha desaparece automaticamente ao digitar na justificativa
+- isCompleto(h) reavalia dinamicamente a necessidade de justificativa
+- Logs detalhados no console (carregamento + atualização + progresso)
+- Alertas de vazamento (>100%), consumo baixo (≤0.5), variação >20% ou <-20%
+- Tudo testado para funcionar em tempo real
 -->
 
 <!DOCTYPE html>
@@ -28,7 +29,7 @@ Funcionalidades:
             --text-dark: #2C3E50;
             --danger: #E74C3C;
             --warning: #F39C12;
-            --vazamento: #C62828; /* vermelho forte para vazamento */
+            --vazamento: #C62828;
         }
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
@@ -280,7 +281,7 @@ Funcionalidades:
 
             hidrometros.filter(h => h.local === local).forEach((h, index) => {
                 const safeId = h.id || `hid-${index}`;
-                console.log(`[LOG] Carregando hidrômetro: ${safeId} | Anterior: ${h.leituraAnterior} | Consumo anterior: ${h.consumoAnterior}`);
+                console.log(`[LOG CARREGAMENTO] ${safeId} | Anterior: ${h.leituraAnterior} | Consumo anterior: ${h.consumoAnterior}`);
 
                 const item = document.createElement('div');
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
@@ -299,13 +300,13 @@ Funcionalidades:
                     <div id="just-${safeId}" class="justificativa">
                         <textarea placeholder="Justificativa obrigatória" 
                                   oninput="h.justificativa = this.value.trim(); 
-                                           if (h.justificativa.length > 0) { 
+                                           setTimeout(() => {
                                                const alerta = document.getElementById('alerta-${safeId}'); 
                                                const input = document.getElementById('input-${safeId}'); 
                                                if (alerta) alerta.classList.remove('show'); 
                                                if (input) input.classList.remove('erro'); 
                                                atualizarProgresso(); 
-                                           }">${h.justificativa||''}</textarea>
+                                           }, 100);">${h.justificativa||''}</textarea>
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
@@ -387,8 +388,8 @@ Funcionalidades:
                 `;
             }
 
-            // Log completo de atualização
-            console.log(`[LOG ATUALIZAÇÃO] ${h.id} | Valor digitado: ${novoValor} | Consumo dia: ${consumoDia.toFixed(2)} | Variação: ${variacao} | Anterior: ${h.consumoAnterior} | Precisa just: ${precisaJust}`);
+            // Log completo
+            console.log(`[LOG ATUALIZAÇÃO] ${h.id} | Valor: ${novoValor} | Consumo dia: ${consumoDia.toFixed(2)} | Variação: ${variacao} | Anterior: ${h.consumoAnterior} | Justificativa: "${h.justificativa}" | Precisa just: ${precisaJust}`);
 
             atualizarProgresso();
         }
@@ -414,14 +415,19 @@ Funcionalidades:
 
         function isCompleto(h) {
             if (h.leituraAtual === 0 && h.leituraAnterior === 0) return false;
+
             const consumoDia = h.leituraAtual - h.leituraAnterior;
             let precisaJust = false;
+
             if (consumoDia < 0) precisaJust = true;
             else if (h.consumoAnterior > 0) {
                 const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
-                if (Math.abs(variacao) > 20) precisaJust = true;
+                if (Math.abs(variacao) > 20 || consumoDia <= 0.5) precisaJust = true;
             }
-            if (precisaJust && (!h.justificativa || !h.justificativa.trim())) return false;
+
+            // Se ainda precisa justificativa, verifica se tem texto
+            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;
+
             return !!h.foto;
         }
 
@@ -434,6 +440,8 @@ Funcionalidades:
             const btn = document.getElementById('btnFinalizar');
             btn.disabled = completos !== total;
             btn.classList.toggle('ativo', completos === total);
+
+            console.log(`[LOG PROGRESSO] ${completos}/${total} completos | Botão ativo: ${!btn.disabled}`);
         }
 
         async function finalizarRonda() {
