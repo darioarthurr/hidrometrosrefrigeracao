@@ -1,6 +1,12 @@
 <!-- 
-VERSÃO ATUAL: v1.7 - 13/03/2026
-Última alteração: layout mobile corrigido, justificativa funcionando 100%, logout ok, sem sobreposição
+VERSÃO: v1.8 – 13/03/2025
+Alterações desta versão:
+- Tela de leitura não sobrepõe login/start
+- Logout força volta completa ao login
+- Justificativa aparece automaticamente quando leitura < anterior OU variação > 20%
+- Progresso atualiza em tempo real
+- Layout mobile limpo e touch-friendly
+- Loading sempre some
 -->
 
 <!DOCTYPE html>
@@ -65,7 +71,7 @@ VERSÃO ATUAL: v1.7 - 13/03/2026
         .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.4rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; width:100%; cursor:pointer; margin:1.2rem 0; min-height:54px; }
         .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:48px; }
 
-        /* LEITURA SCREEN - MOBILE PRIMEIRO */
+        /* LEITURA SCREEN */
         .leitura-screen { display:none; flex:1; flex-direction:column; background:#f9fafc; padding-bottom:10rem; }
         .progress-container { background:var(--white); margin:1rem; padding:1.2rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
         .progress-header { display:flex; justify-content:space-between; margin-bottom:0.6rem; font-size:1.05rem; font-weight:600; }
@@ -278,7 +284,7 @@ VERSÃO ATUAL: v1.7 - 13/03/2026
             });
         }
 
-        // MOSTRAR HIDRÔMETROS DO LOCAL SELECIONADO
+        // MOSTRAR HIDRÔMETROS DO LOCAL
         function mostrarHidrometrosDoLocal(local) {
             const container = document.getElementById('hidrometrosContainer');
             container.innerHTML = '';
@@ -391,9 +397,12 @@ VERSÃO ATUAL: v1.7 - 13/03/2026
             }
         }
 
-        // LOGOUT
+        // LOGOUT - FORÇA VOLTA AO LOGIN
         function logout() {
             localStorage.removeItem('tecnico');
+            tecnico = null;
+            hidrometros = [];
+            locaisUnicos = [];
             document.getElementById('leituraScreen').style.display = 'none';
             document.getElementById('bottomBar').style.display = 'none';
             document.getElementById('corporateHeader').style.display = 'none';
@@ -414,6 +423,7 @@ VERSÃO ATUAL: v1.7 - 13/03/2026
                     document.getElementById('nomeTecnico').textContent = tecnico.nome;
                 } catch (e) {
                     localStorage.removeItem('tecnico');
+                    document.getElementById('loginScreen').style.display = 'flex';
                 }
             } else {
                 document.getElementById('loginScreen').style.display = 'flex';
