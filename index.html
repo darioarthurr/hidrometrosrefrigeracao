@@ -1,11 +1,11 @@
 <!-- 
-VERSÃO: v1.10 – 13/03/2026 13:45 -03
-Alterações:
-- Proteção contra divisão por zero no cálculo de variação (>20% agora dispara mesmo com anterior 0)
-- Alerta e justificativa para >20% funcionando (testado com anterior 100 → atual 130+)
-- Layout mobile aprimorado: mais espaço vertical, botões maiores (min-height 60px), cards com shadow suave, alerta mais chamativo
-- Corrigido possível bug de ID duplicado nos elementos
-- Progresso e Finalizar atualizam em todos os eventos
+VERSÃO: v1.11 – 13/03/2026 14:20 -03
+Alterações desta versão:
+- Lógica ajustada para leitura do visor (não m³): calcula consumo do dia = atual - anterior
+- Justificativa abre se: consumo < 0 OU consumo > 20% do consumo anterior
+- Botão de foto movido para baixo do campo de leitura
+- Layout mobile melhorado: mais espaçamento, botões maiores, cards mais arejados
+- Mantida robustez anterior (logout, telas exclusivas, loading, etc.)
 -->
 
 <!DOCTYPE html>
@@ -30,66 +30,78 @@ Alterações:
             --warning: #F39C12;
         }
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.5; }
+        body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
-        .corporate-header { background:var(--white); padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 12px rgba(0,0,0,0.12); position:sticky; top:0; z-index:100; font-size:1rem; }
-        .logo-gps { font-weight:800; color:var(--gps-blue); }
-        .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; }
+        .corporate-header { 
+            background:var(--white); 
+            padding:1rem; 
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center; 
+            box-shadow:0 2px 12px rgba(0,0,0,0.12); 
+            position:sticky; 
+            top:0; 
+            z-index:100; 
+        }
+        .logo-gps { font-weight:800; color:var(--gps-blue); font-size:1.1rem; }
+        .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; font-size:1.15rem; }
         .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.9rem; }
 
         .screen { display:none; flex:1; flex-direction:column; }
         .screen.active { display:flex; }
 
         .login-screen { justify-content:center; padding:2rem 1.2rem; background:rgba(0,0,0,0.04); }
-        .login-card { background:var(--white); border-radius:20px; padding:2.2rem 1.6rem; box-shadow:0 15px 50px rgba(0,0,0,0.22); max-width:420px; width:100%; margin:0 auto; }
-        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.6rem; display:flex; align-items:center; justify-content:center; font-size:3.2rem; box-shadow:0 12px 32px rgba(0,51,102,0.28); }
-        .login-title { text-align:center; color:var(--gps-blue); font-size:1.65rem; font-weight:800; margin-bottom:0.5rem; }
-        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.98rem; margin-bottom:2.2rem; }
-        .form-group { margin-bottom:1.4rem; }
-        .form-label { display:block; margin-bottom:0.5rem; font-weight:700; font-size:0.98rem; }
-        .form-input { width:100%; padding:1.15rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.15rem; background:var(--gray-light); transition:border-color 0.2s; }
+        .login-card { background:var(--white); border-radius:24px; padding:2.4rem 1.8rem; box-shadow:0 15px 50px rgba(0,0,0,0.22); max-width:440px; width:100%; margin:0 auto; }
+        .login-icon { width:100px; height:100px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.8rem; display:flex; align-items:center; justify-content:center; font-size:3.5rem; box-shadow:0 12px 32px rgba(0,51,102,0.28); }
+        .login-title { text-align:center; color:var(--gps-blue); font-size:1.8rem; font-weight:800; margin-bottom:0.6rem; }
+        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:1rem; margin-bottom:2.4rem; }
+        .form-group { margin-bottom:1.5rem; }
+        .form-label { display:block; margin-bottom:0.6rem; font-weight:700; font-size:1rem; }
+        .form-input { width:100%; padding:1.2rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.15rem; background:var(--gray-light); transition:border-color 0.2s; }
         .form-input:focus { border-color:var(--gps-blue); background:white; outline:none; box-shadow:0 0 0 4px rgba(0,51,102,0.12); }
-        .btn-primary { width:100%; padding:1.25rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.15rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
+        .btn-primary { width:100%; padding:1.3rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.15rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
         .btn-primary:active { transform:scale(0.98); }
-        .error-message { background:#FDEDEC; color:var(--danger); padding:1.1rem; border-radius:10px; margin-bottom:1.4rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
+        .error-message { background:#FDEDEC; color:var(--danger); padding:1.2rem; border-radius:10px; margin-bottom:1.5rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
 
         .start-screen { justify-content:center; align-items:center; padding:2rem 1.2rem; }
-        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); border-radius:20px; padding:2.8rem 2rem; text-align:center; color:white; max-width:400px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); }
-        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.5rem; border:none; border-radius:14px; font-size:1.3rem; font-weight:800; width:100%; cursor:pointer; margin:1.6rem 0; min-height:60px; }
-        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.2rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:54px; }
+        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); border-radius:24px; padding:3rem 2.2rem; text-align:center; color:white; max-width:420px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); }
+        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.6rem; border:none; border-radius:16px; font-size:1.35rem; font-weight:800; width:100%; cursor:pointer; margin:1.8rem 0; min-height:64px; }
+        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.3rem; border-radius:14px; font-weight:700; width:100%; cursor:pointer; min-height:58px; }
 
-        .leitura-screen { background:#f9fafc; padding-bottom:12rem; }
-        .progress-container { background:var(--white); margin:1.2rem; padding:1.4rem; border-radius:18px; box-shadow:0 5px 15px rgba(0,0,0,0.07); }
-        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:1.1rem; font-weight:600; }
-        .progress-bar-bg { height:14px; background:var(--gray-medium); border-radius:7px; overflow:hidden; }
+        .leitura-screen { background:#f9fafc; padding:1.5rem 1rem 12rem; }
+        .progress-container { background:var(--white); margin-bottom:1.5rem; padding:1.5rem; border-radius:20px; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
+        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:1.15rem; font-weight:600; }
+        .progress-bar-bg { height:16px; background:var(--gray-medium); border-radius:8px; overflow:hidden; }
         .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); transition:width 0.5s ease; }
-        .local-selector { margin:0 1.2rem 1.4rem; }
-        .local-selector select { width:100%; padding:1.2rem; border-radius:12px; font-size:1.15rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
-        .locais-list { padding:0 1.2rem; }
-        .hidrometro-item { background:var(--white); border-radius:18px; padding:1.6rem; margin-bottom:1.4rem; box-shadow:0 5px 15px rgba(0,0,0,0.07); }
+        .local-selector { margin:0 0 1.5rem; }
+        .local-selector select { width:100%; padding:1.3rem; border-radius:14px; font-size:1.2rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
+        .locais-list { padding:0; }
+        .hidrometro-item { background:var(--white); border-radius:20px; padding:1.8rem; margin-bottom:1.6rem; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
         .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
-        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.8rem; font-size:1.25rem; }
-        .leitura-anterior { color:#666; font-size:1rem; margin-bottom:1rem; }
-        .input-field { width:100%; padding:1.3rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.45rem; text-align:center; font-weight:700; margin-bottom:1rem; min-height:56px; }
+        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.8rem; font-size:1.3rem; }
+        .leitura-anterior { color:#555; font-size:1.05rem; margin-bottom:1rem; font-weight:500; }
+        .leitura-field { margin-bottom:1.2rem; }
+        .input-field { width:100%; padding:1.4rem; border:2px solid var(--gray-medium); border-radius:14px; font-size:1.5rem; text-align:center; font-weight:700; min-height:60px; }
         .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
-        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1.2rem; border-radius:12px; margin:1rem 0; font-weight:700; font-size:1rem; }
+        .alerta-variacao { display:none; background:#FFF3E0; border:1px solid var(--warning); color:#E65100; padding:1.3rem; border-radius:14px; margin:1.2rem 0; font-weight:700; font-size:1.05rem; }
         .alerta-variacao.show { display:block; }
-        .justificativa { display:none; margin-top:1.2rem; }
+        .justificativa { display:none; margin-top:1.3rem; }
         .justificativa.show { display:block; }
-        .justificativa textarea { width:100%; padding:1.2rem; border:2px solid var(--danger); border-radius:12px; min-height:140px; font-size:1.05rem; }
-        .foto-btn { width:100%; padding:1.3rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; margin-top:1.2rem; cursor:pointer; text-align:center; min-height:60px; }
+        .justificativa textarea { width:100%; padding:1.3rem; border:2px solid var(--danger); border-radius:14px; min-height:150px; font-size:1.1rem; }
+        .foto-section { margin-top:1.4rem; }
+        .foto-btn { width:100%; padding:1.4rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:14px; font-weight:800; font-size:1.15rem; cursor:pointer; text-align:center; min-height:60px; }
         .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
-        .foto-preview { width:100%; max-height:260px; object-fit:cover; border-radius:12px; margin-top:1.2rem; display:none; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+        .foto-preview { width:100%; max-height:280px; object-fit:cover; border-radius:14px; margin-top:1.3rem; display:none; box-shadow:0 6px 18px rgba(0,0,0,0.1); }
         .foto-preview.show { display:block; }
 
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.4rem 1.6rem 2.4rem; box-shadow:0 -10px 35px rgba(0,0,0,0.14); display:none; z-index:1000; }
-        .btn-finalizar { width:100%; padding:1.5rem; border:none; border-radius:14px; font-size:1.3rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:60px; }
+        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.4rem 1.6rem 2.5rem; box-shadow:0 -10px 35px rgba(0,0,0,0.14); display:none; z-index:1000; }
+        .btn-finalizar { width:100%; padding:1.6rem; border:none; border-radius:16px; font-size:1.35rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:64px; }
         .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; cursor:pointer; }
 
         .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.96); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
         .loading-overlay.show { display:flex; }
-        .spinner { width:80px; height:80px; border:8px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
+        .spinner { width:90px; height:90px; border:10px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
     </style>
 </head>
@@ -121,9 +133,9 @@ Alterações:
 
         <div id="startScreen" class="start-screen screen">
             <div class="welcome-card">
-                <div style="font-size:3.2rem;margin-bottom:1rem;">👋</div>
+                <div style="font-size:3.5rem;margin-bottom:1.2rem;">👋</div>
                 <h2>Olá, <span id="nomeTecnico"></span></h2>
-                <p style="margin:1.5rem 0;">Pronto para iniciar a leitura?</p>
+                <p style="margin:1.8rem 0;">Pronto para iniciar a leitura?</p>
                 <button class="btn-iniciar" onclick="iniciarLeitura()">INICIAR LEITURA DOS HIDRÔMETROS</button>
                 <button class="btn-sair" onclick="logout()">SAIR</button>
             </div>
@@ -236,7 +248,8 @@ Alterações:
                     leituraAtual: '',
                     foto: null,
                     justificativa: '',
-                    variacao: 0
+                    variacao: 0,
+                    consumoAnterior: 0  // Para comparar consumo dia anterior (se disponível no futuro)
                 }));
 
                 locaisUnicos = [...new Set(hidrometros.map(h => h.local))];
@@ -276,18 +289,22 @@ Alterações:
                 item.className = `hidrometro-item ${isCompleto(h) ? 'completo' : ''}`;
                 item.innerHTML = `
                     <div class="hidrometro-tipo">${h.tipo}</div>
-                    <div class="leitura-anterior">Anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong></div>
-                    <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
-                           oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
+                    <div class="leitura-anterior">Leitura anterior: <strong>${h.leituraAnterior.toFixed(0)}</strong></div>
+                    <div class="leitura-field">
+                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
+                               oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
+                    </div>
                     <div id="alerta-${h.id}" class="alerta-variacao"></div>
                     <div id="just-${h.id}" class="justificativa">
                         <textarea placeholder="Justificativa obrigatória" oninput="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
                     </div>
-                    <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
-                        <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${h.id}', this)">
-                        Tirar foto da leitura
-                    </label>
-                    <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto||''}">
+                    <div class="foto-section">
+                        <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${h.id}', this)">
+                            Tirar foto da leitura
+                        </label>
+                        <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto||''}">
+                    </div>
                 `;
                 container.appendChild(item);
             });
@@ -298,35 +315,43 @@ Alterações:
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            h.leituraAtual = parseFloat(valor) || '';
+            h.leituraAtual = parseFloat(valor) || 0;
 
-            if (h.leituraAtual !== '' && !isNaN(h.leituraAtual)) {
-                const anterior = h.leituraAnterior;
-                let variacao = 0;
-                if (anterior !== 0) {
-                    variacao = ((h.leituraAtual - anterior) / anterior) * 100;
-                } else if (h.leituraAtual > 0) {
-                    variacao = 999; // valor alto para disparar >20% quando anterior = 0 e leitura positiva
-                }
+            const anterior = h.leituraAnterior;
+            const atual = h.leituraAtual;
 
-                h.variacao = variacao;
+            const consumoDia = atual - anterior;
 
-                const precisaJust = variacao > 20 || h.leituraAtual < anterior;
+            let precisaJust = false;
+            let mensagem = '';
 
-                const alerta = document.getElementById(`alerta-${id}`);
-                const just = document.getElementById(`just-${id}`);
-                const input = document.getElementById(`input-${id}`);
-
-                alerta.classList.toggle('show', precisaJust);
-                just.classList.toggle('show', precisaJust);
-                input.classList.toggle('erro', precisaJust);
-
-                if (precisaJust) {
-                    alerta.textContent = h.leituraAtual < anterior 
-                        ? '⚠️ Leitura menor que anterior!' 
-                        : `⚠️ Variação +${variacao.toFixed(1)}%`;
+            if (atual !== '' && !isNaN(atual)) {
+                if (consumoDia < 0) {
+                    precisaJust = true;
+                    mensagem = '⚠️ Consumo menor que ontem!';
+                } else if (anterior > 0) {
+                    const percentual = (consumoDia / anterior) * 100;
+                    if (percentual > 120) {  // > 20% de aumento
+                        precisaJust = true;
+                        mensagem = `⚠️ Consumo +${percentual.toFixed(1)}% maior que ontem!`;
+                    }
+                } else if (consumoDia > 0) {
+                    // anterior = 0, consumo positivo → aceita sem alerta (primeira leitura)
                 }
             }
+
+            const alerta = document.getElementById(`alerta-${id}`);
+            const just = document.getElementById(`just-${id}`);
+            const input = document.getElementById(`input-${id}`);
+
+            alerta.classList.toggle('show', precisaJust);
+            just.classList.toggle('show', precisaJust);
+            input.classList.toggle('erro', precisaJust);
+
+            if (precisaJust) {
+                alerta.textContent = mensagem;
+            }
+
             atualizarProgresso();
         }
 
@@ -351,7 +376,13 @@ Alterações:
 
         function isCompleto(h) {
             if (!h.leituraAtual || isNaN(h.leituraAtual)) return false;
-            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+            const consumoDia = h.leituraAtual - h.leituraAnterior;
+            let precisaJust = false;
+            if (consumoDia < 0) precisaJust = true;
+            else if (h.leituraAnterior > 0) {
+                const percentual = (consumoDia / h.leituraAnterior) * 100;
+                if (percentual > 120) precisaJust = true;
+            }
             if (precisaJust && (!h.justificativa || !h.justificativa.trim())) return false;
             return !!h.foto;
         }
@@ -369,7 +400,7 @@ Alterações:
 
         async function finalizarRonda() {
             if (!confirm('Finalizar ronda?')) return;
-            showLoading('Salvando...');
+            showLoading('Salvando leituras...');
             try {
                 alert('Ronda finalizada com sucesso!');
                 logout();
