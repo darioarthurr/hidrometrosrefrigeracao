@@ -7,29 +7,21 @@
     <title>Leitura de Hidrômetros - Grupo GPS | Multiplan</title>
     <style>
         :root {
-            --gps-blue: #003366;
-            --gps-blue-light: #004080;
-            --multiplan-green: #00A651;
-            --multiplan-green-light: #00C261;
-            --white: #FFFFFF;
-            --gray-light: #F5F7FA;
-            --gray-medium: #E1E8ED;
-            --gray-dark: #5A6C7D;
-            --text-dark: #2C3E50;
-            --danger: #E74C3C;
-            --warning: #F39C12;
+            --gps-blue: #003366; --gps-blue-light: #004080;
+            --multiplan-green: #00A651; --multiplan-green-light: #00C261;
+            --white: #FFFFFF; --gray-light: #F5F7FA; --gray-medium: #E1E8ED;
+            --gray-dark: #5A6C7D; --text-dark: #2C3E50;
+            --danger: #E74C3C; --warning: #F39C12;
         }
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
-        /* Header */
         .corporate-header { background:var(--white); padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; }
         .logo-gps { font-weight:800; font-size:1.1rem; color:var(--gps-blue); }
         .system-title { font-weight:800; font-size:1.15rem; color:var(--gps-blue); flex:1; text-align:center; }
         .logo-multiplan { font-weight:700; font-size:0.9rem; color:var(--multiplan-green); text-transform:uppercase; }
 
-        /* Login - original */
         .login-screen { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1.5rem; }
         .login-card { background:var(--white); border-radius:24px; padding:2.5rem 1.5rem; box-shadow:0 25px 80px rgba(0,0,0,0.4); max-width:400px; margin:0 auto; }
         .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.5rem; display:flex; align-items:center; justify-content:center; font-size:3rem; box-shadow:0 15px 40px rgba(0,51,102,0.3); }
@@ -43,13 +35,33 @@
         .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1rem; display:none; border-left:4px solid var(--danger); }
         .error-message.show { display:block; }
 
-        /* Start Screen */
         .start-screen { display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; padding:1.5rem; }
         .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.5rem; text-align:center; color:white; max-width:400px; }
         .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.5rem; border:none; border-radius:16px; font-size:1.3rem; font-weight:800; width:100%; cursor:pointer; margin:1.5rem 0; }
         .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.6); color:white; padding:1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; }
 
-        /* Loading */
+        .leitura-screen { display:none; flex:1; flex-direction:column; background:var(--gray-light); }
+        .progress-container { background:var(--white); margin:1rem; padding:1.5rem; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.06); }
+        .local-selector { padding:0 1.25rem; margin:1rem 0; }
+        .local-selector select { width:100%; padding:1rem; border-radius:12px; font-size:1.1rem; font-weight:700; border:2px solid var(--gray-medium); }
+        .locais-list { flex:1; overflow-y:auto; padding:0 1.25rem 8rem; }
+        .hidrometro-item { background:var(--white); border-radius:16px; padding:1.5rem; margin-bottom:1rem; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+        .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
+        .input-field { width:100%; padding:1.1rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.2rem; text-align:center; font-weight:700; }
+        .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
+        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1rem; border-radius:10px; margin:1rem 0; font-weight:700; }
+        .alerta-variacao.show { display:block; }
+        .justificativa { display:none; margin-top:1rem; }
+        .justificativa.show { display:block; }
+        .justificativa textarea { width:100%; padding:1rem; border:2px solid var(--danger); border-radius:10px; min-height:100px; font-family:inherit; }
+        .foto-btn { width:100%; padding:1.2rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; cursor:pointer; text-align:center; margin-top:1rem; }
+        .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
+        .foto-preview { width:100%; max-height:220px; object-fit:cover; border-radius:12px; margin-top:1rem; display:none; }
+        .foto-preview.show { display:block; }
+        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.25rem 1.5rem; box-shadow:0 -6px 25px rgba(0,0,0,0.1); display:none; z-index:1000; }
+        .btn-finalizar { width:100%; padding:1.3rem; border:none; border-radius:14px; font-size:1.1rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:var(--gray-dark); }
+        .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; cursor:pointer; }
+
         .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.95); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
         .loading-overlay.show { display:flex; }
         .spinner { width:70px; height:70px; border:5px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:1rem; }
@@ -87,12 +99,36 @@
         <!-- Tela inicial -->
         <div id="startScreen" class="start-screen">
             <div class="welcome-card">
-                <div style="font-size:2.8rem; margin-bottom:1rem;">👋</div>
-                <h2 style="margin-bottom:0.5rem;">Olá, <span id="nomeTecnico"></span></h2>
-                <p style="margin-bottom:2rem; opacity:0.9;">Pronto para iniciar a leitura?</p>
+                <div style="font-size:3rem; margin-bottom:1rem;">👋</div>
+                <h2>Olá, <span id="nomeTecnico"></span></h2>
+                <p style="margin:1.5rem 0;">Pronto para iniciar a leitura?</p>
                 <button class="btn-iniciar" onclick="iniciarLeitura()">INICIAR LEITURA DOS HIDRÔMETROS</button>
                 <button class="btn-sair" onclick="logout()">SAIR</button>
             </div>
+        </div>
+
+        <!-- Tela de leitura -->
+        <div id="leituraScreen" class="leitura-screen" style="display:none;">
+            <div class="progress-container">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+                    <span>Progresso da Ronda</span>
+                    <span id="progressoTexto">0/0</span>
+                </div>
+                <div style="height:12px;background:var(--gray-medium);border-radius:6px;overflow:hidden;">
+                    <div id="progressoBarra" style="height:100%;background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%);width:0%;transition:width 0.4s;"></div>
+                </div>
+            </div>
+
+            <div class="local-selector">
+                <select id="localSelect" onchange="mostrarHidrometrosDoLocal(this.value)"></select>
+            </div>
+
+            <div class="locais-list" id="hidrometrosContainer"></div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div id="bottomBar" class="bottom-bar">
+            <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
         </div>
 
         <!-- Loading -->
@@ -106,6 +142,8 @@
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYCCz1FXo_vHsgjEjVeOW2iitZO5lDMv1it7vN4lPmW_wPqog-WF0QL-vHu2_1JrYeCw/exec';
 
         let tecnico = null;
+        let hidrometros = [];
+        let locaisUnicos = [];
 
         function showLoading(txt) {
             document.getElementById('loadingText').textContent = txt;
@@ -127,10 +165,7 @@
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
 
-            if (!user || !pass) {
-                showError('Preencha usuário e senha');
-                return;
-            }
+            if (!user || !pass) return showError('Preencha usuário e senha');
 
             showLoading('Autenticando...');
 
@@ -141,13 +176,9 @@
                     body: JSON.stringify({ action: 'login', usuario: user, senha: pass })
                 });
 
-                if (!response.ok) throw new Error('Erro na conexão com o servidor');
-
                 const data = await response.json();
 
-                if (!data.success) {
-                    throw new Error(data.message || 'Usuário ou senha inválidos');
-                }
+                if (!data.success) throw new Error(data.message || 'Usuário ou senha inválidos');
 
                 tecnico = { nome: data.nome, usuario: data.usuario };
                 localStorage.setItem('tecnico', JSON.stringify(tecnico));
@@ -158,29 +189,13 @@
                 document.getElementById('nomeTecnico').textContent = tecnico.nome;
 
             } catch (err) {
-                console.error('Erro no login:', err);
                 showError(err.message);
             } finally {
                 hideLoading();
             }
         }
 
-        function logout() {
-            localStorage.removeItem('tecnico');
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('corporateHeader').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-        }
-
         async function iniciarLeitura() {
-            if (!tecnico) {
-                alert('Sessão expirada. Faça login novamente.');
-                logout();
-                return;
-            }
-
             showLoading('Iniciando leitura...');
 
             try {
@@ -190,51 +205,201 @@
                     body: JSON.stringify({ action: 'iniciar', usuario: tecnico.usuario })
                 });
 
-                if (!response.ok) throw new Error('Erro ao iniciar sessão');
-
                 const data = await response.json();
 
-                if (!data.success) {
-                    throw new Error(data.message || 'Não foi possível iniciar a leitura');
-                }
+                if (!data.success) throw new Error(data.message || 'Erro ao iniciar');
 
-                // Aqui você pode salvar os hidrômetros ou redirecionar para a tela de leitura
-                alert('Leitura iniciada com sucesso! ID da sessão: ' + data.sessaoId);
-                // Exemplo: redirecionar ou carregar a próxima tela
-                // document.getElementById('startScreen').style.display = 'none';
-                // document.getElementById('leituraScreen').style.display = 'flex';  // se você tiver essa tela
+                hidrometros = data.hidrometros.map(h => ({
+                    ...h,
+                    leituraAtual: '',
+                    foto: null,
+                    justificativa: '',
+                    variacao: 0
+                }));
+
+                locaisUnicos = [...new Set(hidrometros.map(h => h.local))];
+
+                document.getElementById('startScreen').style.display = 'none';
+                document.getElementById('leituraScreen').style.display = 'flex';
+                document.getElementById('bottomBar').style.display = 'block';
+
+                preencherSelectLocais();
+                mostrarHidrometrosDoLocal(locaisUnicos[0]);
 
             } catch (err) {
-                console.error('Erro ao iniciar:', err);
                 alert('Erro ao iniciar: ' + err.message);
             } finally {
                 hideLoading();
             }
         }
 
-        // Auto-login
-        window.onload = function() {
+        function preencherSelectLocais() {
+            const select = document.getElementById('localSelect');
+            select.innerHTML = '';
+            locaisUnicos.forEach(local => {
+                const opt = document.createElement('option');
+                opt.value = local;
+                opt.textContent = local;
+                select.appendChild(opt);
+            });
+        }
+
+        function mostrarHidrometrosDoLocal(local) {
+            const container = document.getElementById('hidrometrosContainer');
+            container.innerHTML = '';
+
+            const itens = hidrometros.filter(h => h.local === local);
+
+            itens.forEach(h => {
+                const div = document.createElement('div');
+                div.className = 'hidrometro-item';
+                div.innerHTML = `
+                    <div style="font-weight:700; margin-bottom:0.5rem;">${h.tipo}</div>
+                    <div style="color:#666; margin-bottom:1rem;">Anterior: ${h.leituraAnterior.toFixed(2)} m³</div>
+
+                    <input type="number" step="0.01" class="input-field" placeholder="Leitura atual" value="${h.leituraAtual}"
+                           onchange="atualizarLeitura('${h.id}', this.value)">
+
+                    <div id="alerta-${h.id}" class="alerta-variacao"></div>
+
+                    <div id="just-${h.id}" class="justificativa">
+                        <textarea placeholder="Justificativa obrigatória para variação >20% ou leitura menor" onchange="h.justificativa = this.value; atualizarProgresso()"></textarea>
+                    </div>
+
+                    <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
+                        <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${h.id}', this)">
+                        ${h.foto ? 'Foto adicionada ✓' : 'Tirar foto da leitura'}
+                    </label>
+                    <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}" src="${h.foto || ''}">
+                `;
+                container.appendChild(div);
+            });
+
+            atualizarProgresso();
+        }
+
+        function atualizarLeitura(id, valor) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+
+            h.leituraAtual = parseFloat(valor) || '';
+
+            const anterior = h.leituraAnterior;
+            const atual = h.leituraAtual;
+
+            if (atual !== '') {
+                h.variacao = anterior > 0 ? ((atual - anterior) / anterior) * 100 : 0;
+
+                const precisaJust = h.variacao > 20 || atual < anterior;
+                document.getElementById(`alerta-${id}`).classList.toggle('show', precisaJust);
+                document.getElementById(`just-${id}`).classList.toggle('show', precisaJust);
+                document.querySelector(`#input-${id}`)?.classList.toggle('erro', precisaJust);
+
+                if (precisaJust) {
+                    document.getElementById(`alerta-${id}`).textContent = atual < anterior ? '⚠️ Leitura menor que anterior!' : `⚠️ Variação: ${h.variacao.toFixed(1)}%`;
+                }
+            }
+
+            atualizarProgresso();
+        }
+
+        function capturarFoto(id, input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const h = hidrometros.find(x => x.id === id);
+                if (h) {
+                    h.foto = e.target.result;
+                    document.getElementById(`preview-${id}`).src = h.foto;
+                    document.getElementById(`preview-${id}`).classList.add('show');
+                    input.parentElement.classList.add('tem-foto');
+                    input.parentElement.textContent = 'Foto adicionada ✓';
+                    atualizarProgresso();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function isCompleto(h) {
+            if (!h.leituraAtual || isNaN(h.leituraAtual)) return false;
+            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+            if (precisaJust && !h.justificativa?.trim()) return false;
+            return !!h.foto;
+        }
+
+        function atualizarProgresso() {
+            const total = hidrometros.length;
+            const completos = hidrometros.filter(isCompleto).length;
+            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;
+            document.getElementById('progressoBarra').style.width = `${(completos / total) * 100}%`;
+
+            const btn = document.getElementById('btnFinalizar');
+            btn.disabled = completos !== total;
+            btn.classList.toggle('ativo', completos === total);
+            btn.textContent = completos === total ? 'Finalizar Ronda' : `Faltam ${total - completos}`;
+        }
+
+        async function finalizarRonda() {
+            if (!confirm('Deseja finalizar a ronda?')) return;
+
+            showLoading('Finalizando...');
+
+            try {
+                const leituras = hidrometros.map(h => ({
+                    id: h.id,
+                    local: h.local,
+                    tipo: h.tipo,
+                    anterior: h.leituraAnterior,
+                    atual: h.leituraAtual,
+                    consumo: (h.leituraAtual - h.leituraAnterior).toFixed(2),
+                    variacao: h.variacao.toFixed(1) + '%',
+                    justificativa: h.justificativa || '',
+                    foto: h.foto
+                }));
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'salvar',
+                        usuario: tecnico.usuario,
+                        leituras: leituras
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Ronda finalizada com sucesso!');
+                    logout();
+                } else {
+                    throw new Error(data.message || 'Erro ao salvar');
+                }
+            } catch (err) {
+                alert('Erro ao finalizar: ' + err.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('tecnico');
+            location.reload();
+        }
+
+        window.onload = () => {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
-                try {
-                    tecnico = JSON.parse(saved);
-                    document.getElementById('corporateHeader').style.display = 'flex';
-                    document.getElementById('startScreen').style.display = 'flex';
-                    document.getElementById('nomeTecnico').textContent = tecnico.nome;
-                } catch (e) {
-                    localStorage.removeItem('tecnico');
-                }
+                tecnico = JSON.parse(saved);
+                document.getElementById('corporateHeader').style.display = 'flex';
+                document.getElementById('startScreen').style.display = 'flex';
+                document.getElementById('nomeTecnico').textContent = tecnico.nome;
             } else {
                 document.getElementById('loginScreen').style.display = 'flex';
             }
         };
-
-        // Enter no campo senha
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('password').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') fazerLogin();
-            });
-        });
     </script>
 </body>
 </html>
