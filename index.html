@@ -34,13 +34,12 @@
         
         body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background: linear-gradient(135deg, var(--gps-blue) 0%, #001a33 100%);
+            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
             min-height: 100vh;
             color: var(--text-dark);
             line-height: 1.5;
         }
         
-        /* Container Mobile */
         .container {
             max-width: 100%;
             min-height: 100vh;
@@ -48,7 +47,7 @@
             flex-direction: column;
         }
         
-        /* Header Corporativo */
+        /* Header */
         .corporate-header {
             background: var(--white);
             padding: 1rem;
@@ -66,15 +65,6 @@
             font-size: 1.1rem;
             color: var(--gps-blue);
             letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        
-        .logo-gps::before {
-            content: "◆";
-            color: var(--multiplan-green);
-            font-size: 0.8rem;
         }
         
         .logo-multiplan {
@@ -86,71 +76,70 @@
         }
         
         .app-title {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--gray-dark);
-            text-align: center;
-            margin-top: 0.2rem;
-            font-weight: 500;
+            text-align: right;
+            margin-top: 0.1rem;
         }
         
-        /* Tela de Login */
+        /* Login */
         .login-screen {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             padding: 1.5rem;
-            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
         }
         
         .login-card {
             background: var(--white);
-            border-radius: 20px;
-            padding: 2rem 1.5rem;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 24px;
+            padding: 2.5rem 1.5rem;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
             width: 100%;
             max-width: 400px;
             margin: 0 auto;
-            animation: slideUp 0.5s ease;
+            animation: slideUp 0.6s ease;
         }
         
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .login-icon {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             background: linear-gradient(135deg, var(--gps-blue) 0%, var(--multiplan-green) 100%);
             border-radius: 50%;
             margin: 0 auto 1.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
-            box-shadow: 0 10px 30px rgba(0,51,102,0.3);
+            font-size: 3rem;
+            box-shadow: 0 15px 40px rgba(0,51,102,0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
         .login-title {
             text-align: center;
             color: var(--gps-blue);
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
         }
         
         .login-subtitle {
             text-align: center;
             color: var(--gray-dark);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             margin-bottom: 2rem;
+            font-weight: 500;
         }
         
         .form-group {
@@ -161,16 +150,16 @@
             display: block;
             margin-bottom: 0.5rem;
             color: var(--text-dark);
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.9rem;
         }
         
         .form-input {
             width: 100%;
-            padding: 1rem 1.25rem;
+            padding: 1.1rem 1.25rem;
             border: 2px solid var(--gray-medium);
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 1.1rem;
             transition: all 0.3s;
             background: var(--gray-light);
         }
@@ -184,50 +173,55 @@
         
         .btn {
             width: 100%;
-            padding: 1rem;
+            padding: 1.2rem;
             border: none;
             border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 700;
+            font-size: 1.1rem;
+            font-weight: 800;
             cursor: pointer;
             transition: all 0.3s;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
         
         .btn-primary {
             background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
             color: var(--white);
-            box-shadow: 0 4px 15px rgba(0,51,102,0.4);
+            box-shadow: 0 6px 20px rgba(0,51,102,0.4);
         }
         
         .btn-primary:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 8px rgba(0,51,102,0.3);
+            transform: scale(0.97);
+            box-shadow: 0 3px 10px rgba(0,51,102,0.3);
         }
         
         .btn-success {
             background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
             color: var(--white);
-            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+            box-shadow: 0 6px 20px rgba(0,166,81,0.4);
         }
         
         .btn-outline {
             background: transparent;
-            border: 2px solid var(--white);
+            border: 2px solid rgba(255,255,255,0.5);
             color: var(--white);
         }
         
         .error-message {
             background: #FDEDEC;
             color: var(--danger);
-            padding: 1rem;
+            padding: 1rem 1.25rem;
             border-radius: 10px;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.95rem;
+            font-weight: 600;
             display: none;
             border-left: 4px solid var(--danger);
             animation: shake 0.5s;
+        }
+        
+        .error-message.show {
+            display: block;
         }
         
         @keyframes shake {
@@ -236,38 +230,33 @@
             75% { transform: translateX(10px); }
         }
         
-        .error-message.show {
-            display: block;
-        }
-        
         /* QR Screen */
         .qr-screen {
             display: none;
             flex: 1;
             flex-direction: column;
-            background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
             padding: 1.5rem;
         }
         
         .welcome-card {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.15);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
             border: 1px solid rgba(255,255,255,0.2);
+            color: var(--white);
         }
         
         .welcome-title {
-            color: var(--white);
-            font-size: 1.25rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
         }
         
         .welcome-subtitle {
-            color: rgba(255,255,255,0.8);
-            font-size: 0.9rem;
+            opacity: 0.9;
+            font-size: 0.95rem;
         }
         
         .qr-container {
@@ -277,52 +266,50 @@
             justify-content: center;
             align-items: center;
             background: var(--white);
-            border-radius: 24px;
-            padding: 2rem 1.5rem;
+            border-radius: 28px;
+            padding: 2.5rem 2rem;
             margin-bottom: 1rem;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            box-shadow: 0 25px 80px rgba(0,0,0,0.2);
+            text-align: center;
         }
         
         .qr-icon {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
-            border-radius: 24px;
+            border-radius: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .qr-text {
-            text-align: center;
-            color: var(--text-dark);
-            margin-bottom: 1.5rem;
+            font-size: 5rem;
+            margin-bottom: 2rem;
+            box-shadow: inset 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .qr-text h3 {
-            font-size: 1.25rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.4rem;
+            margin-bottom: 0.75rem;
             color: var(--gps-blue);
         }
         
         .qr-text p {
             color: var(--gray-dark);
-            font-size: 0.9rem;
+            font-size: 1rem;
+            margin-bottom: 2rem;
         }
         
         .btn-simulate {
             background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
             color: var(--white);
-            padding: 1rem 2rem;
+            padding: 1.25rem 3rem;
             border: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1rem;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 1.1rem;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+            box-shadow: 0 8px 25px rgba(0,166,81,0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         /* Leitura Screen */
@@ -337,84 +324,79 @@
             background: linear-gradient(135deg, var(--gps-blue) 0%, var(--gps-blue-light) 100%);
             color: var(--white);
             padding: 1.5rem;
-            border-radius: 0 0 24px 24px;
-            box-shadow: 0 4px 20px rgba(0,51,102,0.3);
+            border-radius: 0 0 28px 28px;
+            box-shadow: 0 6px 25px rgba(0,51,102,0.3);
         }
         
         .leitura-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 0.2rem;
         }
         
         .leitura-subtitle {
-            font-size: 0.85rem;
-            opacity: 0.9;
+            font-size: 0.9rem;
+            opacity: 0.95;
         }
         
         .progress-container {
             background: var(--white);
-            margin: 1rem;
-            padding: 1.25rem;
-            border-radius: 16px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 1.25rem;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
         }
         
         .progress-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .progress-title {
-            font-weight: 700;
+            font-weight: 800;
             color: var(--text-dark);
-            font-size: 0.95rem;
+            font-size: 1rem;
         }
         
         .progress-value {
-            font-weight: 800;
+            font-weight: 900;
             color: var(--gps-blue);
-            font-size: 1.1rem;
+            font-size: 1.2rem;
         }
         
         .progress-bar-bg {
-            height: 10px;
+            height: 12px;
             background: var(--gray-medium);
-            border-radius: 5px;
+            border-radius: 6px;
             overflow: hidden;
         }
         
         .progress-bar-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
-            border-radius: 5px;
-            transition: width 0.5s ease;
-            box-shadow: 0 0 10px rgba(0,166,81,0.3);
+            border-radius: 6px;
+            transition: width 0.6s ease;
+            box-shadow: 0 0 15px rgba(0,166,81,0.3);
         }
         
         .locais-list {
             flex: 1;
             overflow-y: auto;
-            padding: 0 1rem 6rem;
+            padding: 0 1.25rem 7rem;
         }
         
         .local-card {
             background: var(--white);
-            border-radius: 16px;
+            border-radius: 20px;
             margin-bottom: 1rem;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            transition: transform 0.2s;
-        }
-        
-        .local-card:active {
-            transform: scale(0.99);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
         
         .local-header {
-            padding: 1.25rem;
+            padding: 1.25rem 1.5rem;
             background: linear-gradient(135deg, var(--gps-blue) 0%, #002244 100%);
             color: var(--white);
             display: flex;
@@ -428,21 +410,21 @@
         }
         
         .local-name {
-            font-weight: 700;
-            font-size: 1rem;
+            font-weight: 800;
+            font-size: 1.05rem;
         }
         
         .local-status {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 0.95rem;
+            font-weight: 700;
         }
         
         .local-content {
             display: none;
-            padding: 1rem;
+            padding: 1.25rem;
         }
         
         .local-content.expandido {
@@ -458,8 +440,8 @@
         .hidrometro-item {
             background: var(--gray-light);
             border: 2px solid transparent;
-            border-radius: 12px;
-            padding: 1.25rem;
+            border-radius: 16px;
+            padding: 1.5rem;
             margin-bottom: 1rem;
             transition: all 0.3s;
         }
@@ -470,42 +452,45 @@
         }
         
         .hidrometro-tipo {
-            font-weight: 700;
+            font-weight: 800;
             color: var(--gps-blue);
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
         
         .leitura-anterior {
             background: var(--white);
-            padding: 0.75rem;
-            border-radius: 8px;
-            font-size: 0.85rem;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
             color: var(--gray-dark);
-            margin-bottom: 0.75rem;
-            border-left: 3px solid var(--gps-blue);
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--gps-blue);
+            font-weight: 500;
         }
         
         .leitura-anterior strong {
             color: var(--text-dark);
+            font-weight: 700;
         }
         
         .input-group {
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .input-field {
             width: 100%;
-            padding: 1rem;
+            padding: 1.1rem;
             border: 2px solid var(--gray-medium);
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: 600;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
             text-align: center;
             transition: all 0.3s;
+            color: var(--text-dark);
         }
         
         .input-field:focus {
@@ -523,12 +508,12 @@
             display: none;
             background: #FEF5E7;
             border: 1px solid var(--warning);
-            color: #D68910;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            font-size: 0.85rem;
-            font-weight: 600;
+            color: #B7791F;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            font-weight: 700;
         }
         
         .alerta-variacao.show {
@@ -536,14 +521,9 @@
             animation: pulse 2s infinite;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
         .justificativa {
             display: none;
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .justificativa.show {
@@ -552,17 +532,17 @@
         
         .justificativa textarea {
             width: 100%;
-            padding: 0.75rem;
+            padding: 1rem;
             border: 2px solid var(--danger);
-            border-radius: 8px;
+            border-radius: 10px;
             resize: vertical;
-            min-height: 80px;
+            min-height: 100px;
             font-family: inherit;
-            font-size: 0.9rem;
+            font-size: 1rem;
         }
         
         .foto-section {
-            margin-top: 0.75rem;
+            margin-top: 1rem;
         }
         
         .foto-btn {
@@ -571,30 +551,32 @@
             justify-content: center;
             gap: 0.5rem;
             width: 100%;
-            padding: 1rem;
+            padding: 1.1rem;
             background: var(--white);
             border: 2px dashed var(--gray-medium);
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--gray-dark);
+            font-size: 1rem;
         }
         
         .foto-btn.tem-foto {
             background: #E8F8F5;
             border-color: var(--multiplan-green);
+            border-style: solid;
             color: var(--multiplan-green);
         }
         
         .foto-preview {
             width: 100%;
-            max-height: 200px;
+            max-height: 250px;
             object-fit: cover;
-            border-radius: 10px;
-            margin-top: 0.75rem;
+            border-radius: 12px;
+            margin-top: 1rem;
             display: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .foto-preview.show {
@@ -602,24 +584,19 @@
             animation: fadeIn 0.3s;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        
         input[type="file"] {
             display: none;
         }
         
-        /* Bottom Action Bar */
+        /* Bottom Bar */
         .bottom-bar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             background: var(--white);
-            padding: 1rem 1.5rem calc(1rem + env(safe-area-inset-bottom));
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            padding: 1.25rem 1.5rem calc(1.25rem + env(safe-area-inset-bottom));
+            box-shadow: 0 -6px 25px rgba(0,0,0,0.1);
             display: none;
             z-index: 1000;
         }
@@ -630,31 +607,31 @@
         
         .btn-finalizar {
             width: 100%;
-            padding: 1.25rem;
+            padding: 1.3rem;
             background: var(--gray-medium);
             color: var(--gray-dark);
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 1.1rem;
-            font-weight: 700;
+            font-weight: 800;
             cursor: not-allowed;
             transition: all 0.3s;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
         
         .btn-finalizar.ativo {
             background: linear-gradient(135deg, var(--multiplan-green) 0%, var(--multiplan-green-light) 100%);
             color: var(--white);
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,166,81,0.4);
+            box-shadow: 0 6px 20px rgba(0,166,81,0.4);
         }
         
         .btn-finalizar.ativo:active {
             transform: scale(0.98);
         }
         
-        /* Loading Overlay */
+        /* Loading */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -675,9 +652,9 @@
         }
         
         .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255,255,255,0.2);
+            width: 70px;
+            height: 70px;
+            border: 5px solid rgba(255,255,255,0.2);
             border-top-color: var(--multiplan-green);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -689,27 +666,42 @@
         }
         
         .loading-text {
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.2rem;
+            font-weight: 700;
         }
         
-        /* Responsividade */
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 10000;
+            display: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .debug-info.show {
+            display: block;
+        }
+        
         @media (min-width: 480px) {
             .container {
                 max-width: 480px;
                 margin: 0 auto;
             }
         }
-        
-        /* Animações de entrada */
-        .fade-in {
-            animation: fadeIn 0.4s ease;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Corporate Header -->
+        <!-- Header -->
         <div class="corporate-header" id="corporateHeader" style="display:none;">
             <div class="logo-gps">Grupo GPS</div>
             <div>
@@ -718,7 +710,7 @@
             </div>
         </div>
 
-        <!-- Tela de Login -->
+        <!-- Login -->
         <div id="loginScreen" class="login-screen">
             <div class="login-card">
                 <div class="login-icon">💧</div>
@@ -729,19 +721,19 @@
                 
                 <div class="form-group">
                     <label class="form-label">Usuário</label>
-                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
+                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off" value="admin">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Senha</label>
-                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
+                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha" value="123456">
                 </div>
                 
                 <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
             </div>
         </div>
 
-        <!-- Tela QR -->
+        <!-- QR -->
         <div id="qrScreen" class="qr-screen">
             <div class="welcome-card">
                 <div class="welcome-title">👋 Olá, <span id="nomeTecnico"></span></div>
@@ -760,11 +752,11 @@
             <button class="btn btn-outline" onclick="logout()" style="margin-top:1rem;">Sair</button>
         </div>
 
-        <!-- Tela de Leituras -->
+        <!-- Leituras -->
         <div id="leituraScreen" class="leitura-screen">
             <div class="leitura-header">
                 <div class="leitura-title">💧 Leitura de Hidrômetros</div>
-                <div class="leitura-subtitle">Preencha todos os campos para finalizar</div>
+                <div class="leitura-subtitle">Preencha todos os campos</div>
             </div>
             
             <div class="progress-container">
@@ -780,7 +772,7 @@
             <div class="locais-list" id="locaisContainer"></div>
         </div>
 
-        <!-- Bottom Bar Finalizar -->
+        <!-- Bottom Bar -->
         <div id="bottomBar" class="bottom-bar">
             <button id="btnFinalizar" class="btn-finalizar" onclick="finalizarRonda()" disabled>
                 Finalizar Ronda (0/55)
@@ -793,9 +785,12 @@
         <div class="spinner"></div>
         <div class="loading-text" id="loadingText">Processando...</div>
     </div>
+    
+    <!-- Debug -->
+    <div id="debugInfo" class="debug-info"></div>
 
     <script>
-        // CONFIGURAÇÃO
+        // CONFIG
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyvGJzIvoEgR3FKtAzgRmsNE_Q1-tDApIJbqH9lqXEBHJ_-6A4fJuaNW9S7sXDk_URDtg/exec';
         
         let tecnico = null;
@@ -806,35 +801,68 @@
         const LOCAIS = ['BARRA FREE','EXP 7','AC','MALL NOVO','RIO ANTIGO','AB','HOTZONE','ETA','EXP 5','CAG 1 CM2','CAG 2 CM2'];
         const TIPOS = ['CEDAE','REUSO','ÁGUA GELADA','PURGA','LADRÃO'];
         
-        // JSONP Helper
-        function jsonp(url) {
+        // Debug logger
+        function log(msg) {
+            console.log(msg);
+            const debug = document.getElementById('debugInfo');
+            debug.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + msg + '</div>';
+            debug.scrollTop = debug.scrollHeight;
+        }
+        
+        // Mostrar debug (toque 5x no título para mostrar)
+        let tapCount = 0;
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('login-title') || e.target.classList.contains('leitura-title')) {
+                tapCount++;
+                if (tapCount >= 5) {
+                    document.getElementById('debugInfo').classList.toggle('show');
+                    tapCount = 0;
+                }
+            }
+        });
+        
+        // JSONP com timeout e retry
+        function jsonp(url, timeout = 10000) {
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                const cbName = 'cb_' + Date.now();
+                const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                let cleaned = false;
+                
+                function cleanup() {
+                    if (cleaned) return;
+                    cleaned = true;
+                    delete window[cbName];
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+                    clearTimeout(timer);
+                }
                 
                 window[cbName] = function(data) {
+                    log('JSONP Response received');
+                    cleanup();
                     resolve(data);
-                    delete window[cbName];
-                    if(script.parentNode) document.head.removeChild(script);
                 };
                 
-                script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
+                const fullUrl = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
+                log('JSONP Request: ' + fullUrl.substring(0, 100) + '...');
+                
+                script.src = fullUrl;
                 script.async = true;
                 
-                script.onerror = () => {
-                    reject(new Error('Falha na conexão'));
-                    delete window[cbName];
+                script.onerror = function(e) {
+                    log('JSONP Error: ' + e);
+                    cleanup();
+                    reject(new Error('Falha ao carregar script'));
                 };
                 
-                document.head.appendChild(script);
+                const timer = setTimeout(() => {
+                    log('JSONP Timeout');
+                    cleanup();
+                    reject(new Error('Timeout'));
+                }, timeout);
                 
-                setTimeout(() => {
-                    if(window[cbName]) {
-                        reject(new Error('Timeout'));
-                        delete window[cbName];
-                        if(script.parentNode) document.head.removeChild(script);
-                    }
-                }, 15000);
+                document.head.appendChild(script);
             });
         }
         
@@ -849,27 +877,27 @@
             }
             
             showLoading('Autenticando...');
+            log('Tentando login: ' + user);
             
             try {
-                const url = `${APPS_SCRIPT_URL}?action=login&usuario=${encodeURIComponent(user)}&senha=${encodeURIComponent(pass)}`;
-                console.log('Tentando login:', url);
+                const url = APPS_SCRIPT_URL + '?action=login&usuario=' + encodeURIComponent(user) + '&senha=' + encodeURIComponent(pass);
+                const data = await jsonp(url, 15000);
                 
-                const data = await jsonp(url);
-                console.log('Resposta login:', data);
+                log('Login response: ' + JSON.stringify(data));
                 
-                if (data.success) {
+                if (data && data.success) {
                     tecnico = { nome: data.nome, usuario: data.usuario };
                     localStorage.setItem('tecnico', JSON.stringify(tecnico));
                     hideLoading();
                     mostrarTelaQR();
                 } else {
                     hideLoading();
-                    showError(data.message || 'Usuário ou senha inválidos');
+                    showError((data && data.message) || 'Usuário ou senha inválidos');
                 }
             } catch (e) {
-                console.error('Erro login:', e);
+                log('Login error: ' + e.message);
                 hideLoading();
-                showError('Erro de conexão. Verifique sua internet.');
+                showError('Erro de conexão. Verifique sua internet e tente novamente.');
             }
         }
         
@@ -879,65 +907,71 @@
         }
         
         function mostrarTelaQR() {
+            log('Mostrando tela QR');
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('corporateHeader').style.display = 'flex';
             document.getElementById('qrScreen').style.display = 'flex';
-            document.getElementById('qrScreen').classList.add('fade-in');
-            document.getElementById('nomeTecnico').textContent = tecnico.nome;
+            document.getElementById('nomeTecnico').textContent = tecnico ? tecnico.nome : '';
         }
         
-        // Iniciar Sessão
+        // Iniciar
         async function simularQR() {
             if (sessao) {
                 finalizarRonda();
                 return;
             }
             
-            showLoading('Carregando hidrômetros...');
+            showLoading('Carregando...');
+            log('Iniciando sessão para: ' + (tecnico ? tecnico.usuario : 'unknown'));
             
             try {
-                const url = `${APPS_SCRIPT_URL}?action=iniciar&usuario=${encodeURIComponent(tecnico.usuario)}`;
-                console.log('Iniciando sessão:', url);
+                const url = APPS_SCRIPT_URL + '?action=iniciar&usuario=' + encodeURIComponent(tecnico.usuario);
+                const data = await jsonp(url, 15000);
                 
-                const data = await jsonp(url);
-                console.log('Resposta iniciar:', data);
+                log('Iniciar response: ' + JSON.stringify(data).substring(0, 200));
                 
-                if (!data.success) {
-                    throw new Error(data.message || 'Erro ao iniciar');
+                if (!data || !data.success) {
+                    throw new Error((data && data.message) || 'Erro ao iniciar sessão');
                 }
                 
-                sessao = { 
-                    id: data.sessaoId, 
-                    inicio: new Date(),
-                    tecnico: data.usuario 
+                sessao = {
+                    id: data.sessaoId,
+                    inicio: new Date()
                 };
                 dataInicio = new Date().toISOString();
                 
+                if (!data.hidrometros || !Array.isArray(data.hidrometros)) {
+                    throw new Error('Dados dos hidrômetros inválidos');
+                }
+                
                 hidrometros = data.hidrometros.map(h => ({
-                    ...h,
+                    id: h.id,
+                    local: h.local,
+                    tipo: h.tipo,
+                    leituraAnterior: parseFloat(h.leituraAnterior) || 0,
                     leituraAtual: '',
                     foto: null,
                     justificativa: '',
                     variacao: 0
                 }));
                 
-                console.log('Hidrômetros carregados:', hidrometros.length);
+                log('Carregados ' + hidrometros.length + ' hidrômetros');
                 
                 hideLoading();
                 mostrarTelaLeitura();
                 
             } catch (e) {
-                console.error('Erro ao iniciar:', e);
+                log('Erro ao iniciar: ' + e.message);
                 hideLoading();
-                alert('Erro ao iniciar: ' + e.message);
+                alert('Erro: ' + e.message);
             }
         }
         
         function mostrarTelaLeitura() {
+            log('Mostrando tela de leituras');
             document.getElementById('qrScreen').style.display = 'none';
             document.getElementById('leituraScreen').style.display = 'flex';
             document.getElementById('bottomBar').classList.add('show');
-            document.getElementById('leituraScreen').classList.add('fade-in');
             
             renderizarLocais();
             atualizarProgresso();
@@ -950,16 +984,17 @@
             LOCAIS.forEach((local, idx) => {
                 const localH = hidrometros.filter(h => h.local === local);
                 const completos = localH.filter(h => isCompleto(h)).length;
-                const isComp = completos === localH.length && localH.length > 0;
+                const total = localH.length;
+                const isComp = completos === total && total > 0;
                 
                 const card = document.createElement('div');
                 card.className = 'local-card';
                 card.innerHTML = `
-                    <div class="local-header ${isComp ? 'completo' : ''}" onclick="toggleLocal('${idx}')">
+                    <div class="local-header ${isComp ? 'completo' : ''}" onclick="toggleLocal(${idx})">
                         <span class="local-name">${local}</span>
                         <div class="local-status">
-                            <span>${completos}/${localH.length}</span>
-                            <span>${isComp ? '✓' : '›'}</span>
+                            <span>${completos}/${total}</span>
+                            <span style="font-size:1.2rem">${isComp ? '✓' : '›'}</span>
                         </div>
                     </div>
                     <div class="local-content" id="local-${idx}">
@@ -981,14 +1016,9 @@
                         Anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong>
                     </div>
                     <div class="input-group">
-                        <input type="number" 
-                               step="0.01" 
-                               class="input-field" 
-                               id="input-${h.id}"
-                               placeholder="0.00"
-                               value="${h.leituraAtual}"
-                               onchange="atualizarLeitura('${h.id}', this.value)"
-                               onkeyup="atualizarLeitura('${h.id}', this.value)">
+                        <input type="number" step="0.01" class="input-field" id="input-${h.id}"
+                               placeholder="0.00" value="${h.leituraAtual}"
+                               onchange="atualizarLeitura('${h.id}', this.value)">
                     </div>
                     <div id="alerta-${h.id}" class="alerta-variacao">
                         ⚠️ <span id="var-${h.id}"></span>
@@ -999,34 +1029,22 @@
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}" id="btn-foto-${h.id}">
-                            <input type="file" 
-                                   accept="image/*" 
-                                   capture="environment"
+                            <input type="file" accept="image/*" capture="environment"
                                    onchange="capturarFoto('${h.id}', this)">
                             <span>${h.foto ? '✓ Foto adicionada' : '+ Adicionar foto'}</span>
                         </label>
-                        <img id="preview-${h.id}" 
-                             class="foto-preview ${h.foto ? 'show' : ''}" 
-                             src="${h.foto || ''}" 
-                             onclick="removerFoto('${h.id}')">
+                        <img id="preview-${h.id}" class="foto-preview ${h.foto ? 'show' : ''}"
+                             src="${h.foto || ''}" onclick="removerFoto('${h.id}')">
                     </div>
                 </div>
             `;
         }
         
         function toggleLocal(idx) {
-            const el = document.getElementById(`local-${idx}`);
+            const el = document.getElementById('local-' + idx);
             const isExpanded = el.classList.contains('expandido');
-            
-            // Fecha todos
-            document.querySelectorAll('.local-content').forEach(c => {
-                c.classList.remove('expandido');
-            });
-            
-            // Abre o clicado se estava fechado
-            if (!isExpanded) {
-                el.classList.add('expandido');
-            }
+            document.querySelectorAll('.local-content').forEach(c => c.classList.remove('expandido'));
+            if (!isExpanded) el.classList.add('expandido');
         }
         
         function atualizarLeitura(id, valor) {
@@ -1039,18 +1057,16 @@
                 const consumo = h.leituraAtual - h.leituraAnterior;
                 h.variacao = h.leituraAnterior > 0 ? (consumo / h.leituraAnterior) * 100 : 0;
                 
-                const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+                const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+                const alertaEl = document.getElementById('alerta-' + id);
+                const justEl = document.getElementById('just-' + id);
+                const inputEl = document.getElementById('input-' + id);
                 
-                const alertaEl = document.getElementById(`alerta-${id}`);
-                const justEl = document.getElementById(`just-${id}`);
-                const inputEl = document.getElementById(`input-${id}`);
-                
-                if (precisaJustificar) {
-                    const tipoAlerta = h.leituraAtual < h.leituraAnterior 
+                if (precisaJust) {
+                    const msg = h.leituraAtual < h.leituraAnterior 
                         ? 'Leitura menor que anterior!' 
-                        : `Variação: +${h.variacao.toFixed(1)}%`;
-                    
-                    document.getElementById(`var-${id}`).textContent = tipoAlerta;
+                        : 'Variação: +' + h.variacao.toFixed(1) + '%';
+                    document.getElementById('var-' + id).textContent = msg;
                     alertaEl.classList.add('show');
                     justEl.classList.add('show');
                     inputEl.classList.add('erro');
@@ -1076,7 +1092,6 @@
             const file = input.files[0];
             if (!file) return;
             
-            // Verificar tamanho (max 2MB)
             if (file.size > 2 * 1024 * 1024) {
                 alert('Foto muito grande. Máximo 2MB.');
                 return;
@@ -1086,7 +1101,6 @@
             reader.onload = function(e) {
                 const h = hidrometros.find(x => x.id === id);
                 if (h) {
-                    // Comprimir imagem (simplificado - apenas redimensiona dataURL)
                     h.foto = e.target.result;
                     atualizarUI(id);
                 }
@@ -1095,7 +1109,7 @@
         }
         
         function removerFoto(id) {
-            if (!confirm('Remover esta foto?')) return;
+            if (!confirm('Remover foto?')) return;
             const h = hidrometros.find(x => x.id === id);
             if (h) {
                 h.foto = null;
@@ -1105,12 +1119,8 @@
         
         function isCompleto(h) {
             if (h.leituraAtual === '' || isNaN(h.leituraAtual)) return false;
-            
-            const precisaJustificar = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
-            if (precisaJustificar && (!h.justificativa || h.justificativa.trim() === '')) {
-                return false;
-            }
-            
+            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;
             return h.foto !== null;
         }
         
@@ -1118,11 +1128,10 @@
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
             
-            const item = document.getElementById(`item-${id}`);
-            const btnFoto = document.getElementById(`btn-foto-${id}`);
-            const preview = document.getElementById(`preview-${id}`);
+            const item = document.getElementById('item-' + id);
+            const btnFoto = document.getElementById('btn-foto-' + id);
+            const preview = document.getElementById('preview-' + id);
             
-            // Atualizar classes
             item.classList.toggle('completo', isCompleto(h));
             btnFoto.classList.toggle('tem-foto', !!h.foto);
             btnFoto.querySelector('span').textContent = h.foto ? '✓ Foto adicionada' : '+ Adicionar foto';
@@ -1135,19 +1144,19 @@
             }
             
             atualizarProgresso();
-            renderizarLocais(); // Atualiza contadores nos headers
+            renderizarLocais();
         }
         
         function atualizarProgresso() {
             const total = hidrometros.length;
             const completos = hidrometros.filter(isCompleto).length;
-            const percentual = total > 0 ? (completos / total) * 100 : 0;
+            const pct = total > 0 ? (completos / total) * 100 : 0;
             
-            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;
-            document.getElementById('progressoBarra').style.width = `${percentual}%`;
+            document.getElementById('progressoTexto').textContent = completos + '/' + total;
+            document.getElementById('progressoBarra').style.width = pct + '%';
             
             const btn = document.getElementById('btnFinalizar');
-            btn.textContent = `Finalizar Ronda (${completos}/${total})`;
+            btn.textContent = 'Finalizar Ronda (' + completos + '/' + total + ')';
             btn.disabled = completos !== total;
             btn.classList.toggle('ativo', completos === total);
         }
@@ -1156,20 +1165,20 @@
         async function finalizarRonda() {
             const incompletos = hidrometros.filter(h => !isCompleto(h));
             if (incompletos.length > 0) {
-                alert(`Ainda faltam ${incompletos.length} hidrômetros!`);
-                // Expande o primeiro incompleto
+                alert('Faltam ' + incompletos.length + ' hidrômetros!');
                 const primeiro = incompletos[0];
                 const idx = LOCAIS.indexOf(primeiro.local);
                 if (idx >= 0) {
-                    document.getElementById(`local-${idx}`).classList.add('expandido');
-                    document.getElementById(`item-${primeiro.id}`).scrollIntoView({ behavior: 'smooth' });
+                    document.getElementById('local-' + idx).classList.add('expandido');
+                    document.getElementById('item-' + primeiro.id).scrollIntoView({ behavior: 'smooth' });
                 }
                 return;
             }
             
-            if (!confirm('Confirmar finalização da ronda?')) return;
+            if (!confirm('Confirmar finalização?')) return;
             
-            showLoading('Salvando leituras...');
+            showLoading('Salvando...');
+            log('Finalizando ronda...');
             
             try {
                 const leituras = hidrometros.map(h => ({
@@ -1192,32 +1201,31 @@
                     leituras: leituras
                 };
                 
-                // Verificar tamanho dos dados
                 const dadosStr = JSON.stringify(dados);
+                log('Tamanho dos dados: ' + dadosStr.length + ' chars');
+                
                 if (dadosStr.length > 8000) {
-                    // Se muito grande, enviar sem fotos e avisar
-                    console.warn('Dados muito grandes, podendo truncar fotos');
+                    log('AVISO: Dados muito grandes!');
                 }
                 
-                const url = `${APPS_SCRIPT_URL}?action=salvar&dados=${encodeURIComponent(dadosStr)}`;
-                console.log('Enviando:', url.substring(0, 200) + '...');
+                const url = APPS_SCRIPT_URL + '?action=salvar&dados=' + encodeURIComponent(dadosStr);
+                const data = await jsonp(url, 20000);
                 
-                const data = await jsonp(url);
-                console.log('Resposta salvar:', data);
+                log('Resposta salvar: ' + JSON.stringify(data));
                 
-                if (data.success) {
+                if (data && data.success) {
                     hideLoading();
-                    alert('✅ Ronda finalizada com sucesso!\\nID: ' + data.data.id);
+                    alert('✅ Ronda finalizada! ID: ' + data.data.id);
                     localStorage.removeItem('tecnico');
                     location.reload();
                 } else {
-                    throw new Error(data.message);
+                    throw new Error((data && data.message) || 'Erro ao salvar');
                 }
                 
             } catch (e) {
-                console.error('Erro ao salvar:', e);
+                log('Erro ao salvar: ' + e.message);
                 hideLoading();
-                alert('❌ Erro ao salvar: ' + e.message + '\\n\\nTente novamente.');
+                alert('❌ Erro: ' + e.message);
             }
         }
         
@@ -1240,10 +1248,12 @@
         
         // Auto-login
         window.onload = function() {
+            log('App iniciado');
             const saved = localStorage.getItem('tecnico');
             if (saved) {
                 try {
                     tecnico = JSON.parse(saved);
+                    log('Auto-login: ' + tecnico.nome);
                     document.getElementById('corporateHeader').style.display = 'flex';
                     mostrarTelaQR();
                 } catch(e) {
@@ -1252,9 +1262,9 @@
             }
         };
         
-        // Permitir Enter no login
+        // Enter no login
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('password')?.addEventListener('keypress', function(e) {
+            document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') fazerLogin();
             });
         });
