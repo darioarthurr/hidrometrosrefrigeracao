@@ -28,10 +28,6 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html {
-            font-size: 16px;
-        }
-        
         body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
             background: linear-gradient(160deg, var(--gps-blue) 0%, #001122 100%);
@@ -670,27 +666,6 @@
             font-weight: 700;
         }
         
-        .debug-info {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            color: #0f0;
-            padding: 10px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 11px;
-            z-index: 10000;
-            display: none;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .debug-info.show {
-            display: block;
-        }
-        
         @media (min-width: 480px) {
             .container {
                 max-width: 480px;
@@ -721,12 +696,12 @@
                 
                 <div class="form-group">
                     <label class="form-label">Usuário</label>
-                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off" value="admin">
+                    <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Senha</label>
-                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha" value="123456">
+                    <input type="password" id="password" class="form-input" placeholder="Digite sua senha">
                 </div>
                 
                 <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
@@ -785,13 +760,10 @@
         <div class="spinner"></div>
         <div class="loading-text" id="loadingText">Processando...</div>
     </div>
-    
-    <!-- Debug -->
-    <div id="debugInfo" class="debug-info"></div>
 
     <script>
-        // CONFIG
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyvGJzIvoEgR3FKtAzgRmsNE_Q1-tDApIJbqH9lqXEBHJ_-6A4fJuaNW9S7sXDk_URDtg/exec';
+        // CONFIGURAÇÃO - SUBSTITUA PELA SUA URL
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFQi8KsVmO6KuzGBoEg2glaULlH1eczAb7ofg0MPO0cnY1Mj5nmQzJv-kT8_grd3ZiCA/exec';
         
         let tecnico = null;
         let sessao = null;
@@ -801,72 +773,9 @@
         const LOCAIS = ['BARRA FREE','EXP 7','AC','MALL NOVO','RIO ANTIGO','AB','HOTZONE','ETA','EXP 5','CAG 1 CM2','CAG 2 CM2'];
         const TIPOS = ['CEDAE','REUSO','ÁGUA GELADA','PURGA','LADRÃO'];
         
-        // Debug logger
-        function log(msg) {
-            console.log(msg);
-            const debug = document.getElementById('debugInfo');
-            debug.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + msg + '</div>';
-            debug.scrollTop = debug.scrollHeight;
-        }
-        
-        // Mostrar debug (toque 5x no título para mostrar)
-        let tapCount = 0;
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('login-title') || e.target.classList.contains('leitura-title')) {
-                tapCount++;
-                if (tapCount >= 5) {
-                    document.getElementById('debugInfo').classList.toggle('show');
-                    tapCount = 0;
-                }
-            }
-        });
-        
-        // JSONP com timeout e retry
-        function jsonp(url, timeout = 10000) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                let cleaned = false;
-                
-                function cleanup() {
-                    if (cleaned) return;
-                    cleaned = true;
-                    delete window[cbName];
-                    if (script.parentNode) {
-                        script.parentNode.removeChild(script);
-                    }
-                    clearTimeout(timer);
-                }
-                
-                window[cbName] = function(data) {
-                    log('JSONP Response received');
-                    cleanup();
-                    resolve(data);
-                };
-                
-                const fullUrl = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
-                log('JSONP Request: ' + fullUrl.substring(0, 100) + '...');
-                
-                script.src = fullUrl;
-                script.async = true;
-                
-                script.onerror = function(e) {
-                    log('JSONP Error: ' + e);
-                    cleanup();
-                    reject(new Error('Falha ao carregar script'));
-                };
-                
-                const timer = setTimeout(() => {
-                    log('JSONP Timeout');
-                    cleanup();
-                    reject(new Error('Timeout'));
-                }, timeout);
-                
-                document.head.appendChild(script);
-            });
-        }
-        
-        // Login
+        // ============================================================
+        // LOGIN - MESMA ABORDAGEM DO SISTEMA QUE FUNCIONA
+        // ============================================================
         async function fazerLogin() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
@@ -877,61 +786,83 @@
             }
             
             showLoading('Autenticando...');
-            log('Tentando login: ' + user);
             
             try {
-                const url = APPS_SCRIPT_URL + '?action=login&usuario=' + encodeURIComponent(user) + '&senha=' + encodeURIComponent(pass);
-                const data = await jsonp(url, 15000);
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        usuario: user,
+                        senha: pass
+                    })
+                });
                 
-                log('Login response: ' + JSON.stringify(data));
+                const text = await response.text();
+                console.log('Resposta raw:', text);
                 
-                if (data && data.success) {
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Resposta inválida do servidor');
+                }
+                
+                if (data.success) {
                     tecnico = { nome: data.nome, usuario: data.usuario };
                     localStorage.setItem('tecnico', JSON.stringify(tecnico));
                     hideLoading();
                     mostrarTelaQR();
                 } else {
                     hideLoading();
-                    showError((data && data.message) || 'Usuário ou senha inválidos');
+                    showError(data.message || 'Usuário ou senha inválidos');
                 }
-            } catch (e) {
-                log('Login error: ' + e.message);
+            } catch (error) {
+                console.error('Erro login:', error);
                 hideLoading();
-                showError('Erro de conexão. Verifique sua internet e tente novamente.');
+                showError('Erro de conexão: ' + error.message);
             }
         }
         
-        function logout() {
-            localStorage.removeItem('tecnico');
-            location.reload();
-        }
-        
-        function mostrarTelaQR() {
-            log('Mostrando tela QR');
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('corporateHeader').style.display = 'flex';
-            document.getElementById('qrScreen').style.display = 'flex';
-            document.getElementById('nomeTecnico').textContent = tecnico ? tecnico.nome : '';
-        }
-        
-        // Iniciar
+        // ============================================================
+        // INICIAR SESSÃO - POST COMO NO SISTEMA QUE FUNCIONA
+        // ============================================================
         async function simularQR() {
             if (sessao) {
                 finalizarRonda();
                 return;
             }
             
-            showLoading('Carregando...');
-            log('Iniciando sessão para: ' + (tecnico ? tecnico.usuario : 'unknown'));
+            showLoading('Carregando hidrômetros...');
             
             try {
-                const url = APPS_SCRIPT_URL + '?action=iniciar&usuario=' + encodeURIComponent(tecnico.usuario);
-                const data = await jsonp(url, 15000);
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({
+                        action: 'iniciar',
+                        usuario: tecnico.usuario
+                    })
+                });
                 
-                log('Iniciar response: ' + JSON.stringify(data).substring(0, 200));
+                const text = await response.text();
+                console.log('Resposta iniciar:', text);
                 
-                if (!data || !data.success) {
-                    throw new Error((data && data.message) || 'Erro ao iniciar sessão');
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Resposta inválida do servidor');
+                }
+                
+                if (!data.success) {
+                    throw new Error(data.message || 'Erro ao iniciar sessão');
                 }
                 
                 sessao = {
@@ -939,10 +870,6 @@
                     inicio: new Date()
                 };
                 dataInicio = new Date().toISOString();
-                
-                if (!data.hidrometros || !Array.isArray(data.hidrometros)) {
-                    throw new Error('Dados dos hidrômetros inválidos');
-                }
                 
                 hidrometros = data.hidrometros.map(h => ({
                     id: h.id,
@@ -955,24 +882,111 @@
                     variacao: 0
                 }));
                 
-                log('Carregados ' + hidrometros.length + ' hidrômetros');
+                console.log('Hidrômetros carregados:', hidrometros.length);
                 
                 hideLoading();
                 mostrarTelaLeitura();
                 
-            } catch (e) {
-                log('Erro ao iniciar: ' + e.message);
+            } catch (error) {
+                console.error('Erro ao iniciar:', error);
                 hideLoading();
-                alert('Erro: ' + e.message);
+                alert('Erro: ' + error.message);
             }
         }
         
+        // ============================================================
+        // FINALIZAR - POST COMO NO SISTEMA QUE FUNCIONA
+        // ============================================================
+        async function finalizarRonda() {
+            const incompletos = hidrometros.filter(h => !isCompleto(h));
+n            if (incompletos.length > 0) {
+                alert(`Ainda faltam ${incompletos.length} hidrômetros!`);
+                const primeiro = incompletos[0];
+                const idx = LOCAIS.indexOf(primeiro.local);
+                if (idx >= 0) {
+                    document.getElementById(`local-${idx}`).classList.add('expandido');
+                    document.getElementById(`item-${primeiro.id}`).scrollIntoView({ behavior: 'smooth' });
+                }
+                return;
+            }
+            
+            if (!confirm('Confirmar finalização da ronda?')) return;
+            
+            showLoading('Salvando leituras...');
+            
+            try {
+                const leituras = hidrometros.map(h => ({
+                    id: h.id,
+                    local: h.local,
+                    tipo: h.tipo,
+                    anterior: h.leituraAnterior,
+                    atual: h.leituraAtual,
+                    consumo: (h.leituraAtual - h.leituraAnterior).toFixed(2),
+                    variacao: h.variacao.toFixed(1) + '%',
+                    justificativa: h.justificativa,
+                    foto: h.foto
+                }));
+                
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({
+                        action: 'salvar',
+                        usuario: tecnico.usuario,
+                        idSessao: sessao.id,
+                        dataInicio: dataInicio,
+                        leituras: leituras
+                    })
+                });
+                
+                const text = await response.text();
+                console.log('Resposta salvar:', text);
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Resposta inválida do servidor');
+                }
+                
+                if (data.success) {
+                    hideLoading();
+                    alert('✅ Ronda finalizada com sucesso!\\nID: ' + data.data.id);
+                    localStorage.removeItem('tecnico');
+                    location.reload();
+                } else {
+                    throw new Error(data.message || 'Erro ao salvar');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                hideLoading();
+                alert('❌ Erro ao salvar: ' + error.message);
+            }
+        }
+        
+        // ============================================================
+        // RESTANTE DO CÓDIGO (INTERFACE)
+        // ============================================================
+        function logout() {
+            localStorage.removeItem('tecnico');
+            location.reload();
+        }
+        
+        function mostrarTelaQR() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('corporateHeader').style.display = 'flex';
+            document.getElementById('qrScreen').style.display = 'flex';
+            document.getElementById('nomeTecnico').textContent = tecnico.nome;
+        }
+        
         function mostrarTelaLeitura() {
-            log('Mostrando tela de leituras');
             document.getElementById('qrScreen').style.display = 'none';
             document.getElementById('leituraScreen').style.display = 'flex';
             document.getElementById('bottomBar').classList.add('show');
-            
             renderizarLocais();
             atualizarProgresso();
         }
@@ -1041,11 +1055,11 @@
         }
         
         function toggleLocal(idx) {
-            const el = document.getElementById('local-' + idx);
-            const isExpanded = el.classList.contains('expandido');
+            const el = document.getElementById(`local-${idx}`);
+n            const isExpanded = el.classList.contains('expandido');
             document.querySelectorAll('.local-content').forEach(c => c.classList.remove('expandido'));
             if (!isExpanded) el.classList.add('expandido');
-        }
+n        }
         
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
@@ -1058,216 +1072,22 @@
                 h.variacao = h.leituraAnterior > 0 ? (consumo / h.leituraAnterior) * 100 : 0;
                 
                 const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
-                const alertaEl = document.getElementById('alerta-' + id);
-                const justEl = document.getElementById('just-' + id);
-                const inputEl = document.getElementById('input-' + id);
+                const alertaEl = document.getElementById(`alerta-${id}`);
+                const justEl = document.getElementById(`just-${id}`);
+                const inputEl = document.getElementById(`input-${id}`);
                 
                 if (precisaJust) {
                     const msg = h.leituraAtual < h.leituraAnterior 
                         ? 'Leitura menor que anterior!' 
-                        : 'Variação: +' + h.variacao.toFixed(1) + '%';
-                    document.getElementById('var-' + id).textContent = msg;
-                    alertaEl.classList.add('show');
-                    justEl.classList.add('show');
-                    inputEl.classList.add('erro');
-                } else {
-                    alertaEl.classList.remove('show');
-                    justEl.classList.remove('show');
-                    inputEl.classList.remove('erro');
-                }
-            }
-            
-            atualizarUI(id);
-        }
-        
-        function setJustificativa(id, valor) {
-            const h = hidrometros.find(x => x.id === id);
-            if (h) {
-                h.justificativa = valor;
-                atualizarUI(id);
-            }
-        }
-        
-        function capturarFoto(id, input) {
-            const file = input.files[0];
-            if (!file) return;
-            
-            if (file.size > 2 * 1024 * 1024) {
-                alert('Foto muito grande. Máximo 2MB.');
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const h = hidrometros.find(x => x.id === id);
-                if (h) {
-                    h.foto = e.target.result;
-                    atualizarUI(id);
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        function removerFoto(id) {
-            if (!confirm('Remover foto?')) return;
-            const h = hidrometros.find(x => x.id === id);
-            if (h) {
-                h.foto = null;
-                atualizarUI(id);
-            }
-        }
-        
-        function isCompleto(h) {
-            if (h.leituraAtual === '' || isNaN(h.leituraAtual)) return false;
-            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
-            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;
-            return h.foto !== null;
-        }
-        
-        function atualizarUI(id) {
-            const h = hidrometros.find(x => x.id === id);
-            if (!h) return;
-            
-            const item = document.getElementById('item-' + id);
-            const btnFoto = document.getElementById('btn-foto-' + id);
-            const preview = document.getElementById('preview-' + id);
-            
-            item.classList.toggle('completo', isCompleto(h));
-            btnFoto.classList.toggle('tem-foto', !!h.foto);
-            btnFoto.querySelector('span').textContent = h.foto ? '✓ Foto adicionada' : '+ Adicionar foto';
-            
-            if (h.foto) {
-                preview.src = h.foto;
-                preview.classList.add('show');
-            } else {
-                preview.classList.remove('show');
-            }
-            
-            atualizarProgresso();
-            renderizarLocais();
-        }
-        
-        function atualizarProgresso() {
-            const total = hidrometros.length;
-            const completos = hidrometros.filter(isCompleto).length;
-            const pct = total > 0 ? (completos / total) * 100 : 0;
-            
-            document.getElementById('progressoTexto').textContent = completos + '/' + total;
-            document.getElementById('progressoBarra').style.width = pct + '%';
-            
-            const btn = document.getElementById('btnFinalizar');
-            btn.textContent = 'Finalizar Ronda (' + completos + '/' + total + ')';
-            btn.disabled = completos !== total;
-            btn.classList.toggle('ativo', completos === total);
-        }
-        
-        // Finalizar
-        async function finalizarRonda() {
-            const incompletos = hidrometros.filter(h => !isCompleto(h));
-            if (incompletos.length > 0) {
-                alert('Faltam ' + incompletos.length + ' hidrômetros!');
-                const primeiro = incompletos[0];
-                const idx = LOCAIS.indexOf(primeiro.local);
-                if (idx >= 0) {
-                    document.getElementById('local-' + idx).classList.add('expandido');
-                    document.getElementById('item-' + primeiro.id).scrollIntoView({ behavior: 'smooth' });
-                }
-                return;
-            }
-            
-            if (!confirm('Confirmar finalização?')) return;
-            
-            showLoading('Salvando...');
-            log('Finalizando ronda...');
-            
-            try {
-                const leituras = hidrometros.map(h => ({
-                    id: h.id,
-                    local: h.local,
-                    tipo: h.tipo,
-                    anterior: h.leituraAnterior,
-                    atual: h.leituraAtual,
-                    consumo: (h.leituraAtual - h.leituraAnterior).toFixed(2),
-                    variacao: h.variacao.toFixed(1) + '%',
-                    justificativa: h.justificativa,
-                    foto: h.foto
-                }));
-                
-                const dados = {
-                    action: 'salvar',
-                    usuario: tecnico.usuario,
-                    idSessao: sessao.id,
-                    dataInicio: dataInicio,
-                    leituras: leituras
-                };
-                
-                const dadosStr = JSON.stringify(dados);
-                log('Tamanho dos dados: ' + dadosStr.length + ' chars');
-                
-                if (dadosStr.length > 8000) {
-                    log('AVISO: Dados muito grandes!');
-                }
-                
-                const url = APPS_SCRIPT_URL + '?action=salvar&dados=' + encodeURIComponent(dadosStr);
-                const data = await jsonp(url, 20000);
-                
-                log('Resposta salvar: ' + JSON.stringify(data));
-                
-                if (data && data.success) {
-                    hideLoading();
-                    alert('✅ Ronda finalizada! ID: ' + data.data.id);
-                    localStorage.removeItem('tecnico');
-                    location.reload();
-                } else {
-                    throw new Error((data && data.message) || 'Erro ao salvar');
-                }
-                
-            } catch (e) {
-                log('Erro ao salvar: ' + e.message);
-                hideLoading();
-                alert('❌ Erro: ' + e.message);
-            }
-        }
-        
-        // UI Helpers
-        function showLoading(text) {
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('loading').classList.add('show');
-        }
-        
-        function hideLoading() {
-            document.getElementById('loading').classList.remove('show');
-        }
-        
-        function showError(msg) {
-            const el = document.getElementById('loginError');
-            el.textContent = msg;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 5000);
-        }
-        
-        // Auto-login
-        window.onload = function() {
-            log('App iniciado');
-            const saved = localStorage.getItem('tecnico');
-            if (saved) {
-                try {
-                    tecnico = JSON.parse(saved);
-                    log('Auto-login: ' + tecnico.nome);
-                    document.getElementById('corporateHeader').style.display = 'flex';
-                    mostrarTelaQR();
-                } catch(e) {
-                    localStorage.removeItem('tecnico');
-                }
-            }
-        };
-        
-        // Enter no login
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('password').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') fazerLogin();
-            });
-        });
-    </script>
-</body>
-</html>
+                        : `Variação: +${h.variacao.toFixed(1)}%`;
+n                    document.getElementById(`var-${id}`).textContent = msg;
+n                    alertaEl.classList.add('show');
+n                    justEl.classList.add('show');
+n                    inputEl.classList.add('erro');
+n                } else {
+n                    alertaEl.classList.remove('show');
+n                    justEl.classList.remove('show');
+n                    inputEl.classList.remove('erro');
+n                }
+n            }
+n            \n            atualizarUI(id);\n        }\n        \n        function setJustificativa(id, valor) {\n            const h = hidrometros.find(x => x.id === id);\n            if (h) {\n                h.justificativa = valor;\n                atualizarUI(id);\n            }\n        }\n        \n        function capturarFoto(id, input) {\n            const file = input.files[0];\n            if (!file) return;\n            \n            if (file.size > 2 * 1024 * 1024) {\n                alert('Foto muito grande. Máximo 2MB.');\n                return;\n            }\n            \n            const reader = new FileReader();\n            reader.onload = function(e) {\n                const h = hidrometros.find(x => x.id === id);\n                if (h) {\n                    h.foto = e.target.result;\n                    atualizarUI(id);\n                }\n            };\n            reader.readAsDataURL(file);\n        }\n        \n        function removerFoto(id) {\n            if (!confirm('Remover foto?')) return;\n            const h = hidrometros.find(x => x.id === id);\n            if (h) {\n                h.foto = null;\n                atualizarUI(id);\n            }\n        }\n        \n        function isCompleto(h) {\n            if (h.leituraAtual === '' || isNaN(h.leituraAtual)) return false;\n            const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;\n            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;\n            return h.foto !== null;\n        }\n        \n        function atualizarUI(id) {\n            const h = hidrometros.find(x => x.id === id);\n            if (!h) return;\n            \n            const item = document.getElementById(`item-${id}`);\n            const btnFoto = document.getElementById(`btn-foto-${id}`);\n            const preview = document.getElementById(`preview-${id}`);\n            \n            item.classList.toggle('completo', isCompleto(h));\n            btnFoto.classList.toggle('tem-foto', !!h.foto);\n            btnFoto.querySelector('span').textContent = h.foto ? '✓ Foto adicionada' : '+ Adicionar foto';\n            \n            if (h.foto) {\n                preview.src = h.foto;\n                preview.classList.add('show');\n            } else {\n                preview.classList.remove('show');\n            }\n            \n            atualizarProgresso();\n            renderizarLocais();\n        }\n        \n        function atualizarProgresso() {\n            const total = hidrometros.length;\n            const completos = hidrometros.filter(isCompleto).length;\n            const pct = total > 0 ? (completos / total) * 100 : 0;\n            \n            document.getElementById('progressoTexto').textContent = `${completos}/${total}`;\n            document.getElementById('progressoBarra').style.width = `${pct}%`;\n            \n            const btn = document.getElementById('btnFinalizar');\n            btn.textContent = `Finalizar Ronda (${completos}/${total})`;\n            btn.disabled = completos !== total;\n            btn.classList.toggle('ativo', completos === total);\n        }\n        \n        function showLoading(text) {\n            document.getElementById('loadingText').textContent = text;\n            document.getElementById('loading').classList.add('show');\n        }\n        \n        function hideLoading() {\n            document.getElementById('loading').classList.remove('show');\n        }\n        \n        function showError(msg) {\n            const el = document.getElementById('loginError');\n            el.textContent = msg;\n            el.classList.add('show');\n            setTimeout(() => el.classList.remove('show'), 5000);\n        }\n        \n        // Auto-login\n        window.onload = function() {\n            const saved = localStorage.getItem('tecnico');\n            if (saved) {\n                try {\n                    tecnico = JSON.parse(saved);\n                    document.getElementById('corporateHeader').style.display = 'flex';\n                    mostrarTelaQR();\n                } catch(e) {\n                    localStorage.removeItem('tecnico');\n                }\n            }\n        };\n        \n        // Enter no login\n        document.addEventListener('DOMContentLoaded', function() {\n            document.getElementById('password').addEventListener('keypress', function(e) {\n                if (e.key === 'Enter') fazerLogin();\n            });\n        });\n    </script>\n</body>\n</html>'''\n\n# Salvar\nwith open('/mnt/kimi/output/hidrometros_sistema_final.html', 'w', encoding='utf-8') as f:\n    f.write(html_sistema)\n\nprint(\"✅ SISTEMA FINAL GERADO!\")\nprint(\"=\"*60)\nprint(\"📁 Arquivo: hidrometros_sistema_final.html\")\nprint(f\"📊 Tamanho: {len(html_sistema)} caracteres\")\nprint(\"\\n🎯 MUDANÇAS PRINCIPAIS:\")\nprint(\"1. ✅ Usa POST (igual ao sistema que funciona)\")\nprint(\"2. ✅ Content-Type: text/plain;charset=utf-8\")\nprint(\"3. ✅ redirect: 'follow'\")\nprint(\"4. ✅ Tratamento de JSON.parse com try/catch\")\nprint(\"5. ✅ Logs no console para debug\")\nprint(\"\\n⚠️  IMPORTANTE: Atualize também o Apps Script!\")\n"}
