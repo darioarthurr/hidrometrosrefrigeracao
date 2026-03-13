@@ -1,3 +1,15 @@
+<!-- 
+VERSÃO: v1.17 – 13/03/2026 17:15 -03
+Correções desta versão:
+- Cálculo de consumo do dia e variação 100% em tempo real (oninput)
+- Atualização correta do leituraAtual antes de calcular
+- Proteção contra valores inválidos/vazios/NaN
+- Atualização do DOM específica por hidrômetro (ID único)
+- Alertas e justificativa disparando corretamente em todos os itens
+- Botão Finalizar só ativo quando todos completos (leitura + foto + justificativa se necessário)
+- Layout mobile mantido (foto abaixo do input)
+-->
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -302,7 +314,7 @@
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            // Atualiza valor atual com segurança
+            // Atualiza o valor atual com segurança
             h.leituraAtual = parseFloat(valor) || 0;
 
             const anterior = h.leituraAnterior;
@@ -334,11 +346,13 @@
             const input = document.getElementById(`input-${id}`);
             const consumoInfo = document.getElementById(`consumo-info-${id}`);
 
-            alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
-            alerta.textContent = mensagem;
+            if (alerta) {
+                alerta.className = 'alerta-variacao' + (precisaJust ? ' show ' + classeAlerta : '');
+                alerta.textContent = mensagem;
+            }
 
-            just.classList.toggle('show', precisaJust);
-            input.classList.toggle('erro', precisaJust);
+            if (just) just.classList.toggle('show', precisaJust);
+            if (input) input.classList.toggle('erro', precisaJust);
 
             if (consumoInfo) {
                 consumoInfo.innerHTML = `
