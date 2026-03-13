@@ -19,7 +19,7 @@
             --danger: #E74C3C;
             --warning: #F39C12;
         }
-        * { margin:0; padding:0; box-sizing:border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
@@ -302,6 +302,7 @@
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
+            // Atualiza valor atual com segurança
             h.leituraAtual = parseFloat(valor) || 0;
 
             const anterior = h.leituraAnterior;
