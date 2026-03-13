@@ -1,13 +1,13 @@
 <!-- 
-VERSÃO: v1.17 – 13/03/2026 17:15 -03
-Correções desta versão:
-- Cálculo de consumo do dia e variação 100% em tempo real (oninput)
-- Atualização correta do leituraAtual antes de calcular
-- Proteção contra valores inválidos/vazios/NaN
-- Atualização do DOM específica por hidrômetro (ID único)
-- Alertas e justificativa disparando corretamente em todos os itens
-- Botão Finalizar só ativo quando todos completos (leitura + foto + justificativa se necessário)
-- Layout mobile mantido (foto abaixo do input)
+VERSÃO: v1.18 – 13/03/2026 17:45 -03
+Correções definitivas:
+- Cálculo de consumo e variação 100% em tempo real (a cada digitação)
+- Atualização correta de h.leituraAtual antes de calcular
+- Inicialização explícita de consumo/variação ao carregar itens
+- Proteção total contra vazio/NaN/divisão por zero
+- Alertas/justificativa disparando em todos os hidrômetros
+- Botão Finalizar só ativo quando todos completos
+- Layout e foto mantidos
 -->
 
 <!DOCTYPE html>
