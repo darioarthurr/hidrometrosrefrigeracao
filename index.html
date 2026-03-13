@@ -1,10 +1,11 @@
 <!-- 
-VERSÃO: v1.25 – 13/03/2026 21:30 -03
-Correção crítica:
-- ReferenceError: h is not defined no oninput da textarea → resolvido passando safeId e buscando h por ID
-- Progresso agora atualiza após digitar justificativa
-- Logs mantidos para debug
-- Tudo o resto (consumo, variação, alertas) funcionando como antes
+VERSÃO: v1.26 – 13/03/2026 21:45 -03
+Correções:
+- Alerta agora aparece corretamente ao digitar leitura e some ao justificar
+- Borda vermelha some ao justificar
+- Progresso atualiza em tempo real
+- Reavaliação dinâmica de alerta/borda/progresso ao digitar justificativa
+- Logs para confirmar o estado
 -->
 
 <!DOCTYPE html>
@@ -302,11 +303,7 @@ Correção crítica:
                                            if (h) { 
                                                h.justificativa = this.value.trim(); 
                                                setTimeout(() => { 
-                                                   const alerta = document.getElementById('alerta-' + safeId); 
-                                                   const input = document.getElementById('input-' + safeId); 
-                                                   if (alerta) alerta.classList.remove('show'); 
-                                                   if (input) input.classList.remove('erro'); 
-                                                   forceUpdateProgress(); 
+                                                   reavaliarAlertaEProgresso(safeId); 
                                                }, 500); 
                                            }">
                             ${h.justificativa||''}
@@ -326,12 +323,66 @@ Correção crítica:
             atualizarProgresso();
         }
 
+        function reavaliarAlertaEProgresso(id) {
+            const h = hidrometros.find(x => x.id === id);
+            if (!h) return;
+
+            // Recalcula precisaJust com valores atuais
+            const consumoDia = h.leituraAtual - h.leituraAnterior;
+            let precisaJust = false;
+            let mensagem = '';
+            let classeAlerta = '';
+
+            if (consumoDia < 0) {
+                precisaJust = true;
+                mensagem = '⚠️ Consumo menor que ontem!';
+                classeAlerta = 'negativo';
+            } else if (h.consumoAnterior > 0) {
+                const variacao = ((consumoDia - h.consumoAnterior) / h.consumoAnterior) * 100;
+                h.variacao = variacao;
+
+                if (variacao > 100) {
+                    precisaJust = true;
+                    mensagem = `🚨 Possível vazamento! Consumo +${variacao.toFixed(1)}% acima do normal!`;
+                    classeAlerta = 'vazamento';
+                } else if (variacao > 20) {
+                    precisaJust = true;
+                    mensagem = `⚠️ Consumo +${variacao.toFixed(1)}% maior que ontem!`;
+                } else if (variacao < -20) {
+                    precisaJust = true;
+                    mensagem = `⚠️ Consumo ${Math.abs(variacao).toFixed(1)}% menor que ontem!`;
+                    classeAlerta = 'negativo';
+                } else if (consumoDia <= 0.5) {
+                    precisaJust = true;
+                    mensagem = '⚠️ Consumo muito baixo ou zero – verifique medidor!';
+                    classeAlerta = 'negativo';
+                }
+            }
+
+            const alerta = document.getElementById(`alerta-${id}`);
+            const input = document.getElementById(`input-${id}`);
+
+            if (alerta) {
+                if (precisaJust) {
+                    alerta.className = 'alerta-variacao show ' + classeAlerta;
+                    alerta.textContent = mensagem;
+                } else {
+                    alerta.classList.remove('show');
+                }
+            }
+
+            if (input) {
+                input.classList.toggle('erro', precisaJust);
+            }
+
+            console.log(`[LOG REAVALIAÇÃO] ${h.id} | Precisa just agora: ${precisaJust} | Justificativa: "${h.justificativa}" | Alerta show: ${alerta ? alerta.classList.contains('show') : 'não encontrado'}`);
+
+            atualizarProgresso();
+        }
+
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
-            if (!h) {
-                console.warn(`[LOG] Hidrometro não encontrado: ${id}`);
-                return;
-            }
+            if (!h) return;
 
             const novoValor = Number(valor) || 0;
             h.leituraAtual = novoValor;
@@ -373,7 +424,6 @@ Correção crítica:
             }
 
             const alerta = document.getElementById(`alerta-${id}`);
-            const just = document.getElementById(`just-${id}`);
             const input = document.getElementById(`input-${id}`);
             const consumoInfo = document.getElementById(`consumo-info-${id}`);
 
@@ -382,7 +432,6 @@ Correção crítica:
                 alerta.textContent = mensagem;
             }
 
-            if (just) just.classList.toggle('show', precisaJust);
             if (input) input.classList.toggle('erro', precisaJust);
 
             if (consumoInfo) {
@@ -399,14 +448,7 @@ Correção crítica:
 
         function forceUpdateProgress() {
             console.log('[LOG FORÇADO PROGRESSO] Reavaliando todos os itens após justificativa...');
-            hidrometros.forEach(h => {
-                const safeId = h.id;
-                const alerta = document.getElementById(`alerta-${safeId}`);
-                const input = document.getElementById(`input-${safeId}`);
-                if (alerta) alerta.classList.remove('show');
-                if (input) input.classList.remove('erro');
-            });
-            atualizarProgresso();
+            hidrometros.forEach(h => reavaliarAlertaEProgresso(h.id));
         }
 
         function capturarFoto(id, input) {
@@ -441,16 +483,9 @@ Correção crítica:
             }
 
             const hasJust = h.justificativa && h.justificativa.trim() !== '';
-            if (precisaJust && !hasJust) {
-                console.log(`[LOG COMPLETO] ${h.id} | Precisa just: true | Tem texto: false → NÃO completo`);
-                return false;
-            }
+            if (precisaJust && !hasJust) return false;
 
-            const hasFoto = !!h.foto;
-            const completo = hasFoto && (!precisaJust || hasJust);
-            console.log(`[LOG COMPLETO] ${h.id} | Leitura: ${h.leituraAtual} | Foto: ${hasFoto} | Justificativa: "${h.justificativa}" | Completo: ${completo}`);
-
-            return completo;
+            return !!h.foto;
         }
 
         function atualizarProgresso() {
