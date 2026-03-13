@@ -1,11 +1,10 @@
 <!-- 
-VERSÃO: v1.22 – 13/03/2026 20:00 -03
+VERSÃO: v1.23 – 13/03/2026 20:30 -03
 Correções finais:
-- Progresso da ronda e botão Finalizar atualizam corretamente após preencher justificativa
-- Alerta some e borda vermelha desaparece automaticamente ao digitar na justificativa
-- isCompleto(h) reavalia dinamicamente a necessidade de justificativa
-- Logs detalhados no console (carregamento + atualização + progresso)
-- Alertas de vazamento (>100%), consumo baixo (≤0.5), variação >20% ou <-20%
+- Alerta some e progresso atualiza após digitar justificativa (mesmo com alerta anterior)
+- isCompleto(h) reavalia dinamicamente necessidade de justificativa
+- setTimeout 300ms no oninput da textarea para sincronia com DOM
+- Logs mais claros no console (carregamento, atualização, progresso, completo?)
 - Tudo testado para funcionar em tempo real
 -->
 
@@ -306,7 +305,7 @@ Correções finais:
                                                if (alerta) alerta.classList.remove('show'); 
                                                if (input) input.classList.remove('erro'); 
                                                atualizarProgresso(); 
-                                           }, 100);">${h.justificativa||''}</textarea>
+                                           }, 300);">${h.justificativa||''}</textarea>
                     </div>
                     <div class="foto-section">
                         <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
@@ -425,10 +424,17 @@ Correções finais:
                 if (Math.abs(variacao) > 20 || consumoDia <= 0.5) precisaJust = true;
             }
 
-            // Se ainda precisa justificativa, verifica se tem texto
-            if (precisaJust && (!h.justificativa || h.justificativa.trim() === '')) return false;
+            // Reavaliação dinâmica: se precisa justificativa, verifica se tem texto agora
+            if (precisaJust) {
+                const hasJust = h.justificativa && h.justificativa.trim() !== '';
+                console.log(`[LOG COMPLETO] ${h.id} | Precisa just: true | Tem justificativa: ${hasJust}`);
+                if (!hasJust) return false;
+            }
 
-            return !!h.foto;
+            const hasFoto = !!h.foto;
+            console.log(`[LOG COMPLETO] ${h.id} | Leitura: ${h.leituraAtual} | Foto: ${hasFoto} | Completo: ${hasFoto && (!precisaJust || (h.justificativa && h.justificativa.trim() !== ''))}`);
+
+            return hasFoto;
         }
 
         function atualizarProgresso() {
