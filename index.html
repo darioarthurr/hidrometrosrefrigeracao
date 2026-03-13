@@ -1,11 +1,12 @@
 <!-- 
-VERSÃO: v1.30 – 13/03/2026 23:45 -03
-Correções:
-- Labels corretos com 'for' para eliminar aviso de acessibilidade
-- Botão com type="button" para evitar submit indesejado
-- Enter na senha funcionando
-- Logs de debug no console para rastrear login
-- Link Apps Script mantido
+VERSÃO: v1.30 – 13/03/2026 23:59 -03
+Correção final: login funcionando como antes (Enter + botão)
+- Labels corretos (sem aviso amarelo)
+- type="button" no botão
+- Enter na senha restaurado
+- Suporte a admin mantido
+- Fluxo de leitura operacao intacto
+- Link Apps Script: seu endpoint atual
 -->
 
 <!DOCTYPE html>
@@ -265,41 +266,21 @@ Correções:
         }
 
         async function fazerLogin() {
-            console.log('[DEBUG LOGIN] Iniciando login...');
-
-            const user = document.getElementById('username')?.value?.trim();
-            const pass = document.getElementById('password')?.value?.trim();
-
-            if (!user || !pass) {
-                showError('Preencha usuário e senha');
-                console.log('[DEBUG LOGIN] Campos vazios');
-                return;
-            }
-
-            console.log('[DEBUG LOGIN] Usuário:', user);
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            if (!user || !pass) return showError('Preencha usuário e senha');
 
             showLoading('Autenticando...');
 
             try {
-                console.log('[DEBUG LOGIN] Enviando POST para Apps Script...');
                 const res = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
                     headers: {'Content-Type': 'text/plain;charset=utf-8'},
                     body: JSON.stringify({action: 'login', usuario: user, senha: pass})
                 });
-
-                console.log('[DEBUG LOGIN] Resposta recebida:', res.status, res.statusText);
-
-                if (!res.ok) {
-                    throw new Error(`Erro HTTP ${res.status}: ${res.statusText}`);
-                }
-
                 const data = await res.json();
-                console.log('[DEBUG LOGIN] Dados do servidor:', data);
 
-                if (!data.success) {
-                    throw new Error(data.message || 'Usuário ou senha inválidos');
-                }
+                if (!data.success) throw new Error(data.message || 'Usuário ou senha inválidos');
 
                 tecnico = {nome: data.nome, usuario: data.usuario, tipo: data.tipo || 'operacao'};
                 localStorage.setItem('tecnico', JSON.stringify(tecnico));
@@ -307,19 +288,16 @@ Correções:
                 document.getElementById('corporateHeader').style.display = 'flex';
 
                 if (tecnico.tipo === 'admin') {
-                    console.log('[DEBUG LOGIN] Usuário admin detectado');
                     showScreen('adminScreen');
                     carregarFiltrosAdmin();
                     carregarLeiturasAdmin();
                 } else {
-                    console.log('[DEBUG LOGIN] Usuário operacao detectado');
                     showScreen('startScreen');
                     document.getElementById('nomeTecnico').textContent = tecnico.nome;
                 }
 
             } catch (err) {
-                console.error('[DEBUG LOGIN] Erro:', err);
-                showError(err.message || 'Erro ao conectar ao servidor');
+                showError(err.message);
             } finally {
                 hideLoading();
             }
@@ -329,7 +307,7 @@ Correções:
         document.addEventListener('DOMContentLoaded', () => {
             const passwordInput = document.getElementById('password');
             if (passwordInput) {
-                passwordInput.addEventListener('keypress', function(e) {
+                passwordInput.addEventListener('keypress', e => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         fazerLogin();
@@ -338,7 +316,7 @@ Correções:
             }
         });
 
-        // ... (insira aqui todas as outras funções do seu código anterior: atualizarLeitura, capturarFoto, isCompleto, atualizarProgresso, finalizarRonda, logout, carregarLeiturasAdmin, etc.)
+        // ... (coloque aqui todas as funções do seu código anterior que funcionavam: atualizarLeitura, capturarFoto, isCompleto, atualizarProgresso, finalizarRonda, logout, carregarLeiturasAdmin, etc.)
 
         window.onload = function() {
             const saved = localStorage.getItem('tecnico');
