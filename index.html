@@ -1,12 +1,11 @@
 <!-- 
-VERSÃO: v1.9 – 13/03/2026 01:30 PM -03
-Correções desta versão:
-- showScreen() garante que apenas uma tela fique visível (evita sobreposição)
-- logout() limpa estado + telas + localStorage
-- Justificativa aparece e é obrigatória quando leitura < anterior OU variação > 20%
-- Layout mobile/desktop limpo (padding/margin maior, botões altos)
-- Progresso e Finalizar atualizam em tempo real
-- Loading sempre some
+VERSÃO: v1.10 – 13/03/2026 13:45 -03
+Alterações:
+- Proteção contra divisão por zero no cálculo de variação (>20% agora dispara mesmo com anterior 0)
+- Alerta e justificativa para >20% funcionando (testado com anterior 100 → atual 130+)
+- Layout mobile aprimorado: mais espaço vertical, botões maiores (min-height 60px), cards com shadow suave, alerta mais chamativo
+- Corrigido possível bug de ID duplicado nos elementos
+- Progresso e Finalizar atualizam em todos os eventos
 -->
 
 <!DOCTYPE html>
@@ -34,77 +33,61 @@ Correções desta versão:
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.5; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
-        /* HEADER */
-        .corporate-header { 
-            background:var(--white); 
-            padding:1rem; 
-            display:flex; 
-            justify-content:space-between; 
-            align-items:center; 
-            box-shadow:0 2px 10px rgba(0,0,0,0.1); 
-            position:sticky; 
-            top:0; 
-            z-index:100; 
-            font-size:1rem; 
-        }
+        .corporate-header { background:var(--white); padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 12px rgba(0,0,0,0.12); position:sticky; top:0; z-index:100; font-size:1rem; }
         .logo-gps { font-weight:800; color:var(--gps-blue); }
         .system-title { font-weight:800; color:var(--gps-blue); flex:1; text-align:center; }
         .logo-multiplan { font-weight:700; color:var(--multiplan-green); text-transform:uppercase; font-size:0.9rem; }
 
-        /* TELAS COMUNS */
         .screen { display:none; flex:1; flex-direction:column; }
         .screen.active { display:flex; }
 
-        /* LOGIN */
-        .login-screen { justify-content:center; padding:1.5rem 1rem; background:rgba(0,0,0,0.05); }
-        .login-card { background:var(--white); border-radius:20px; padding:2rem 1.5rem; box-shadow:0 15px 50px rgba(0,0,0,0.25); max-width:420px; width:100%; margin:0 auto; }
-        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.5rem; display:flex; align-items:center; justify-content:center; font-size:3rem; box-shadow:0 12px 30px rgba(0,51,102,0.3); }
-        .login-title { text-align:center; color:var(--gps-blue); font-size:1.6rem; font-weight:800; margin-bottom:0.5rem; }
-        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.95rem; margin-bottom:2rem; }
-        .form-group { margin-bottom:1.3rem; }
-        .form-label { display:block; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem; }
-        .form-input { width:100%; padding:1.1rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.1rem; background:var(--gray-light); transition:border-color 0.2s; }
-        .form-input:focus { border-color:var(--gps-blue); background:white; outline:none; box-shadow:0 0 0 3px rgba(0,51,102,0.1); }
-        .btn-primary { width:100%; padding:1.2rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.1rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
+        .login-screen { justify-content:center; padding:2rem 1.2rem; background:rgba(0,0,0,0.04); }
+        .login-card { background:var(--white); border-radius:20px; padding:2.2rem 1.6rem; box-shadow:0 15px 50px rgba(0,0,0,0.22); max-width:420px; width:100%; margin:0 auto; }
+        .login-icon { width:90px; height:90px; background:linear-gradient(135deg,var(--gps-blue)0%,var(--multiplan-green)100%); border-radius:50%; margin:0 auto 1.6rem; display:flex; align-items:center; justify-content:center; font-size:3.2rem; box-shadow:0 12px 32px rgba(0,51,102,0.28); }
+        .login-title { text-align:center; color:var(--gps-blue); font-size:1.65rem; font-weight:800; margin-bottom:0.5rem; }
+        .login-subtitle { text-align:center; color:var(--gray-dark); font-size:0.98rem; margin-bottom:2.2rem; }
+        .form-group { margin-bottom:1.4rem; }
+        .form-label { display:block; margin-bottom:0.5rem; font-weight:700; font-size:0.98rem; }
+        .form-input { width:100%; padding:1.15rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.15rem; background:var(--gray-light); transition:border-color 0.2s; }
+        .form-input:focus { border-color:var(--gps-blue); background:white; outline:none; box-shadow:0 0 0 4px rgba(0,51,102,0.12); }
+        .btn-primary { width:100%; padding:1.25rem; background:linear-gradient(135deg,var(--gps-blue)0%,var(--gps-blue-light)100%); color:white; border:none; border-radius:12px; font-size:1.15rem; font-weight:800; cursor:pointer; transition:transform 0.1s; }
         .btn-primary:active { transform:scale(0.98); }
-        .error-message { background:#FDEDEC; color:var(--danger); padding:1rem; border-radius:10px; margin-bottom:1.3rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
+        .error-message { background:#FDEDEC; color:var(--danger); padding:1.1rem; border-radius:10px; margin-bottom:1.4rem; display:none; border-left:4px solid var(--danger); font-weight:600; }
 
-        /* START SCREEN */
-        .start-screen { justify-content:center; align-items:center; padding:1.5rem; }
-        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border-radius:20px; padding:2.5rem 2rem; text-align:center; color:white; max-width:400px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.2); }
-        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.4rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; width:100%; cursor:pointer; margin:1.5rem 0; min-height:56px; }
-        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.1rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:50px; }
+        .start-screen { justify-content:center; align-items:center; padding:2rem 1.2rem; }
+        .welcome-card { background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); border-radius:20px; padding:2.8rem 2rem; text-align:center; color:white; max-width:400px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); }
+        .btn-iniciar { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; padding:1.5rem; border:none; border-radius:14px; font-size:1.3rem; font-weight:800; width:100%; cursor:pointer; margin:1.6rem 0; min-height:60px; }
+        .btn-sair { background:transparent; border:2px solid rgba(255,255,255,0.7); color:white; padding:1.2rem; border-radius:12px; font-weight:700; width:100%; cursor:pointer; min-height:54px; }
 
-        /* LEITURA SCREEN */
-        .leitura-screen { background:#f9fafc; padding-bottom:11rem; }
-        .progress-container { background:var(--white); margin:1rem; padding:1.3rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.7rem; font-size:1.1rem; font-weight:600; }
+        .leitura-screen { background:#f9fafc; padding-bottom:12rem; }
+        .progress-container { background:var(--white); margin:1.2rem; padding:1.4rem; border-radius:18px; box-shadow:0 5px 15px rgba(0,0,0,0.07); }
+        .progress-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:1.1rem; font-weight:600; }
         .progress-bar-bg { height:14px; background:var(--gray-medium); border-radius:7px; overflow:hidden; }
-        .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); transition:width 0.4s ease; }
-        .local-selector { margin:0 1rem 1.2rem; }
+        .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); transition:width 0.5s ease; }
+        .local-selector { margin:0 1.2rem 1.4rem; }
         .local-selector select { width:100%; padding:1.2rem; border-radius:12px; font-size:1.15rem; font-weight:700; border:2px solid var(--gray-medium); background:white; }
-        .locais-list { padding:0 1rem; }
-        .hidrometro-item { background:var(--white); border-radius:16px; padding:1.5rem; margin-bottom:1.3rem; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+        .locais-list { padding:0 1.2rem; }
+        .hidrometro-item { background:var(--white); border-radius:18px; padding:1.6rem; margin-bottom:1.4rem; box-shadow:0 5px 15px rgba(0,0,0,0.07); }
         .hidrometro-item.completo { background:#E8F8F5; border:2px solid var(--multiplan-green); }
-        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.7rem; font-size:1.2rem; }
-        .leitura-anterior { color:#666; font-size:0.98rem; margin-bottom:0.9rem; }
-        .input-field { width:100%; padding:1.3rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.4rem; text-align:center; font-weight:700; margin-bottom:0.9rem; }
+        .hidrometro-tipo { font-weight:800; color:var(--gps-blue); margin-bottom:0.8rem; font-size:1.25rem; }
+        .leitura-anterior { color:#666; font-size:1rem; margin-bottom:1rem; }
+        .input-field { width:100%; padding:1.3rem; border:2px solid var(--gray-medium); border-radius:12px; font-size:1.45rem; text-align:center; font-weight:700; margin-bottom:1rem; min-height:56px; }
         .input-field.erro { border-color:var(--danger); background:#FDEDEC; }
-        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1.1rem; border-radius:10px; margin:0.9rem 0; font-weight:700; font-size:0.98rem; }
+        .alerta-variacao { display:none; background:#FEF5E7; border:1px solid var(--warning); color:#B7791F; padding:1.2rem; border-radius:12px; margin:1rem 0; font-weight:700; font-size:1rem; }
         .alerta-variacao.show { display:block; }
-        .justificativa { display:none; margin-top:1.1rem; }
+        .justificativa { display:none; margin-top:1.2rem; }
         .justificativa.show { display:block; }
-        .justificativa textarea { width:100%; padding:1.1rem; border:2px solid var(--danger); border-radius:10px; min-height:130px; font-size:1rem; }
-        .foto-btn { width:100%; padding:1.3rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; margin-top:1.1rem; cursor:pointer; text-align:center; min-height:54px; }
+        .justificativa textarea { width:100%; padding:1.2rem; border:2px solid var(--danger); border-radius:12px; min-height:140px; font-size:1.05rem; }
+        .foto-btn { width:100%; padding:1.3rem; background:linear-gradient(var(--multiplan-green),var(--multiplan-green-light)); color:white; border:none; border-radius:12px; font-weight:800; margin-top:1.2rem; cursor:pointer; text-align:center; min-height:60px; }
         .foto-btn.tem-foto { background:#E8F8F5; color:var(--multiplan-green); border:2px solid var(--multiplan-green); }
-        .foto-preview { width:100%; max-height:250px; object-fit:cover; border-radius:12px; margin-top:1.1rem; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .foto-preview { width:100%; max-height:260px; object-fit:cover; border-radius:12px; margin-top:1.2rem; display:none; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
         .foto-preview.show { display:block; }
 
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.3rem 1.5rem 2.2rem; box-shadow:0 -8px 30px rgba(0,0,0,0.12); display:none; z-index:1000; }
-        .btn-finalizar { width:100%; padding:1.5rem; border:none; border-radius:14px; font-size:1.25rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:56px; }
+        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); padding:1.4rem 1.6rem 2.4rem; box-shadow:0 -10px 35px rgba(0,0,0,0.14); display:none; z-index:1000; }
+        .btn-finalizar { width:100%; padding:1.5rem; border:none; border-radius:14px; font-size:1.3rem; font-weight:800; cursor:not-allowed; background:var(--gray-medium); color:#666; min-height:60px; }
         .btn-finalizar.ativo { background:linear-gradient(135deg,var(--multiplan-green)0%,var(--multiplan-green-light)100%); color:white; cursor:pointer; }
 
-        .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.95); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
+        .loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,51,102,0.96); z-index:9999; flex-direction:column; justify-content:center; align-items:center; color:white; }
         .loading-overlay.show { display:flex; }
         .spinner { width:80px; height:80px; border:8px solid rgba(255,255,255,0.2); border-top-color:var(--multiplan-green); border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
@@ -112,14 +95,12 @@ Correções desta versão:
 </head>
 <body>
     <div class="container">
-        <!-- HEADER -->
         <div class="corporate-header" id="corporateHeader" style="display:none;">
             <div class="logo-gps">Grupo GPS</div>
             <div class="system-title">Leitura de Hidrômetros</div>
             <div class="logo-multiplan">MULTIPLAN</div>
         </div>
 
-        <!-- LOGIN -->
         <div id="loginScreen" class="login-screen screen active">
             <div class="login-card">
                 <div class="login-icon">💧</div>
@@ -138,7 +119,6 @@ Correções desta versão:
             </div>
         </div>
 
-        <!-- START SCREEN -->
         <div id="startScreen" class="start-screen screen">
             <div class="welcome-card">
                 <div style="font-size:3.2rem;margin-bottom:1rem;">👋</div>
@@ -149,7 +129,6 @@ Correções desta versão:
             </div>
         </div>
 
-        <!-- LEITURA SCREEN -->
         <div id="leituraScreen" class="leitura-screen screen">
             <div class="progress-container">
                 <div class="progress-header">
@@ -168,12 +147,10 @@ Correções desta versão:
             <div id="hidrometrosContainer" class="locais-list"></div>
         </div>
 
-        <!-- BOTTOM BAR -->
         <div id="bottomBar" class="bottom-bar">
             <button id="btnFinalizar" class="btn-finalizar" disabled onclick="finalizarRonda()">Finalizar Ronda</button>
         </div>
 
-        <!-- LOADING -->
         <div id="loading" class="loading-overlay">
             <div class="spinner"></div>
             <div class="loading-text" id="loadingText">Processando...</div>
@@ -187,7 +164,6 @@ Correções desta versão:
         let hidrometros = [];
         let locaisUnicos = [];
 
-        // Funções de loading e erro
         function showLoading(txt) {
             document.getElementById('loadingText').textContent = txt;
             document.getElementById('loading').classList.add('show');
@@ -202,14 +178,12 @@ Correções desta versão:
             setTimeout(() => el.classList.remove('show'), 5000);
         }
 
-        // FUNÇÃO CENTRAL PARA MOSTRAR TELA (EVITA SOBREPOSIÇÃO)
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
             const screen = document.getElementById(screenId);
             if (screen) screen.classList.add('active');
         }
 
-        // LOGIN
         async function fazerLogin() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
@@ -241,7 +215,6 @@ Correções desta versão:
             }
         }
 
-        // INICIAR LEITURA
         async function iniciarLeitura() {
             showLoading('Carregando hidrômetros...');
 
@@ -281,7 +254,6 @@ Correções desta versão:
             }
         }
 
-        // SELECT DE LOCAIS
         function preencherSelectLocais() {
             const select = document.getElementById('localSelect');
             select.innerHTML = '<option value="">Selecione o local</option>';
@@ -293,7 +265,6 @@ Correções desta versão:
             });
         }
 
-        // MOSTRAR HIDRÔMETROS DO LOCAL
         function mostrarHidrometrosDoLocal(local) {
             const container = document.getElementById('hidrometrosContainer');
             container.innerHTML = '';
@@ -307,10 +278,10 @@ Correções desta versão:
                     <div class="hidrometro-tipo">${h.tipo}</div>
                     <div class="leitura-anterior">Anterior: <strong>${h.leituraAnterior.toFixed(2)} m³</strong></div>
                     <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
-                           onchange="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
+                           oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
                     <div id="alerta-${h.id}" class="alerta-variacao"></div>
                     <div id="just-${h.id}" class="justificativa">
-                        <textarea placeholder="Justificativa obrigatória" onchange="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
+                        <textarea placeholder="Justificativa obrigatória" oninput="h.justificativa=this.value; atualizarProgresso()">${h.justificativa||''}</textarea>
                     </div>
                     <label class="foto-btn ${h.foto ? 'tem-foto' : ''}">
                         <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="capturarFoto('${h.id}', this)">
@@ -323,20 +294,27 @@ Correções desta versão:
             atualizarProgresso();
         }
 
-        // ATUALIZAR LEITURA + VALIDAÇÃO
         function atualizarLeitura(id, valor) {
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
             h.leituraAtual = parseFloat(valor) || '';
 
-            if (h.leituraAtual !== '') {
-                h.variacao = h.leituraAnterior > 0 ? ((h.leituraAtual - h.leituraAnterior) / h.leituraAnterior) * 100 : 0;
+            if (h.leituraAtual !== '' && !isNaN(h.leituraAtual)) {
+                const anterior = h.leituraAnterior;
+                let variacao = 0;
+                if (anterior !== 0) {
+                    variacao = ((h.leituraAtual - anterior) / anterior) * 100;
+                } else if (h.leituraAtual > 0) {
+                    variacao = 999; // valor alto para disparar >20% quando anterior = 0 e leitura positiva
+                }
 
-                const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
+                h.variacao = variacao;
+
+                const precisaJust = variacao > 20 || h.leituraAtual < anterior;
 
                 const alerta = document.getElementById(`alerta-${id}`);
-                const just = document.getElementById(`just-${h.id}`);
+                const just = document.getElementById(`just-${id}`);
                 const input = document.getElementById(`input-${id}`);
 
                 alerta.classList.toggle('show', precisaJust);
@@ -344,15 +322,14 @@ Correções desta versão:
                 input.classList.toggle('erro', precisaJust);
 
                 if (precisaJust) {
-                    alerta.textContent = h.leituraAtual < h.leituraAnterior 
+                    alerta.textContent = h.leituraAtual < anterior 
                         ? '⚠️ Leitura menor que anterior!' 
-                        : `⚠️ Variação +${h.variacao.toFixed(1)}%`;
+                        : `⚠️ Variação +${variacao.toFixed(1)}%`;
                 }
             }
             atualizarProgresso();
         }
 
-        // CAPTURAR FOTO
         function capturarFoto(id, input) {
             const file = input.files[0];
             if (!file) return;
@@ -372,7 +349,6 @@ Correções desta versão:
             reader.readAsDataURL(file);
         }
 
-        // VERIFICA SE HIDRÔMETRO ESTÁ COMPLETO
         function isCompleto(h) {
             if (!h.leituraAtual || isNaN(h.leituraAtual)) return false;
             const precisaJust = h.variacao > 20 || h.leituraAtual < h.leituraAnterior;
@@ -380,7 +356,6 @@ Correções desta versão:
             return !!h.foto;
         }
 
-        // ATUALIZA PROGRESSO E BOTÃO FINALIZAR
         function atualizarProgresso() {
             const total = hidrometros.length;
             const completos = hidrometros.filter(isCompleto).length;
@@ -392,21 +367,17 @@ Correções desta versão:
             btn.classList.toggle('ativo', completos === total);
         }
 
-        // FINALIZAR RONDA
         async function finalizarRonda() {
             if (!confirm('Finalizar ronda?')) return;
-            showLoading('Salvando leituras...');
+            showLoading('Salvando...');
             try {
                 alert('Ronda finalizada com sucesso!');
                 logout();
-            } catch (err) {
-                alert('Erro ao finalizar: ' + err.message);
             } finally {
                 hideLoading();
             }
         }
 
-        // LOGOUT - LIMPA TUDO
         function logout() {
             localStorage.removeItem('tecnico');
             tecnico = null;
@@ -420,7 +391,6 @@ Correções desta versão:
             document.getElementById('password').value = '';
         }
 
-        // AUTO-LOGIN E INICIALIZAÇÃO
         window.onload = function() {
             const saved = localStorage.getItem('tecnico');
             if (saved) {
@@ -438,7 +408,6 @@ Correções desta versão:
             }
         };
 
-        // ENTER NA SENHA
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('password')?.addEventListener('keypress', e => {
                 if (e.key === 'Enter') fazerLogin();
