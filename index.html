@@ -1,13 +1,3 @@
-<!-- 
-VERSÃO: v1.14 – 13/03/2026 16:30 -03
-Correções finais:
-- Cálculo de consumo do dia 100% em tempo real (a cada digitação)
-- Variação % correta quando consumoAnterior > 0
-- Alertas e justificativa disparando perfeitamente
-- Layout mantido (foto abaixo do input, espaçamento bom)
-- Proteção contra NaN e divisão por zero
--->
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -29,7 +19,7 @@ Correções finais:
             --danger: #E74C3C;
             --warning: #F39C12;
         }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI',sans-serif; background:linear-gradient(160deg,var(--gps-blue)0%,#001122 100%); min-height:100vh; color:var(--text-dark); line-height:1.6; }
         .container { max-width:100%; min-height:100vh; display:flex; flex-direction:column; }
 
@@ -238,7 +228,7 @@ Correções finais:
                     tipo: h.tipo,
                     leituraAnterior: parseFloat(h.leituraAnterior) || 0,
                     consumoAnterior: parseFloat(h.consumoAnterior) || 0,
-                    leituraAtual: '',
+                    leituraAtual: 0,
                     foto: null,
                     justificativa: '',
                     variacao: 0
@@ -283,7 +273,7 @@ Correções finais:
                     <div class="hidrometro-tipo">${h.tipo}</div>
                     <div class="leitura-anterior">Leitura anterior: <strong>${h.leituraAnterior.toFixed(0)}</strong></div>
                     <div class="leitura-field">
-                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual||''}" 
+                        <input type="number" step="0.01" class="input-field" id="input-${h.id}" value="${h.leituraAtual}" 
                                oninput="atualizarLeitura('${h.id}', this.value)" placeholder="Leitura atual">
                     </div>
                     <div class="consumo-info" id="consumo-info-${h.id}">
@@ -303,7 +293,7 @@ Correções finais:
                     </div>
                 `;
                 container.appendChild(item);
-                atualizarLeitura(h.id, h.leituraAtual); // inicializa
+                atualizarLeitura(h.id, h.leituraAtual);
             });
             atualizarProgresso();
         }
@@ -312,8 +302,8 @@ Correções finais:
             const h = hidrometros.find(x => x.id === id);
             if (!h) return;
 
-            // Atualiza o valor atual no objeto
-            h.leituraAtual = parseFloat(valor) || 0;
+            const inputValue = valor.trim();
+            h.leituraAtual = inputValue === '' ? 0 : parseFloat(inputValue);
 
             const anterior = h.leituraAnterior;
             const atual = h.leituraAtual;
