@@ -167,7 +167,7 @@ class HidrometroApp {
             
             this.preencherSelectLocais();
             this.mostrarHidrometrosDoLocal(this.locais[0]);
-            document.getElementById('localSelect').value = this.locais[0];
+            document.getElementById('localSelect').value = this.locais[0] || '';
 
         } catch (err) {
             this.hideLoading();
