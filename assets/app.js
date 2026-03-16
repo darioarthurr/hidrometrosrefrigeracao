@@ -167,10 +167,20 @@ class HidrometroApp {
             
             preencherSelectLocais() {
     const select = document.getElementById('localSelect');
-    const valorAtual = select.value;               // ← salva o local que estava selecionado
+    
+    // Salva o valor atual ANTES de limpar (pode ser o value ou o texto visível)
+    let valorSelecionado = select.value;
+    if (!valorSelecionado) {
+        // Se não tiver value, tenta pegar pelo texto visível (fallback)
+        const textoAtual = select.options[select.selectedIndex]?.text || '';
+        valorSelecionado = this.locais.find(loc => 
+            textoAtual.includes(loc)
+        ) || this.locais[0] || '';
+    }
 
+    // Limpa e recria as opções
     select.innerHTML = '<option value="">Escolha um local...</option>';
-   
+    
     this.locais.forEach(local => {
         const count = this.hidrometros.filter(h => h.local === local && !this.isCompleto(h)).length;
         const opt = document.createElement('option');
@@ -179,12 +189,18 @@ class HidrometroApp {
         select.appendChild(opt);
     });
 
-    // Restaura o local que o usuário tinha escolhido
-    if (valorAtual && this.locais.includes(valorAtual)) {
-        select.value = valorAtual;
+    // Restaura o valor selecionado (prioriza o value exato)
+    if (valorSelecionado && this.locais.includes(valorSelecionado)) {
+        select.value = valorSelecionado;
     } else if (this.locais.length > 0) {
-        select.value = this.locais[0];   // primeira vez ou se o anterior sumiu
+        // Se o anterior não existir mais, seleciona o primeiro
+        select.value = this.locais[0];
+    } else {
+        select.value = '';
     }
+
+    // Força atualização visual (útil em alguns navegadores mobile)
+    select.dispatchEvent(new Event('change'));
 }
 
     inicializarHidrometros(dados) {
