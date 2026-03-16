@@ -1,12 +1,13 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.5.0
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.5.1
  * JavaScript Completo - Offline First, Dashboard Admin, PWA
+ * Correção de loop infinito no select de locais
  *
  * CONFIGURAÇÃO: Altere a URL abaixo para seu Apps Script
  */
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.5.0',
+    VERSAO: '2.5.1',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario',
         LEITURAS_PENDENTES: 'h2_pendentes',
@@ -26,7 +27,8 @@ class HidrometroApp {
         this.paginaAtual = 1;
         this.itensPorPagina = 20;
         this.charts = {};
-       
+        this._atualizandoProgresso = false; // Proteção contra loop infinito
+
         this.init();
     }
     init() {
@@ -43,7 +45,7 @@ class HidrometroApp {
             try {
                 this.usuario = JSON.parse(salvo);
                 this.showHeader();
-                document.getElementById('loginScreen').classList.remove('active'); // esconde login se já logado
+                document.getElementById('loginScreen').classList.remove('active');
                 if (this.usuario.nivel === 'admin') {
                     this.showAdminInterface();
                 } else {
@@ -81,7 +83,7 @@ class HidrometroApp {
            
             this.hideLoading();
             this.showHeader();
-            document.getElementById('loginScreen').classList.remove('active'); // esconde tela de login
+            document.getElementById('loginScreen').classList.remove('active');
            
             if (data.nivel === 'admin') {
                 this.showAdminInterface();
@@ -124,7 +126,6 @@ class HidrometroApp {
 
             if (!data.success) throw new Error(data.message);
             
-            // Recupera ronda salva localmente se existir
             const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
             if (rondaSalva) {
                 const ronda = JSON.parse(rondaSalva);
@@ -175,7 +176,6 @@ class HidrometroApp {
     preencherSelectLocais() {
         const select = document.getElementById('localSelect');
         
-        // Salva o valor atual ANTES de limpar
         let valorSelecionado = select.value;
         if (!valorSelecionado && select.selectedIndex > -1) {
             const textoAtual = select.options[select.selectedIndex].text || '';
@@ -192,7 +192,6 @@ class HidrometroApp {
             select.appendChild(opt);
         });
 
-        // Restaura o valor
         if (valorSelecionado && this.locais.includes(valorSelecionado)) {
             select.value = valorSelecionado;
         } else if (this.locais.length > 0) {
@@ -201,8 +200,7 @@ class HidrometroApp {
             select.value = '';
         }
 
-        // Força atualização visual
-        select.dispatchEvent(new Event('change'));
+        // REMOVIDO: select.dispatchEvent(new Event('change')); → causava loop infinito
     }
     mostrarHidrometrosDoLocal(local) {
         const container = document.getElementById('hidrometrosContainer');
@@ -457,6 +455,9 @@ class HidrometroApp {
         return true;
     }
     atualizarProgresso() {
+        if (this._atualizandoProgresso) return; // Proteção contra reentrada e loop
+        this._atualizandoProgresso = true;
+
         const total = this.hidrometros.length;
         const completos = this.hidrometros.filter(h => this.isCompleto(h)).length;
         const percent = total > 0 ? (completos / total) * 100 : 0;
@@ -470,6 +471,8 @@ class HidrometroApp {
         btn.classList.toggle('ativo', completos === total);
        
         this.preencherSelectLocais();
+
+        this._atualizandoProgresso = false;
     }
     mudarLocal(local) {
         this.mostrarHidrometrosDoLocal(local);
