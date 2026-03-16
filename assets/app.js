@@ -48,6 +48,8 @@ class HidrometroApp {
             try {
                 this.usuario = JSON.parse(salvo);
                 this.showHeader();
+                // === ADICIONE AQUI ===
+        document.getElementById('loginScreen').classList.remove('active');
                 if (this.usuario.nivel === 'admin') {
                     this.showAdminInterface();
                 } else {
@@ -92,6 +94,9 @@ class HidrometroApp {
             
             this.hideLoading();
             this.showHeader();
+            // === ADICIONE ESTAS DUAS LINHAS AQUI ===
+            document.getElementById('loginScreen').classList.remove('active');
+            document.getElementById('startScreen').classList.remove('active'); // segurança extra
             
             if (data.nivel === 'admin') {
                 this.showAdminInterface();
@@ -162,6 +167,7 @@ class HidrometroApp {
             
             this.preencherSelectLocais();
             this.mostrarHidrometrosDoLocal(this.locais[0]);
+            document.getElementById('localSelect').value = this.locais[0];
 
         } catch (err) {
             this.hideLoading();
