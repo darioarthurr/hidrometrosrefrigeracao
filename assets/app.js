@@ -165,15 +165,27 @@ class HidrometroApp {
             this.showScreen('leituraScreen');
             document.getElementById('bottomBar').style.display = 'block';
             
-            this.preencherSelectLocais();
-            this.mostrarHidrometrosDoLocal(this.locais[0]);
-            document.getElementById('localSelect').value = this.locais[0] || '';
+            preencherSelectLocais() {
+    const select = document.getElementById('localSelect');
+    const valorAtual = select.value;               // ← salva o local que estava selecionado
 
-        } catch (err) {
-            this.hideLoading();
-            this.showToast(err.message, 'error');
-        }
+    select.innerHTML = '<option value="">Escolha um local...</option>';
+   
+    this.locais.forEach(local => {
+        const count = this.hidrometros.filter(h => h.local === local && !this.isCompleto(h)).length;
+        const opt = document.createElement('option');
+        opt.value = local;
+        opt.textContent = `${local} ${count > 0 ? `(${count} pend.)` : '✓'}`;
+        select.appendChild(opt);
+    });
+
+    // Restaura o local que o usuário tinha escolhido
+    if (valorAtual && this.locais.includes(valorAtual)) {
+        select.value = valorAtual;
+    } else if (this.locais.length > 0) {
+        select.value = this.locais[0];   // primeira vez ou se o anterior sumiu
     }
+}
 
     inicializarHidrometros(dados) {
         return dados.map((h, index) => ({
