@@ -1,11 +1,12 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.5.2
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.6
  * JavaScript Completo - Offline First, Dashboard Admin, PWA
- * Última atualização: Recuperação automática da ronda ao recarregar (F5 normal)
+ * Correção definitiva: Recuperação automática ao F5 normal sem voltar para tela inicial
+ * Data da correção agressiva: Março 2026
  */
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.5.2',
+    VERSAO: '2.6',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario',
         LEITURAS_PENDENTES: 'h2_pendentes',
@@ -46,20 +47,20 @@ class HidrometroApp {
                 if (this.usuario.nivel === 'admin') {
                     this.showAdminInterface();
                 } else {
-                    // Verifica se tem ronda pendente ANTES de decidir a tela
+                    // Prioridade máxima: verifica ronda pendente ANTES de qualquer tela
                     const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
                     if (rondaSalva) {
-                        console.log('Ronda pendente encontrada no checkAuth. Indo direto para leitura.');
+                        console.log('[v2.6] Ronda pendente detectada no checkAuth → recuperação imediata');
                         this.resumeRondaIfExists();
                     } else {
-                        console.log('Sem ronda pendente. Mostrando tela inicial.');
+                        console.log('[v2.6] Sem ronda pendente → mostrando tela inicial');
                         this.showScreen('startScreen');
                         document.getElementById('nomeTecnico').textContent = this.usuario.nome;
                         this.checkPendentes();
                     }
                 }
             } catch (e) {
-                console.error('Erro ao parsear usuário:', e);
+                console.error('[v2.6] Erro grave ao parsear usuário:', e);
                 this.logout();
             }
         } else {
@@ -98,6 +99,7 @@ class HidrometroApp {
             } else {
                 const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
                 if (rondaSalva) {
+                    console.log('[v2.6] Ronda pendente detectada após login → recuperação imediata');
                     this.resumeRondaIfExists();
                 } else {
                     this.showScreen('startScreen');
@@ -127,7 +129,7 @@ class HidrometroApp {
     resumeRondaIfExists() {
         const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
         if (!rondaSalva || !this.usuario || this.usuario.nivel === 'admin') {
-            console.log('Nenhuma ronda salva para recuperar');
+            console.log('[v2.6] Nenhuma ronda salva para recuperar');
             return;
         }
 
@@ -138,8 +140,9 @@ class HidrometroApp {
             this.locais = [...new Set(this.hidrometros.map(h => h.local))];
 
             if (this.hidrometros.length > 0) {
-                console.log(`✅ Recuperando ronda pendente (${this.hidrometros.length} hidrômetros)`);
+                console.log(`[v2.6] ✅ Iniciando recuperação agressiva de ${this.hidrometros.length} hidrômetros`);
 
+                // Força tela de leitura imediatamente
                 this.showScreen('leituraScreen');
                 document.getElementById('bottomBar').style.display = 'block';
 
@@ -151,7 +154,7 @@ class HidrometroApp {
 
                 const container = document.getElementById('hidrometrosContainer');
                 if (!container) {
-                    console.warn('Container não encontrado');
+                    console.warn('[v2.6] Container não encontrado');
                     return;
                 }
 
@@ -163,31 +166,34 @@ class HidrometroApp {
                         const input = document.getElementById(`input-${h.id}`);
                         if (input) {
                             input.value = h.leituraAtual || '';
-                            console.log(`Tentativa ${attempt + 1}: Input ${h.id} preenchido com ${h.leituraAtual}`);
+                            console.log(`[v2.6] Tentativa ${attempt + 1}: Input ${h.id} preenchido com ${h.leituraAtual}`);
                             this.atualizarUIHidrometro(h.id);
                             filledCount++;
                         }
                     });
 
                     if (filledCount === expectedCards) {
-                        console.log(`✅ Sucesso total na tentativa ${attempt + 1}: todos os ${filledCount} inputs preenchidos`);
+                        console.log(`[v2.6] ✅ SUCESSO TOTAL na tentativa ${attempt + 1}: ${filledCount}/${expectedCards} preenchidos`);
                         this.atualizarProgresso();
-                    } else if (attempt < 5) {
-                        console.log(`Tentativa ${attempt + 1}: ${filledCount}/${expectedCards} preenchidos. Tentando novamente em 3s...`);
-                        setTimeout(() => fillInputs(attempt + 1), 3000);
+                    } else if (attempt < 8) {
+                        console.log(`[v2.6] Tentativa ${attempt + 1}: ${filledCount}/${expectedCards} preenchidos. Nova tentativa em 1.5s...`);
+                        setTimeout(() => fillInputs(attempt + 1), 1500);
                     } else {
-                        console.warn(`❌ Não conseguiu preencher todos após 5 tentativas. Preenchidos: ${filledCount}/${expectedCards}`);
+                        console.warn(`[v2.6] ❌ FALHA APÓS 8 TENTATIVAS. Preenchidos: ${filledCount}/${expectedCards}`);
+                        // Último recurso: toast e atualização parcial
+                        this.showToast('Recuperação incompleta. Alguns campos podem estar vazios.', 'warning');
                         this.atualizarProgresso();
                     }
                 };
 
-                // Delay maior para F5 normal (dá tempo ao service worker e DOM)
-                setTimeout(() => fillInputs(), 2000);
+                // Delay agressivo para garantir que o DOM esteja pronto no F5 normal
+                console.log('[v2.6] Aguardando 3 segundos para DOM estar totalmente renderizado...');
+                setTimeout(() => fillInputs(), 3000);
 
-                // MutationObserver como backup
+                // MutationObserver como segurança extra
                 const observer = new MutationObserver(() => {
                     if (container.children.length >= expectedCards) {
-                        console.log('MutationObserver detectou cards suficientes. Preenchendo.');
+                        console.log('[v2.6] MutationObserver detectou quantidade esperada de cards → preenchendo');
                         fillInputs();
                         observer.disconnect();
                     }
@@ -197,7 +203,7 @@ class HidrometroApp {
                 this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
             }
         } catch (e) {
-            console.error('Erro ao recuperar ronda:', e);
+            console.error('[v2.6] Erro crítico ao recuperar ronda:', e);
             localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
         }
     }
@@ -205,7 +211,7 @@ class HidrometroApp {
     async iniciarLeitura() {
         const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
         if (rondaSalva) {
-            console.log('Ronda pendente detectada. Recuperando em vez de iniciar nova.');
+            console.log('[v2.6] Ronda pendente detectada → recuperando em vez de iniciar nova');
             this.resumeRondaIfExists();
             return;
         }
@@ -1140,9 +1146,9 @@ const app = new HidrometroApp();
 // Recuperação automática ao carregar/atualizar página
 window.addEventListener('load', () => {
     if (app.usuario && app.usuario.nivel !== 'admin') {
-        console.log('Evento load disparado. Verificando ronda pendente.');
+        console.log('[v2.6] Evento load disparado. Verificando ronda pendente com prioridade máxima.');
         setTimeout(() => {
             app.resumeRondaIfExists();
-        }, 2000); // Delay aumentado para F5 normal
+        }, 3000); // Delay agressivo para F5 normal funcionar
     }
 });
