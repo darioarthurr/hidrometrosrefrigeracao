@@ -130,7 +130,7 @@ class HidrometroApp {
             this.locais = [...new Set(this.hidrometros.map(h => h.local))];
 
             if (this.hidrometros.length > 0) {
-                console.log(`✅ Recuperando ${this.hidrometros.length} hidrômetros da ronda ${this.rondaAtual}`);
+                console.log(`✅ Iniciando recuperação de ${this.hidrometros.length} hidrômetros da ronda ${this.rondaAtual}`);
 
                 this.showScreen('leituraScreen');
                 document.getElementById('bottomBar').style.display = 'block';
@@ -141,18 +141,34 @@ class HidrometroApp {
                     document.getElementById('localSelect').value = this.locais[0];
                 }
 
-                // FORÇA atualização de todos os inputs com valores salvos
-                setTimeout(() => {
+                // Polling inteligente: tenta preencher os inputs até conseguir ou desistir após 10 tentativas
+                const tryFillInputs = (attempt = 0) => {
+                    let filledCount = 0;
+                    let totalToFill = this.hidrometros.length;
+
                     this.hidrometros.forEach(h => {
                         const input = document.getElementById(`input-${h.id}`);
                         if (input) {
                             input.value = h.leituraAtual || '';
-                            console.log(`Input ${h.id} preenchido com ${h.leituraAtual}`);
+                            console.log(`Tentativa ${attempt + 1}: Input ${h.id} preenchido com ${h.leituraAtual}`);
+                            this.atualizarUIHidrometro(h.id);
+                            filledCount++;
                         }
-                        this.atualizarUIHidrometro(h.id);
                     });
-                    this.atualizarProgresso();
-                }, 800);
+
+                    if (filledCount === totalToFill) {
+                        console.log(`✅ Todos os ${filledCount} inputs preenchidos com sucesso na tentativa ${attempt + 1}`);
+                        this.atualizarProgresso();
+                    } else if (attempt < 10) {
+                        console.log(`Tentativa ${attempt + 1}: ${filledCount}/${totalToFill} inputs encontrados. Tentando novamente em 300ms...`);
+                        setTimeout(() => tryFillInputs(attempt + 1), 300);
+                    } else {
+                        console.warn(`❌ Não conseguiu preencher todos os inputs após 10 tentativas`);
+                    }
+                };
+
+                // Inicia o polling após 800ms (tempo para tela carregar)
+                setTimeout(() => tryFillInputs(), 800);
 
                 this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
             }
@@ -460,7 +476,7 @@ class HidrometroApp {
                 
                 const preview = document.getElementById(`preview-${id}`);
                 const btn = document.getElementById(`btn-foto-${id}`);
-                const txt = document.getElementById(`txt-foto-${id}`);
+                const txt = document.getElementById(`txt-foto-${h.id}`);
                 
                 if (preview) {
                     preview.src = comprimida;
@@ -1121,6 +1137,6 @@ window.addEventListener('load', () => {
     if (app.usuario && app.usuario.nivel !== 'admin') {
         setTimeout(() => {
             app.resumeRondaIfExists();
-        }, 1000);
+        }, 1500);
     }
 });
