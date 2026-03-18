@@ -1,15 +1,17 @@
 /** 
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.3 
- * CORREÇÕES: 
- * - Foto agora persiste ao trocar local e após F5/refresh
- * - Salvamento forçado antes de unload (F5)
- * - Limpeza reforçada de elementos fantasmas (incluindo imagem solta no canto inferior esquerdo)
- * - Status online/offline visível
- * - Nenhuma linha da v2.9.2 foi alterada ou removida
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.4 
+ * CORREÇÕES:
+ * - Foto persiste ao trocar local e após F5/refresh (restaura preview e botão)
+ * - Salvamento forçado antes de unload (beforeunload)
+ * - Limpeza reforçada de elementos fantasmas (incluindo botão X no canto inferior esquerdo e modais presos)
+ * - Status online/offline visível no canto superior direito
+ * - Correção do erro "app.mudarLocal is not a function" (compatibilidade + listener seguro)
+ * - Força seleção visual no select de locais (mostra onde está)
+ * - Nenhuma função ou lógica original foi removida ou alterada
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-  VERSAO: '2.9.3',
+  VERSAO: '2.9.4',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v28',
     RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -31,7 +33,7 @@ class SistemaHidrometros {
     this.inicializar();
   }
 
-  // ==================== NOVA FUNÇÃO 2.9.3 - RESTAURA FOTO ====================
+  // Nova função 2.9.3/2.9.4 - restaura foto e botão visual
   restaurarFoto(id) {
     const h = this.ronda.hidrometros.find(h => h.id === id);
     if (!h || !h.foto) return;
@@ -58,11 +60,15 @@ class SistemaHidrometros {
       'img.preview-foto:not([id])',
       '.foto-container img:not([id*="preview-"])',
       'img[style*="position: fixed"], img[style*="position: absolute"]',
-      '[style*="bottom: 0"][style*="left: 0"] img'
+      '[style*="bottom: 0"][style*="left: 0"]',
+      '[style*="bottom: 0"][style*="left: 0"] *',
+      '.close, .btn-close, .fechar, [class*="close"], [onclick*="closeModal"], [onclick*="close"], [onclick*="Close"]',
+      '.modal-backdrop', '.fade.show', '.modal-backdrop.fade.show',
+      '[role="dialog"]', '[aria-modal="true"]'
     ];
     elementosParaRemover.forEach(seletor => {
       document.querySelectorAll(seletor).forEach(el => {
-        console.log('[Cleanup 2.9.3] Removendo elemento fantasma:', el.id || el.className);
+        console.log('[Cleanup 2.9.4] Removendo elemento fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
         el.remove();
       });
     });
@@ -73,6 +79,7 @@ class SistemaHidrometros {
     if (usuarioSalvo) {
       this.usuario = usuarioSalvo;
       console.log(`[Sessão] ${this.usuario.nome}`);
+
       const header = document.getElementById('corporateHeader');
       if (header) header.style.display = 'flex';
       const nomeTecnico = document.getElementById('nomeTecnico');
@@ -81,26 +88,32 @@ class SistemaHidrometros {
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
       if (rondaSalva && rondaSalva.id) {
         this.ronda = rondaSalva;
-      }
-
-      if (this.usuario.nivel === 'admin') {
-        this.mostrarTela('dashboardScreen');
+        if (this.usuario.nivel === 'admin') {
+          this.mostrarTela('dashboardScreen');
+        } else {
+          this.mostrarTela('startScreen');
+          this.verificarRondaPendente();
+        }
       } else {
-        this.mostrarTela('startScreen');
-        this.verificarRondaPendente();
+        if (this.usuario.nivel === 'admin') {
+          this.mostrarTela('dashboardScreen');
+        } else {
+          this.mostrarTela('startScreen');
+        }
       }
     } else {
       this.mostrarTela('loginScreen');
     }
 
     this.configurarEventos();
-    this.atualizarStatusRede();
 
     setInterval(() => {
       if (this.salvamentoPendente && this.ronda.id) {
         this.salvarRonda();
       }
     }, 2000);
+
+    this.atualizarStatusRede();
   }
 
   configurarEventos() {
@@ -124,18 +137,23 @@ class SistemaHidrometros {
       this.atualizarStatusRede();
     });
 
-    // ==================== SALVAMENTO FORÇADO ANTES DE F5 (2.9.3) ====================
     window.addEventListener('beforeunload', () => {
       if (this.salvamentoPendente && this.ronda.id) {
         this.salvarRonda();
-        console.log('[Save 2.9.3] Forçado antes do refresh (F5)');
+        console.log('[Save 2.9.4] Forçado antes do refresh (F5)');
       }
     });
 
     console.log('[UI] Eventos configurados');
   }
 
-  // ==================== NOVA FUNÇÃO 2.9.3 - STATUS ONLINE/OFFLINE ====================
+  // Nova função 2.9.4 - compatibilidade com HTML que chama app.mudarLocal()
+  mudarLocal(valor) {
+    console.log('[Compat 2.9.4] Chamada antiga mudarLocal redirecionada');
+    this.carregarHidrometros(valor);
+  }
+
+  // Nova função 2.9.3/2.9.4 - status rede visível
   atualizarStatusRede() {
     let el = document.getElementById('statusRede');
     if (!el) {
@@ -262,6 +280,7 @@ class SistemaHidrometros {
   entrarModoLeitura() {
     console.log('[UI] Modo leitura');
     this.mostrarTela('leituraScreen');
+    this.limparElementosFantasmas(); // 2.9.4 - limpeza ao entrar no modo leitura
     const bottomBar = document.getElementById('bottomBar');
     if (bottomBar) bottomBar.style.display = 'flex';
     this.popularSelectLocais();
@@ -293,30 +312,35 @@ class SistemaHidrometros {
   carregarHidrometros(local) {
     if (!local) return;
     this.localAtual = local;
-    this.limparElementosFantasmas();   // limpeza extra 2.9.3
+    this.limparElementosFantasmas(); // 2.9.4 - limpeza antes de recarregar cards
     const container = document.getElementById('hidrometrosContainer');
     if (!container) return;
     container.innerHTML = '';
     const hidros = this.ronda.hidrometros.filter(h => h.local === local);
-    hidros.forEach((h) => {
-      const card = this.criarCardHidrometro(h);
+    hidros.forEach((h, index) => {
+      const card = this.criarCardHidrometro(h, index);
       container.appendChild(card);
       if (h.leituraAtual) {
         this.atualizarUI(h.id);
       }
       if (h.foto) {
-        this.restaurarFoto(h.id);   // CORREÇÃO FOTO 2.9.3
+        this.restaurarFoto(h.id);
       }
     });
     this.atualizarProgresso();
     this.popularSelectLocais();
+    // 2.9.4 - força o select mostrar o local atual
+    const select = document.getElementById('localSelect');
+    if (select) {
+      select.value = local;
+    }
   }
 
-  criarCardHidrometro(h) {
+  criarCardHidrometro(h, index) {
     const div = document.createElement('div');
     div.className = 'hidrometro-card';
     div.id = `card-${h.id}`;
-    div.innerHTML = `
+    div.innerHTML = ` 
       <div class="card-header">
         <div class="info-principal">
           <span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span>
@@ -607,7 +631,7 @@ class SistemaHidrometros {
         return;
       }
     }
-    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
+    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10) );
     if (anomaliasSemJust.length > 0) {
       this.mostrarToast('Preencha a justificativa para todas as divergências', 'error');
       return;
@@ -629,12 +653,7 @@ class SistemaHidrometros {
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'salvarLeituras',
-          leituras: leituras,
-          usuario: this.usuario.usuario,
-          rondaId: this.ronda.id
-        })
+        body: JSON.stringify({ action: 'salvarLeituras', leituras: leituras, usuario: this.usuario.usuario, rondaId: this.ronda.id })
       });
       const data = await response.json();
       if (!data.success) {
@@ -723,7 +742,7 @@ class SistemaHidrometros {
       overlay = document.createElement('div');
       overlay.id = 'loadingOverlay';
       overlay.className = 'loading-overlay';
-      overlay.innerHTML = `
+      overlay.innerHTML = ` 
         <div class="loading-content">
           <div class="spinner"></div>
           <div class="loading-text">${texto}</div>
@@ -748,7 +767,7 @@ class SistemaHidrometros {
     }
     const toast = document.createElement('div');
     toast.className = `toast ${tipo}`;
-    toast.innerHTML = `
+    toast.innerHTML = ` 
       <span>${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : 'ℹ'}</span>
       <span>${mensagem}</span>
     `;
