@@ -1,7 +1,7 @@
 /**
  * SISTEMA DE LEITURA DE HIDRÔMETROS v2.5.2
  * JavaScript Completo - Offline First, Dashboard Admin, PWA
- * Última atualização: Recuperação automática de ronda ao recarregar página + valores de leitura preservados
+ * Última atualização: Recuperação automática de ronda ao recarregar + preenchimento correto dos inputs
  */
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
@@ -147,11 +147,12 @@ class HidrometroApp {
                         const input = document.getElementById(`input-${h.id}`);
                         if (input) {
                             input.value = h.leituraAtual || '';
+                            console.log(`Input ${h.id} preenchido com ${h.leituraAtual}`);
                         }
                         this.atualizarUIHidrometro(h.id);
                     });
                     this.atualizarProgresso();
-                }, 300);
+                }, 800);
 
                 this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
             }
@@ -334,10 +335,10 @@ class HidrometroApp {
         const precisaJust = this.verificarNecessidadeJustificativa(h, consumoDia);
         
         this.atualizarUIHidrometro(id);
-        this.salvarRondaLocal();  // Salva imediatamente no cache
+        this.salvarRondaLocal();
         this.atualizarProgresso();
 
-        // Força atualização visual do input
+        // Força o valor no input
         const input = document.getElementById(`input-${id}`);
         if (input) input.value = novoValor;
 
@@ -1120,6 +1121,6 @@ window.addEventListener('load', () => {
     if (app.usuario && app.usuario.nivel !== 'admin') {
         setTimeout(() => {
             app.resumeRondaIfExists();
-        }, 500);
+        }, 1000);
     }
 });
