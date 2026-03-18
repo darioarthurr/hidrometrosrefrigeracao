@@ -1,11 +1,12 @@
+
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.1
- * Correções: IDs de telas e funções faltantes
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.2
+ * Correções: Adicionadas funções faltantes logout() e iniciarLeitura()
  */
 
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.8.1',
+    VERSAO: '2.8.2',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario_v28',
         RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -59,10 +60,10 @@ class SistemaHidrometros {
             await this.restaurarSessao();
             this.configurarEventosUI();
             this.iniciarAutoSave();
-            
+
             this._flags.initCompleto = true;
             console.log('[Sistema] Inicialização completa');
-            
+
         } catch (erro) {
             console.error('[Sistema] Erro na inicialização:', erro);
             this.notificarErroCritico(erro);
@@ -84,7 +85,7 @@ class SistemaHidrometros {
             this.estado.ui.online = true;
             console.log('[Rede] Online');
         });
-        
+
         window.addEventListener('offline', () => {
             this.estado.ui.online = false;
             console.log('[Rede] Offline');
@@ -117,12 +118,12 @@ class SistemaHidrometros {
 
     async restaurarSessao() {
         console.log('[Sessão] Verificando sessão existente...');
-        
+
         const usuarioSalvo = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIO);
-        
+
         if (!usuarioSalvo) {
             console.log('[Sessão] Sem usuário, mostrando login');
-            this.mostrarTela('loginScreen'); // CORRIGIDO: ID correto do HTML
+            this.mostrarTela('loginScreen');
             return;
         }
 
@@ -131,59 +132,55 @@ class SistemaHidrometros {
             console.log(`[Sessão] Usuário: ${this.estado.usuario.nome}`);
 
             this.showHeader();
-            
+
             const loginScreen = document.getElementById('loginScreen');
             if (loginScreen) loginScreen.classList.remove('active');
 
             const rondaRestaurada = await this.restaurarRonda();
-            
+
             if (rondaRestaurada && this.estado.usuario.nivel !== 'admin') {
                 console.log('[Sessão] Ronda restaurada com sucesso');
                 this.entrarModoLeitura();
             } else {
                 if (this.estado.usuario.nivel === 'admin') {
-                    this.mostrarTela('dashboardScreen'); // CORRIGIDO
+                    this.mostrarTela('dashboardScreen');
                 } else {
-                    this.mostrarTela('startScreen'); // CORRIGIDO: ID correto do HTML
+                    this.mostrarTela('startScreen');
                     this.atualizarNomeTecnico();
-                    this.verificarRondaPendente(); // Verifica se mostra botão continuar
+                    this.verificarRondaPendente();
                 }
             }
-            
+
         } catch (erro) {
             console.error('[Sessão] Erro ao restaurar:', erro);
             this.encerrarSessao();
         }
     }
 
-    // CORRIGIDO: Mapeamento correto de IDs do HTML
     mostrarTela(idTela) {
         console.log(`[UI] Tentando mostrar tela: ${idTela}`);
-        
-        // Mapeamento de nomes para IDs (para compatibilidade)
+
         const mapeamento = {
             'login': 'loginScreen',
-            'inicio': 'startScreen',        // CORRIGIDO
-            'start': 'startScreen',         // CORRIGIDO
+            'inicio': 'startScreen',
+            'start': 'startScreen',
             'leitura': 'leituraScreen',
-            'dashboard': 'dashboardScreen', // CORRIGIDO
+            'dashboard': 'dashboardScreen',
             'admin': 'dashboardScreen',
             'leituras': 'leiturasAdminScreen'
         };
 
         const idFinal = mapeamento[idTela] || idTela;
-        
-        // Esconde todas as telas
+
         document.querySelectorAll('.screen').forEach(el => {
             el.classList.remove('active');
             el.style.display = 'none';
         });
-        
-        // Mostra a solicitada
+
         const tela = document.getElementById(idFinal);
         if (tela) {
             tela.style.display = 'block';
-            void tela.offsetWidth; // Força reflow
+            void tela.offsetWidth;
             tela.classList.add('active');
             console.log(`[UI] Tela ativa: ${idFinal}`);
         } else {
@@ -207,7 +204,7 @@ class SistemaHidrometros {
 
         for (const fonte of fontes) {
             const dados = this.lerStorage(fonte);
-            
+
             if (dados && dados.id && Array.isArray(dados.hidrometros)) {
                 if (dados.hidrometros.length > 0) {
                     this.estado.ronda = {
@@ -224,25 +221,26 @@ class SistemaHidrometros {
     }
 
     verificarRondaPendente() {
-        // Verifica se tem ronda salva e mostra botão de continuar
         const ronda = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         if (ronda && ronda.hidrometros && ronda.hidrometros.length > 0) {
             const btnContinuar = document.getElementById('btnContinuarRonda');
             if (btnContinuar) {
                 btnContinuar.style.display = 'flex';
                 const lidos = ronda.hidrometros.filter(h => h.leituraAtual > 0).length;
-                btnContinuar.querySelector('span:last-child').textContent = 
-                    `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`;
+                const span = btnContinuar.querySelector('span:last-child');
+                if (span) {
+                    span.textContent = `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`;
+                }
             }
         }
     }
 
     async autenticar(evento) {
         evento.preventDefault();
-        
+
         const usuario = document.getElementById('username')?.value.trim();
         const senha = document.getElementById('password')?.value.trim();
-        
+
         if (!usuario || !senha) {
             this.mostrarErroLogin('Preencha usuário e senha');
             return;
@@ -263,7 +261,7 @@ class SistemaHidrometros {
             });
 
             const dados = await resposta.json();
-            
+
             if (!dados.success) {
                 throw new Error(dados.message || 'Credenciais inválidas');
             }
@@ -276,16 +274,15 @@ class SistemaHidrometros {
             const loginScreen = document.getElementById('loginScreen');
             if (loginScreen) loginScreen.classList.remove('active');
 
-            // Verifica ronda pendente
             const rondaPendente = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
-            
+
             if (rondaPendente && dados.nivel !== 'admin') {
                 const continuar = confirm(
                     `Ronda em andamento encontrada!\n\n` +
                     `Progresso: ${rondaPendente.hidrometros.filter(h => h.leituraAtual > 0).length}/${rondaPendente.hidrometros.length}\n\n` +
                     `Deseja continuar esta ronda?`
                 );
-                
+
                 if (continuar) {
                     this.estado.ronda = rondaPendente;
                     this.entrarModoLeitura();
@@ -318,24 +315,36 @@ class SistemaHidrometros {
         }
     }
 
+    // ALIAS: iniciarLeitura -> iniciarNovaRonda (para compatibilidade com HTML)
+    iniciarLeitura() {
+        console.log('[UI] Alias iniciarLeitura chamado');
+        return this.iniciarNovaRonda();
+    }
+
+    // ALIAS: logout -> encerrarSessao (para compatibilidade com HTML)
+    logout() {
+        console.log('[UI] Alias logout chamado');
+        return this.encerrarSessao();
+    }
+
     entrarModoLeitura() {
         console.log('[UI] Entrando modo leitura');
-        
+
         this.mostrarTela('leituraScreen');
-        
+
         const bottomBar = document.getElementById('bottomBar');
         if (bottomBar) bottomBar.style.display = 'flex';
-        
+
         this.renderizarSelectLocais();
-        
+
         const localInicial = this.encontrarLocalInicial();
-        
+
         if (localInicial) {
             this.selecionarLocal(localInicial);
         }
-        
+
         this.iniciarAutoSave();
-        
+
         setTimeout(() => {
             this.restaurarDadosNosCards();
             this.atualizarBarraProgresso();
@@ -360,50 +369,50 @@ class SistemaHidrometros {
         }
 
         select.innerHTML = '<option value="">Escolha um local...</option>';
-        
+
         this.estado.ronda.locais.forEach(local => {
             const hidros = this.estado.ronda.hidrometros.filter(h => h.local === local);
             const completos = hidros.filter(h => this.estaCompleto(h)).length;
             const pendentes = hidros.length - completos;
-            
+
             const option = document.createElement('option');
             option.value = local;
-            
+
             if (pendentes === 0) {
                 option.textContent = `${local} ✓ Completo`;
             } else {
                 option.textContent = `${local} (${pendentes} pend.)`;
             }
-            
+
             select.appendChild(option);
         });
     }
 
     selecionarLocal(local) {
         if (!local) return;
-        
+
         this.estado.ui.localAtual = local;
-        
+
         const select = document.getElementById('localSelect');
         if (select) select.value = local;
-        
+
         this.renderizarCardsLocal(local);
     }
 
     renderizarCardsLocal(local) {
         const container = document.getElementById('hidrometrosContainer');
         if (!container) return;
-        
+
         container.innerHTML = '';
-        
+
         const hidros = this.estado.ronda.hidrometros.filter(h => h.local === local);
-        
+
         hidros.sort((a, b) => {
             const aComp = this.estaCompleto(a);
             const bComp = this.estaCompleto(b);
             return aComp === bComp ? 0 : aComp ? 1 : -1;
         });
-        
+
         hidros.forEach((h, i) => {
             container.appendChild(this.criarCard(h, i));
         });
@@ -411,7 +420,7 @@ class SistemaHidrometros {
         requestAnimationFrame(() => {
             this.restaurarDadosNosCards();
         });
-        
+
         this.atualizarBarraProgresso();
     }
 
@@ -419,10 +428,10 @@ class SistemaHidrometros {
         const div = document.createElement('div');
         const completo = this.estaCompleto(hidrometro);
         const temAnomalia = this.temAnomalia(hidrometro);
-        
+
         div.className = `hidrometro-card ${completo ? 'completo' : 'pendente'} ${temAnomalia ? 'anomalia' : ''}`;
         div.id = `card-${hidrometro.id}`;
-        
+
         div.innerHTML = `
             <div class="card-header">
                 <div class="info-principal">
@@ -433,12 +442,12 @@ class SistemaHidrometros {
                     ${completo ? '✓' : '⏳'}
                 </span>
             </div>
-            
+
             <div class="leitura-anterior">
                 <span>Leitura anterior</span>
                 <strong>${parseFloat(hidrometro.leituraAnterior).toFixed(2)} m³</strong>
             </div>
-            
+
             <div class="campo-leitura">
                 <input 
                     type="number" 
@@ -452,15 +461,15 @@ class SistemaHidrometros {
                 >
                 <span class="unidade">m³</span>
             </div>
-            
+
             <div class="info-consumo" id="consumo-${hidrometro.id}">
                 ${this.renderizarInfoConsumo(hidrometro)}
             </div>
-            
+
             <div class="alertas" id="alerta-${hidrometro.id}">
                 ${this.renderizarAlertas(hidrometro)}
             </div>
-            
+
             <div class="justificativa-container ${temAnomalia && !hidrometro.justificativa ? 'obrigatoria' : ''}" 
                  id="just-container-${hidrometro.id}">
                 <textarea 
@@ -470,7 +479,7 @@ class SistemaHidrometros {
                     rows="2"
                 >${hidrometro.justificativa || ''}</textarea>
             </div>
-            
+
             <div class="foto-container">
                 <label class="btn-foto ${hidrometro.foto ? 'tem-foto' : ''}" id="btn-foto-${hidrometro.id}">
                     <input type="file" accept="image/*" capture="environment" style="display:none" id="file-${hidrometro.id}">
@@ -520,7 +529,7 @@ class SistemaHidrometros {
 
     restaurarDadosNosCards() {
         let count = 0;
-        
+
         this.estado.ronda.hidrometros.forEach(h => {
             const input = document.getElementById(`input-${h.id}`);
             if (input && h.leituraAtual > 0) {
@@ -532,7 +541,7 @@ class SistemaHidrometros {
                 const preview = document.getElementById(`preview-${h.id}`);
                 const btn = document.getElementById(`btn-foto-${h.id}`);
                 const txt = document.getElementById(`txt-foto-${h.id}`);
-                
+
                 if (preview) {
                     preview.src = h.foto;
                     preview.classList.add('visivel');
@@ -562,7 +571,7 @@ class SistemaHidrometros {
         if (!hidro) return;
 
         const novo = parseFloat(valor);
-        
+
         if (isNaN(novo) || novo <= 0) {
             hidro.leituraAtual = null;
             hidro.timestampLeitura = null;
@@ -572,10 +581,10 @@ class SistemaHidrometros {
         }
 
         this._flags.salvamentoPendente = true;
-        
+
         this.atualizarCardUI(id);
         this.atualizarBarraProgresso();
-        
+
         if (navigator.vibrate && this.temAnomalia(hidro)) {
             navigator.vibrate(50);
         }
@@ -583,7 +592,7 @@ class SistemaHidrometros {
 
     processarJustificativa(id, valor) {
         const hidro = this.estado.ronda.hidrometros.find(h => h.id === id);
-        if (h) {
+        if (hidro) {
             hidro.justificativa = valor.trim();
             this._flags.salvamentoPendente = true;
             this.atualizarCardUI(id);
@@ -599,29 +608,29 @@ class SistemaHidrometros {
         try {
             const comprimida = await this.comprimirImagem(arquivo);
             const h = this.estado.ronda.hidrometros.find(h => h.id === id);
-            
+
             if (h) {
                 h.foto = comprimida;
                 this._flags.salvamentoPendente = true;
-                
+
                 const preview = document.getElementById(`preview-${id}`);
                 const btn = document.getElementById(`btn-foto-${id}`);
                 const txt = document.getElementById(`txt-foto-${id}`);
-                
+
                 if (preview) {
                     preview.src = comprimida;
                     preview.classList.add('visivel');
                 }
                 if (btn) btn.classList.add('tem-foto');
                 if (txt) txt.textContent = 'Foto adicionada';
-                
+
                 this.atualizarCardUI(id);
                 this.salvarRonda(true);
             }
-            
+
             this.ocultarCarregamento();
             this.notificar('Foto adicionada com sucesso', 'success');
-            
+
         } catch (erro) {
             this.ocultarCarregamento();
             console.error('[Foto] Erro:', erro);
@@ -632,34 +641,34 @@ class SistemaHidrometros {
     async comprimirImagem(arquivo, maxWidth = 1280, qualidade = 0.7) {
         return new Promise((resolve, reject) => {
             const leitor = new FileReader();
-            
+
             leitor.onload = (e) => {
                 const img = new Image();
-                
+
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let largura = img.width;
                     let altura = img.height;
-                    
+
                     if (largura > maxWidth) {
                         altura = (maxWidth / largura) * altura;
                         largura = maxWidth;
                     }
-                    
+
                     canvas.width = largura;
                     canvas.height = altura;
-                    
+
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, largura, altura);
-                    
+
                     const dadosComprimidos = canvas.toDataURL('image/jpeg', qualidade);
                     resolve(dadosComprimidos);
                 };
-                
+
                 img.onerror = () => reject(new Error('Erro ao carregar imagem'));
                 img.src = e.target.result;
             };
-            
+
             leitor.onerror = () => reject(new Error('Erro ao ler arquivo'));
             leitor.readAsDataURL(arquivo);
         });
@@ -674,7 +683,7 @@ class SistemaHidrometros {
     temAnomalia(hidrometro) {
         if (!hidrometro.leituraAtual || !hidrometro.leituraAnterior) return false;
         const consumo = hidrometro.leituraAtual - hidrometro.leituraAnterior;
-        const limite = 1000; // m³ - ajuste conforme necessidade
+        const limite = 1000;
         return consumo < 0 || consumo > limite;
     }
 
@@ -682,10 +691,10 @@ class SistemaHidrometros {
         if (!hidrometro.leituraAtual || !hidrometro.leituraAnterior) {
             return '<span class="consumo-vazio">Aguardando leitura...</span>';
         }
-        
+
         const consumo = hidrometro.leituraAtual - hidrometro.leituraAnterior;
         const classe = consumo < 0 ? 'negativo' : (consumo > 1000 ? 'alto' : 'normal');
-        
+
         return `
             <span class="consumo-label">Consumo:</span>
             <span class="consumo-valor ${classe}">${consumo.toFixed(2)} m³</span>
@@ -694,50 +703,50 @@ class SistemaHidrometros {
 
     renderizarAlertas(hidrometro) {
         if (!hidrometro.leituraAtual) return '';
-        
+
         const consumo = hidrometro.leituraAtual - (hidrometro.leituraAnterior || 0);
         let alertas = '';
-        
+
         if (consumo < 0) {
             alertas += '<span class="alerta erro">⚠️ Leitura menor que anterior</span>';
         }
         if (consumo > 1000) {
             alertas += '<span class="alerta atencao">⚠️ Consumo muito alto</span>';
         }
-        
+
         return alertas;
     }
 
     atualizarCardUI(id) {
         const h = this.estado.ronda.hidrometros.find(h => h.id === id);
         if (!h) return;
-        
+
         const card = document.getElementById(`card-${id}`);
         const badge = document.getElementById(`badge-${id}`);
         const input = document.getElementById(`input-${id}`);
         const consumo = document.getElementById(`consumo-${id}`);
         const alerta = document.getElementById(`alerta-${id}`);
         const justContainer = document.getElementById(`just-container-${id}`);
-        
+
         if (!card) return;
-        
+
         const completo = this.estaCompleto(h);
         const temAnomalia = this.temAnomalia(h);
-        
+
         card.className = `hidrometro-card ${completo ? 'completo' : 'pendente'} ${temAnomalia ? 'anomalia' : ''}`;
-        
+
         if (badge) {
             badge.className = `status-badge ${completo ? 'completo' : 'pendente'}`;
             badge.textContent = completo ? '✓' : '⏳';
         }
-        
+
         if (input) {
             input.className = `input-leitura ${completo ? 'valido' : ''} ${temAnomalia ? 'atencao' : ''}`;
         }
-        
+
         if (consumo) consumo.innerHTML = this.renderizarInfoConsumo(h);
         if (alerta) alerta.innerHTML = this.renderizarAlertas(h);
-        
+
         if (justContainer) {
             justContainer.className = `justificativa-container ${temAnomalia && !h.justificativa ? 'obrigatoria' : ''}`;
         }
@@ -747,20 +756,19 @@ class SistemaHidrometros {
         const total = this.estado.ronda.hidrometros.length;
         const completos = this.estado.ronda.hidrometros.filter(h => this.estaCompleto(h)).length;
         const percentual = total > 0 ? (completos / total) * 100 : 0;
-        
+
         const barra = document.getElementById('progressBar');
         const texto = document.getElementById('progressText');
-        
+
         if (barra) barra.style.width = `${percentual}%`;
         if (texto) texto.textContent = `${completos}/${total} (${Math.round(percentual)}%)`;
-        
-        // Atualiza select de locais também
+
         this.renderizarSelectLocais();
     }
 
     iniciarAutoSave() {
         if (this._timers.autoSave) clearInterval(this._timers.autoSave);
-        
+
         this._timers.autoSave = setInterval(() => {
             if (this._flags.salvamentoPendente && this.estado.ronda.id) {
                 this.salvarRonda();
@@ -770,32 +778,30 @@ class SistemaHidrometros {
 
     salvarRonda(imediato = false) {
         if (!this.estado.ronda.id) return;
-        
+
         const agora = Date.now();
         if (!imediato && agora - this.estado.ui.ultimoSave < CONFIG.INTERVALOS.AUTOSAVE) return;
-        
+
         this.estado.ronda.ultimaAlteracao = new Date().toISOString();
-        
+
         try {
             this.salvarStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA, this.estado.ronda);
             this._flags.salvamentoPendente = false;
             this.estado.ui.ultimoSave = agora;
             this._saveCount++;
-            
+
             console.log(`[Save #${this._saveCount}] Ronda salva`);
-            
-            // Backup secundário
+
             if (this._saveCount % 5 === 0) {
                 this.salvarStorage(CONFIG.STORAGE_KEYS.BACKUP_RONDA, this.estado.ronda);
             }
-            
+
         } catch (e) {
             console.error('[Save] Erro:', e);
         }
     }
 
     arquivarRonda(ronda) {
-        // Move ronda para histórico/arquivo
         const historico = this.lerStorage('h2_historico_rondas') || [];
         historico.push({
             ...ronda,
@@ -803,15 +809,14 @@ class SistemaHidrometros {
             motivo: 'Cancelada pelo usuário'
         });
         this.salvarStorage('h2_historico_rondas', historico);
-        
-        // Limpa ronda ativa
+
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         localStorage.removeItem(CONFIG.STORAGE_KEYS.BACKUP_RONDA);
     }
 
     async iniciarNovaRonda() {
         this.mostrarCarregamento('Carregando hidrômetros...');
-        
+
         try {
             const resposta = await fetch(CONFIG.API_URL, {
                 method: 'POST',
@@ -821,13 +826,13 @@ class SistemaHidrometros {
                     usuario: this.estado.usuario.id
                 })
             });
-            
+
             const dados = await resposta.json();
-            
+
             if (!dados.success) {
                 throw new Error(dados.message || 'Erro ao carregar hidrômetros');
             }
-            
+
             this.estado.ronda = {
                 id: `ronda_${Date.now()}`,
                 hidrometros: dados.hidrometros.map(h => ({
@@ -841,11 +846,11 @@ class SistemaHidrometros {
                 inicio: new Date().toISOString(),
                 ultimaAlteracao: new Date().toISOString()
             };
-            
+
             this.salvarRonda(true);
             this.ocultarCarregamento();
             this.entrarModoLeitura();
-            
+
         } catch (erro) {
             this.ocultarCarregamento();
             this.notificar(erro.message, 'error');
@@ -854,7 +859,7 @@ class SistemaHidrometros {
 
     async finalizarRonda() {
         const incompletos = this.estado.ronda.hidrometros.filter(h => !this.estaCompleto(h));
-        
+
         if (incompletos.length > 0) {
             const continuar = confirm(
                 `Atenção! ${incompletos.length} hidrômetro(s) incompleto(s).\n\n` +
@@ -862,9 +867,9 @@ class SistemaHidrometros {
             );
             if (!continuar) return;
         }
-        
+
         this.mostrarCarregamento('Enviando dados...');
-        
+
         try {
             const resposta = await fetch(CONFIG.API_URL, {
                 method: 'POST',
@@ -875,37 +880,33 @@ class SistemaHidrometros {
                     usuario: this.estado.usuario.id
                 })
             });
-            
+
             const dados = await resposta.json();
-            
+
             if (!dados.success) {
                 throw new Error(dados.message || 'Erro ao finalizar');
             }
-            
-            // Limpa ronda local
+
             localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
             localStorage.removeItem(CONFIG.STORAGE_KEYS.BACKUP_RONDA);
             this.estado.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
-            
+
             this.ocultarCarregamento();
             this.notificar('Ronda finalizada com sucesso!', 'success');
-            
+
             this.mostrarTela('startScreen');
             this.atualizarNomeTecnico();
             this.verificarRondaPendente();
-            
+
         } catch (erro) {
             this.ocultarCarregamento();
             this.notificar(erro.message, 'error');
         }
     }
 
-    // FUNÇÕES DE UI AUXILIARES (ADICIONADAS - estavam faltando!)
-
     mostrarCarregamento(mensagem = 'Carregando...') {
-        // Remove loader existente
         this.ocultarCarregamento();
-        
+
         const loader = document.createElement('div');
         loader.id = 'globalLoader';
         loader.className = 'loader-overlay';
@@ -924,25 +925,22 @@ class SistemaHidrometros {
     }
 
     notificar(mensagem, tipo = 'info') {
-        // Remove notificações antigas
         const antigas = document.querySelectorAll('.notification-toast');
         antigas.forEach(n => n.remove());
-        
+
         const toast = document.createElement('div');
         toast.className = `notification-toast ${tipo}`;
         toast.innerHTML = `
             <span class="icon">${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : 'ℹ'}</span>
             <span class="message">${mensagem}</span>
         `;
-        
+
         document.body.appendChild(toast);
-        
-        // Animação de entrada
+
         requestAnimationFrame(() => {
             toast.classList.add('show');
         });
-        
-        // Remove após 3 segundos
+
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
@@ -960,8 +958,6 @@ class SistemaHidrometros {
             elemento.textContent = this.estado.usuario.nome;
         }
     }
-
-    // FUNÇÕES DE MODAL (ADICIONADAS - estavam faltando!)
 
     openModal(idModal) {
         const modal = document.getElementById(idModal);
@@ -986,7 +982,7 @@ class SistemaHidrometros {
     ampliarFoto(idHidrometro) {
         const h = this.estado.ronda.hidrometros.find(h => h.id === idHidrometro);
         if (!h || !h.foto) return;
-        
+
         const modal = document.createElement('div');
         modal.id = 'modalFotoAmpliada';
         modal.className = 'modal-overlay';
@@ -997,16 +993,14 @@ class SistemaHidrometros {
                 <p>Hidrômetro #${idHidrometro.split('_').pop()}</p>
             </div>
         `;
-        
+
         modal.addEventListener('click', (e) => {
             if (e.target === modal) this.closeModal('modalFotoAmpliada');
         });
-        
+
         document.body.appendChild(modal);
         this.openModal('modalFotoAmpliada');
     }
-
-    // FUNÇÕES DE STORAGE
 
     salvarStorage(chave, valor) {
         try {
@@ -1027,8 +1021,6 @@ class SistemaHidrometros {
             return null;
         }
     }
-
-    // CONFIGURAÇÃO DE EVENTOS UI
 
     configurarEventosUI() {
         // Login
@@ -1076,17 +1068,17 @@ class SistemaHidrometros {
         if (this._flags.salvamentoPendente) {
             this.salvarRonda(true);
         }
-        
+
         localStorage.removeItem(CONFIG.STORAGE_KEYS.USUARIO);
         this.estado.usuario = null;
         this.estado.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
-        
+
         const header = document.getElementById('corporateHeader');
         if (header) header.style.display = 'none';
-        
+
         const bottomBar = document.getElementById('bottomBar');
         if (bottomBar) bottomBar.style.display = 'none';
-        
+
         this.mostrarTela('loginScreen');
         this.notificar('Sessão encerrada', 'info');
     }
