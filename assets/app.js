@@ -141,32 +141,13 @@ class HidrometroApp {
                 document.getElementById('localSelect').value = this.locais[0];
             }
 
-            // Observa o container até os cards serem adicionados
             const container = document.getElementById('hidrometrosContainer');
             if (!container) {
-                console.warn('Container #hidrometrosContainer não encontrado');
+                console.warn('Container não encontrado');
                 return;
             }
 
-            const observer = new MutationObserver(() => {
-                // Verifica se já tem cards (filhos > 0)
-                if (container.children.length > 0) {
-                    console.log(`Container tem ${container.children.length} cards. Iniciando preenchimento.`);
-                    fillInputs();
-                    observer.disconnect(); // para de observar
-                }
-            });
-
-            observer.observe(container, { childList: true, subtree: true });
-
-            // Fallback caso MutationObserver não dispare (timeout de 5 segundos)
-            setTimeout(() => {
-                if (observer.takeRecords().length === 0) {
-                    console.warn('MutationObserver não detectou mudanças. Forçando preenchimento.');
-                    fillInputs();
-                    observer.disconnect();
-                }
-            }, 5000);
+            const expectedCards = this.hidrometros.length;
 
             const fillInputs = () => {
                 let filledCount = 0;
@@ -179,13 +160,40 @@ class HidrometroApp {
                         filledCount++;
                     }
                 });
-                if (filledCount > 0) {
-                    console.log(`Preenchidos ${filledCount} inputs com sucesso`);
+                if (filledCount === expectedCards) {
+                    console.log(`✅ Todos os ${filledCount}/${expectedCards} inputs preenchidos com sucesso`);
                     this.atualizarProgresso();
                 } else {
-                    console.warn('Nenhum input encontrado mesmo após MutationObserver');
+                    console.log(`Preenchidos ${filledCount}/${expectedCards} inputs. Aguardando mais cards...`);
                 }
             };
+
+            // Polling até todos os cards existirem
+            const checkCards = (attempt = 0) => {
+                if (container.children.length >= expectedCards) {
+                    console.log(`Container tem ${container.children.length} cards (esperado ${expectedCards}). Preenchendo agora.`);
+                    fillInputs();
+                } else if (attempt < 20) {
+                    console.log(`Tentativa ${attempt + 1}: ${container.children.length}/${expectedCards} cards encontrados. Aguardando 300ms...`);
+                    setTimeout(() => checkCards(attempt + 1), 300);
+                } else {
+                    console.warn(`❌ Não conseguiu detectar todos os cards após 20 tentativas`);
+                    fillInputs(); // tenta mesmo assim
+                }
+            };
+
+            // Inicia o check após 800ms
+            setTimeout(() => checkCards(), 800);
+
+            // MutationObserver como backup
+            const observer = new MutationObserver(() => {
+                if (container.children.length >= expectedCards) {
+                    console.log('MutationObserver detectou todos os cards. Preenchendo.');
+                    fillInputs();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(container, { childList: true, subtree: true });
 
             this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
         }
