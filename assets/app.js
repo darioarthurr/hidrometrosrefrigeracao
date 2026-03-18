@@ -160,27 +160,46 @@ class HidrometroApp {
                         filledCount++;
                     }
                 });
-                if (filledCount === expectedCards) {
-                    console.log(`✅ Todos os ${filledCount}/${expectedCards} inputs preenchidos com sucesso`);
-                    this.atualizarProgresso();
+                console.log(`Preenchimento final: ${filledCount}/${expectedCards} inputs preenchidos`);
+                this.atualizarProgresso();
+            };
+
+            // Polling agressivo até todos os cards estarem no DOM
+            const checkCards = (attempt = 0) => {
+                const currentCards = container.children.length;
+                if (currentCards >= expectedCards) {
+                    console.log(`Container tem ${currentCards} cards (esperado ${expectedCards}). Preenchendo agora.`);
+                    fillInputs();
+                } else if (attempt < 30) { // até 9 segundos (30 x 300ms)
+                    console.log(`Tentativa ${attempt + 1}: ${currentCards}/${expectedCards} cards encontrados. Aguardando 300ms...`);
+                    setTimeout(() => checkCards(attempt + 1), 300);
                 } else {
-                    console.log(`Preenchidos ${filledCount}/${expectedCards} inputs. Aguardando mais cards...`);
+                    console.warn(`❌ Timeout após 30 tentativas. Forçando preenchimento com o que tem.`);
+                    fillInputs();
                 }
             };
 
-            // Polling até todos os cards existirem
-            const checkCards = (attempt = 0) => {
-                if (container.children.length >= expectedCards) {
-                    console.log(`Container tem ${container.children.length} cards (esperado ${expectedCards}). Preenchendo agora.`);
+            // Inicia após 500ms (tempo mínimo para tela aparecer)
+            setTimeout(() => checkCards(), 500);
+
+            // Backup com MutationObserver
+            const observer = new MutationObserver(() => {
+                const currentCards = container.children.length;
+                if (currentCards >= expectedCards) {
+                    console.log('MutationObserver detectou todos os cards. Preenchendo.');
                     fillInputs();
-                } else if (attempt < 20) {
-                    console.log(`Tentativa ${attempt + 1}: ${container.children.length}/${expectedCards} cards encontrados. Aguardando 300ms...`);
-                    setTimeout(() => checkCards(attempt + 1), 300);
-                } else {
-                    console.warn(`❌ Não conseguiu detectar todos os cards após 20 tentativas`);
-                    fillInputs(); // tenta mesmo assim
+                    observer.disconnect();
                 }
-            };
+            });
+            observer.observe(container, { childList: true, subtree: true });
+
+            this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
+        }
+    } catch (e) {
+        console.error('Erro ao recuperar ronda:', e);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
+    }
+}
 
             // Inicia o check após 800ms
             setTimeout(() => checkCards(), 800);
