@@ -1,7 +1,7 @@
 /**
  * SISTEMA DE LEITURA DE HIDRÔMETROS v2.5.2
  * JavaScript Completo - Offline First, Dashboard Admin, PWA
- * Última atualização: Recuperação automática de ronda ao recarregar página
+ * Última atualização: Recuperação automática de ronda ao recarregar página + valores de leitura preservados
  */
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
@@ -50,7 +50,7 @@ class HidrometroApp {
                 } else {
                     this.showScreen('startScreen');
                     this.checkPendentes();
-                    this.resumeRondaIfExists(); // tenta recuperar ronda
+                    this.resumeRondaIfExists();
                 }
             } catch (e) {
                 this.logout();
@@ -92,7 +92,7 @@ class HidrometroApp {
                 this.showScreen('startScreen');
                 document.getElementById('nomeTecnico').textContent = data.nome;
                 this.checkPendentes();
-                this.resumeRondaIfExists(); // tenta recuperar ronda após login
+                this.resumeRondaIfExists();
             }
         } catch (err) {
             this.hideLoading();
@@ -140,7 +140,18 @@ class HidrometroApp {
                     this.mostrarHidrometrosDoLocal(this.locais[0]);
                     document.getElementById('localSelect').value = this.locais[0];
                 }
-                this.atualizarProgresso();
+
+                // FORÇA atualização de todos os inputs com valores salvos
+                setTimeout(() => {
+                    this.hidrometros.forEach(h => {
+                        const input = document.getElementById(`input-${h.id}`);
+                        if (input) {
+                            input.value = h.leituraAtual || '';
+                        }
+                        this.atualizarUIHidrometro(h.id);
+                    });
+                    this.atualizarProgresso();
+                }, 300);
 
                 this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
             }
@@ -243,8 +254,6 @@ class HidrometroApp {
         } else {
             select.value = '';
         }
-
-        // REMOVIDO dispatchEvent para evitar loop infinito
     }
 
     mostrarHidrometrosDoLocal(local) {
@@ -320,14 +329,18 @@ class HidrometroApp {
         if (!h) return;
         const novoValor = parseFloat(valor) || 0;
         h.leituraAtual = novoValor;
-        
+
         const consumoDia = novoValor - h.leituraAnterior;
         const precisaJust = this.verificarNecessidadeJustificativa(h, consumoDia);
         
         this.atualizarUIHidrometro(id);
-        this.salvarRondaLocal();
+        this.salvarRondaLocal();  // Salva imediatamente no cache
         this.atualizarProgresso();
-        
+
+        // Força atualização visual do input
+        const input = document.getElementById(`input-${id}`);
+        if (input) input.value = novoValor;
+
         if (navigator.vibrate && precisaJust) {
             navigator.vibrate(50);
         }
@@ -535,6 +548,7 @@ class HidrometroApp {
             timestamp: new Date().toISOString()
         };
         localStorage.setItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL, JSON.stringify(dados));
+        console.log('Ronda salva no cache:', dados);
     }
 
     checkPendentes() {
