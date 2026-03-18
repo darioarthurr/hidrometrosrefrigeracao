@@ -1,11 +1,11 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.3
- * Correções: Loader centralizado, tratamento de erros melhorado, aliases adicionados
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.4
+ * Compatível com CSS existente - usa .loading-overlay do seu CSS
  */
 
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.8.3',
+    VERSAO: '2.8.4',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario_v28',
         RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -314,13 +314,13 @@ class SistemaHidrometros {
         }
     }
 
-    // ALIAS: iniciarLeitura -> iniciarNovaRonda (para compatibilidade com HTML)
+    // ALIAS: iniciarLeitura -> iniciarNovaRonda
     iniciarLeitura() {
         console.log('[UI] Alias iniciarLeitura chamado');
         return this.iniciarNovaRonda();
     }
 
-    // ALIAS: logout -> encerrarSessao (para compatibilidade com HTML)
+    // ALIAS: logout -> encerrarSessao
     logout() {
         console.log('[UI] Alias logout chamado');
         return this.encerrarSessao();
@@ -329,7 +329,6 @@ class SistemaHidrometros {
     async iniciarNovaRonda() {
         console.log('[Ronda] Iniciando nova ronda...');
 
-        // Verifica se usuário está logado
         if (!this.estado.usuario) {
             console.error('[Ronda] Usuário não logado');
             this.notificar('Erro: Usuário não autenticado', 'error');
@@ -517,7 +516,7 @@ class SistemaHidrometros {
 
             <div class="leitura-anterior">
                 <span>Leitura anterior</span>
-                <strong>${parseFloat(hidrometro.leituraAnterior).toFixed(2)} m³</strong>
+                <strong>${parseFloat(hidrometro.leituraAnterior || 0).toFixed(2)} m³</strong>
             </div>
 
             <div class="campo-leitura">
@@ -761,15 +760,15 @@ class SistemaHidrometros {
 
     renderizarInfoConsumo(hidrometro) {
         if (!hidrometro.leituraAtual || !hidrometro.leituraAnterior) {
-            return '<span class="consumo-vazio">Aguardando leitura...</span>';
+            return '<span class="placeholder">Aguardando leitura...</span>';
         }
 
         const consumo = hidrometro.leituraAtual - hidrometro.leituraAnterior;
         const classe = consumo < 0 ? 'negativo' : (consumo > 1000 ? 'alto' : 'normal');
 
         return `
-            <span class="consumo-label">Consumo:</span>
-            <span class="consumo-valor ${classe}">${consumo.toFixed(2)} m³</span>
+            <span>Consumo:</span>
+            <span class="consumo ${classe}"><strong>${consumo.toFixed(2)} m³</strong></span>
         `;
     }
 
@@ -780,10 +779,10 @@ class SistemaHidrometros {
         let alertas = '';
 
         if (consumo < 0) {
-            alertas += '<span class="alerta erro">⚠️ Leitura menor que anterior</span>';
+            alertas += '<div class="alerta danger"><span class="icone">⚠️</span><span>Leitura menor que anterior</span></div>';
         }
         if (consumo > 1000) {
-            alertas += '<span class="alerta atencao">⚠️ Consumo muito alto</span>';
+            alertas += '<div class="alerta warning"><span class="icone">⚠️</span><span>Consumo muito alto</span></div>';
         }
 
         return alertas;
@@ -834,6 +833,20 @@ class SistemaHidrometros {
 
         if (barra) barra.style.width = `${percentual}%`;
         if (texto) texto.textContent = `${completos}/${total} (${Math.round(percentual)}%)`;
+
+        // Atualiza botão finalizar
+        const btnFinalizar = document.getElementById('btnFinalizar');
+        if (btnFinalizar) {
+            if (percentual === 100) {
+                btnFinalizar.classList.add('pronto');
+                btnFinalizar.disabled = false;
+                btnFinalizar.textContent = '✓ Finalizar Ronda';
+            } else {
+                btnFinalizar.classList.remove('pronto');
+                btnFinalizar.disabled = true;
+                btnFinalizar.textContent = `Finalizar (${Math.round(percentual)}%)`;
+            }
+        }
 
         this.renderizarSelectLocais();
     }
@@ -933,16 +946,18 @@ class SistemaHidrometros {
         }
     }
 
+    // USA AS CLASSES DO CSS EXISTENTE (.loading-overlay)
     mostrarCarregamento(mensagem = 'Carregando...') {
+        // Remove loader existente
         this.ocultarCarregamento();
 
         const loader = document.createElement('div');
         loader.id = 'globalLoader';
-        loader.className = 'loader-overlay';
+        loader.className = 'loading-overlay show'; // Usa classe do seu CSS
         loader.innerHTML = `
-            <div class="loader-content">
+            <div class="loading-content">
                 <div class="spinner"></div>
-                <span>${mensagem}</span>
+                <div class="loading-text">${mensagem}</div>
             </div>
         `;
         document.body.appendChild(loader);
@@ -953,25 +968,33 @@ class SistemaHidrometros {
         if (loader) loader.remove();
     }
 
+    // USA AS CLASSES DO CSS EXISTENTE (.toast-container e .toast)
     notificar(mensagem, tipo = 'info') {
+        // Remove notificações antigas do novo sistema
         const antigas = document.querySelectorAll('.notification-toast');
         antigas.forEach(n => n.remove());
 
+        // Verifica se existe toast-container no HTML, se não, cria
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
         const toast = document.createElement('div');
-        toast.className = `notification-toast ${tipo}`;
+        toast.className = `toast ${tipo}`;
         toast.innerHTML = `
-            <span class="icon">${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : 'ℹ'}</span>
-            <span class="message">${mensagem}</span>
+            <span style="font-size: 1.25rem;">${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : 'ℹ'}</span>
+            <span style="font-weight: 600;">${mensagem}</span>
         `;
 
-        document.body.appendChild(toast);
+        container.appendChild(toast);
 
-        requestAnimationFrame(() => {
-            toast.classList.add('show');
-        });
-
+        // Remove após 3 segundos
         setTimeout(() => {
-            toast.classList.remove('show');
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
@@ -1012,23 +1035,23 @@ class SistemaHidrometros {
         const h = this.estado.ronda.hidrometros.find(h => h.id === idHidrometro);
         if (!h || !h.foto) return;
 
+        // Cria modal de imagem usando suas classes CSS
         const modal = document.createElement('div');
         modal.id = 'modalFotoAmpliada';
-        modal.className = 'modal-overlay';
+        modal.className = 'modal-imagem';
         modal.innerHTML = `
-            <div class="modal-content foto-ampliada">
-                <button class="btn-fechar" onclick="app.closeModal('modalFotoAmpliada')">×</button>
+            <div class="modal-conteudo">
+                <button class="btn-fechar" onclick="document.getElementById('modalFotoAmpliada').remove()">×</button>
                 <img src="${h.foto}" alt="Foto ampliada">
-                <p>Hidrômetro #${idHidrometro.split('_').pop()}</p>
+                <div class="legenda">Hidrômetro #${idHidrometro.split('_').pop()}</div>
             </div>
         `;
 
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) this.closeModal('modalFotoAmpliada');
+            if (e.target === modal) modal.remove();
         });
 
         document.body.appendChild(modal);
-        this.openModal('modalFotoAmpliada');
     }
 
     salvarStorage(chave, valor) {
