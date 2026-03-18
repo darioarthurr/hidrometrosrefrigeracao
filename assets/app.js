@@ -1,11 +1,11 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.4
- * Compatível com CSS existente - usa .loading-overlay do seu CSS
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.5
+ * CORREÇÃO: Ação 'iniciar' (compatível com Apps Script v2.0)
  */
 
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.8.4',
+    VERSAO: '2.8.5',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario_v28',
         RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -326,6 +326,7 @@ class SistemaHidrometros {
         return this.encerrarSessao();
     }
 
+    // CORREÇÃO PRINCIPAL: Ação 'iniciar' (não 'getHidrometros')
     async iniciarNovaRonda() {
         console.log('[Ronda] Iniciando nova ronda...');
 
@@ -338,14 +339,15 @@ class SistemaHidrometros {
         this.mostrarCarregamento('Carregando hidrômetros...');
 
         try {
-            console.log('[API] Chamando getHidrometros...');
+            console.log('[API] Chamando iniciar...');
 
+            // CORREÇÃO: Ação é 'iniciar' (compatível com Apps Script v2.0)
             const resposta = await fetch(CONFIG.API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
-                    action: 'getHidrometros',
-                    usuario: this.estado.usuario.id
+                    action: 'iniciar',  // ✅ CORRETO: Era 'getHidrometros', agora é 'iniciar'
+                    usuario: this.estado.usuario.usuario  // ✅ Usa usuario.usuario (login)
                 })
             });
 
@@ -370,8 +372,9 @@ class SistemaHidrometros {
                 throw new Error('Nenhum hidrômetro encontrado para este usuário');
             }
 
+            // Usa rondaId retornado pelo servidor
             this.estado.ronda = {
-                id: `ronda_${Date.now()}`,
+                id: dados.rondaId || `ronda_${Date.now()}`,  // ✅ Usa rondaId do servidor
                 hidrometros: dados.hidrometros.map(h => ({
                     ...h,
                     leituraAtual: null,
@@ -385,6 +388,7 @@ class SistemaHidrometros {
             };
 
             console.log(`[Ronda] Criada com ${this.estado.ronda.hidrometros.length} hidrômetros`);
+            console.log(`[Ronda] ID: ${this.estado.ronda.id}`);
 
             this.salvarRonda(true);
             this.ocultarCarregamento();
@@ -507,7 +511,7 @@ class SistemaHidrometros {
             <div class="card-header">
                 <div class="info-principal">
                     <span class="tipo">🔧 ${hidrometro.tipo || 'Hidrômetro'}</span>
-                    <span class="id">#${hidrometro.id.split('_').pop()}</span>
+                    <span class="id">#${hidrometro.id}</span>
                 </div>
                 <span class="status-badge ${completo ? 'completo' : 'pendente'}" id="badge-${hidrometro.id}">
                     ${completo ? '✓' : '⏳'}
@@ -899,6 +903,7 @@ class SistemaHidrometros {
         localStorage.removeItem(CONFIG.STORAGE_KEYS.BACKUP_RONDA);
     }
 
+    // CORREÇÃO: Ação 'salvarLeituras' (compatível com Apps Script v2.0)
     async finalizarRonda() {
         const incompletos = this.estado.ronda.hidrometros.filter(h => !this.estaCompleto(h));
 
@@ -913,13 +918,25 @@ class SistemaHidrometros {
         this.mostrarCarregamento('Enviando dados...');
 
         try {
+            // Prepara leituras no formato esperado pelo Apps Script
+            const leituras = this.estado.ronda.hidrometros.map(h => ({
+                id: h.id,
+                local: h.local,
+                tipo: h.tipo,
+                leituraAnterior: h.leituraAnterior,
+                leituraAtual: h.leituraAtual,
+                justificativa: h.justificativa,
+                foto: h.foto
+            }));
+
             const resposta = await fetch(CONFIG.API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
-                    action: 'finalizarRonda',
-                    ronda: this.estado.ronda,
-                    usuario: this.estado.usuario.id
+                    action: 'salvarLeituras',  // ✅ CORRETO: Ação do Apps Script v2.0
+                    leituras: leituras,
+                    usuario: this.estado.usuario.usuario,  // ✅ Usa usuario.usuario
+                    rondaId: this.estado.ronda.id
                 })
             });
 
@@ -948,12 +965,11 @@ class SistemaHidrometros {
 
     // USA AS CLASSES DO CSS EXISTENTE (.loading-overlay)
     mostrarCarregamento(mensagem = 'Carregando...') {
-        // Remove loader existente
         this.ocultarCarregamento();
 
         const loader = document.createElement('div');
         loader.id = 'globalLoader';
-        loader.className = 'loading-overlay show'; // Usa classe do seu CSS
+        loader.className = 'loading-overlay show';
         loader.innerHTML = `
             <div class="loading-content">
                 <div class="spinner"></div>
@@ -970,11 +986,9 @@ class SistemaHidrometros {
 
     // USA AS CLASSES DO CSS EXISTENTE (.toast-container e .toast)
     notificar(mensagem, tipo = 'info') {
-        // Remove notificações antigas do novo sistema
         const antigas = document.querySelectorAll('.notification-toast');
         antigas.forEach(n => n.remove());
 
-        // Verifica se existe toast-container no HTML, se não, cria
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
@@ -991,7 +1005,6 @@ class SistemaHidrometros {
 
         container.appendChild(toast);
 
-        // Remove após 3 segundos
         setTimeout(() => {
             toast.style.opacity = '0';
             toast.style.transform = 'translateX(100%)';
@@ -1035,7 +1048,6 @@ class SistemaHidrometros {
         const h = this.estado.ronda.hidrometros.find(h => h.id === idHidrometro);
         if (!h || !h.foto) return;
 
-        // Cria modal de imagem usando suas classes CSS
         const modal = document.createElement('div');
         modal.id = 'modalFotoAmpliada';
         modal.className = 'modal-imagem';
@@ -1043,7 +1055,7 @@ class SistemaHidrometros {
             <div class="modal-conteudo">
                 <button class="btn-fechar" onclick="document.getElementById('modalFotoAmpliada').remove()">×</button>
                 <img src="${h.foto}" alt="Foto ampliada">
-                <div class="legenda">Hidrômetro #${idHidrometro.split('_').pop()}</div>
+                <div class="legenda">Hidrômetro #${idHidrometro}</div>
             </div>
         `;
 
@@ -1075,13 +1087,11 @@ class SistemaHidrometros {
     }
 
     configurarEventosUI() {
-        // Login
         const formLogin = document.getElementById('loginForm');
         if (formLogin) {
             formLogin.addEventListener('submit', (e) => this.autenticar(e));
         }
 
-        // Select de locais
         const selectLocais = document.getElementById('localSelect');
         if (selectLocais) {
             selectLocais.addEventListener('change', (e) => {
@@ -1089,25 +1099,21 @@ class SistemaHidrometros {
             });
         }
 
-        // Botão nova ronda
         const btnNova = document.getElementById('btnNovaRonda');
         if (btnNova) {
             btnNova.addEventListener('click', () => this.iniciarNovaRonda());
         }
 
-        // Botão continuar ronda
         const btnContinuar = document.getElementById('btnContinuarRonda');
         if (btnContinuar) {
             btnContinuar.addEventListener('click', () => this.entrarModoLeitura());
         }
 
-        // Botão finalizar
         const btnFinalizar = document.getElementById('btnFinalizar');
         if (btnFinalizar) {
             btnFinalizar.addEventListener('click', () => this.finalizarRonda());
         }
 
-        // Botão logout
         const btnLogout = document.getElementById('btnLogout');
         if (btnLogout) {
             btnLogout.addEventListener('click', () => this.encerrarSessao());
@@ -1136,7 +1142,6 @@ class SistemaHidrometros {
     }
 }
 
-// Inicialização global
 let app;
 
 document.addEventListener('DOMContentLoaded', () => {
