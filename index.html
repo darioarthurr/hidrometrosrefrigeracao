@@ -20,13 +20,13 @@
 </head>
 <body>
     <div id="app">
-        <!-- Loading Global - CORRIGIDO -->
+        <!-- LOADING GLOBAL - CORRIGIDO -->
         <div id="loadingGlobal" class="loading-overlay">
             <div class="spinner"></div>
             <div id="loadingText" class="loading-text">Carregando...</div>
         </div>
 
-        <!-- Toast -->
+        <!-- TOAST -->
         <div id="toastContainer" class="toast-container"></div>
 
         <!-- TELA LOGIN -->
@@ -38,7 +38,10 @@
                         <div class="logo-separator">•</div>
                         <div class="logo-multiplan">MULTIPLAN</div>
                     </div>
-                    <div class="login-icon"><span>💧</span><div class="pulse-ring"></div></div>
+                    <div class="login-icon">
+                        <span>💧</span>
+                        <div class="pulse-ring"></div>
+                    </div>
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
                     <p class="login-version">v2.5.2</p>
                     <div id="loginError" class="error-message"></div>
@@ -59,7 +62,9 @@
                             <div class="btn-shine"></div>
                         </button>
                     </form>
-                    <div class="login-footer"><p>Sistema exclusivo para equipe autorizada</p></div>
+                    <div class="login-footer">
+                        <p>Sistema exclusivo para equipe autorizada</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -111,15 +116,58 @@
 
         <!-- TELA DE LEITURA -->
         <section id="leituraScreen" class="screen">
-            <!-- Progresso, select, lista de hidrômetros e bottom bar -->
-            <!-- (mantido exatamente como você já tinha) -->
-            <!-- ... (todo o conteúdo da leituraScreen que você já possuía) ... -->
+            <div class="leitura-container">
+                <div class="progress-card">
+                    <div class="progress-header">
+                        <span class="progress-title">Progresso da Ronda</span>
+                        <span class="progress-value" id="progressoTexto">0/0</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progressoBarra" class="progress-bar-fill" style="width:0%"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <span id="progressoPercent">0%</span> concluído
+                    </div>
+                </div>
+
+                <div class="local-selector-card">
+                    <label class="selector-label">Selecione o local</label>
+                    <div class="custom-select">
+                        <select id="localSelect" onchange="app.mudarLocal(this.value)">
+                            <option value="">Escolha um local...</option>
+                        </select>
+                        <div class="select-arrow">▼</div>
+                    </div>
+                </div>
+
+                <div id="hidrometrosContainer" class="hidrometros-list"></div>
+                <div class="bottom-spacer"></div>
+            </div>
+
+            <div id="bottomBar" class="bottom-bar">
+                <button id="btnFinalizar" class="btn-finalizar" disabled onclick="app.finalizarRonda()">
+                    <span class="btn-icon">✓</span>
+                    <span>Finalizar Ronda</span>
+                </button>
+            </div>
         </section>
 
-        <!-- Telas Admin (dashboard, leiturasAdminScreen, etc.) -->
-        <!-- (mantidas como estavam) -->
+        <!-- Telas Admin (dashboard e leituras) - mantidas como antes -->
+        <section id="dashboardScreen" class="screen admin-screen">...</section>
+        <section id="leiturasAdminScreen" class="screen admin-screen">...</section>
 
+        <!-- MODAL -->
+        <div id="modalDetalhes" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Detalhes da Leitura</h3>
+                    <button class="btn-close" onclick="app.closeModal()">×</button>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+            </div>
+        </div>
     </div>
+
     <script src="assets/app.js"></script>
 </body>
 </html>
