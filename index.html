@@ -2,172 +2,550 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#003366">
+    <meta name="msapplication-TileColor" content="#003366">
+    
+    <!-- PWA Meta Tags Otimizadas -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Hidrômetros GPS">
-    <title>Leitura de Hidrômetros v2.5.2 | Grupo GPS • Multiplan</title>
-   
+    <meta name="application-name" content="Hidrômetros GPS">
+    
+    <!-- Prevenção de Cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- SEO e Descrição -->
+    <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
+    <meta name="author" content="Grupo GPS">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <title>Leitura de Hidrômetros v2.8.0 | Grupo GPS • Multiplan</title>
+    
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
-   
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
+    
+    <!-- Preconnect para performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://script.google.com">
+    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-   
-    <link rel="stylesheet" href="assets/style.css">
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="assets/style.css?v=2.8.0">
+    
+    <!-- Preload crítico -->
+    <link rel="preload" href="assets/app.js?v=2.8.0" as="script">
 </head>
 <body>
-    <div id="app">
-        <!-- LOADING GLOBAL - CORRIGIDO -->
-        <div id="loadingGlobal" class="loading-overlay">
-            <div class="spinner"></div>
+    <div id="app" role="application" aria-label="Sistema de Leitura de Hidrômetros">
+        
+        <!-- ============================================
+             LOADING GLOBAL
+             ============================================ -->
+        <div id="loadingGlobal" class="loading-overlay" role="dialog" aria-modal="true" aria-hidden="true" style="display: none;">
+            <div class="spinner" role="status">
+                <span class="sr-only">Carregando...</span>
+            </div>
             <div id="loadingText" class="loading-text">Carregando...</div>
         </div>
 
-        <!-- TOAST -->
-        <div id="toastContainer" class="toast-container"></div>
+        <!-- ============================================
+             NOTIFICAÇÕES (TOASTS)
+             ============================================ -->
+        <div id="toastContainer" class="toast-container" role="region" aria-live="polite" aria-label="Notificações"></div>
 
-        <!-- TELA LOGIN -->
-        <section id="loginScreen" class="screen active">
+        <!-- ============================================
+             TELA LOGIN
+             ============================================ -->
+        <section id="loginScreen" class="screen active" role="main" aria-label="Tela de login">
             <div class="login-container">
                 <div class="login-card">
-                    <div class="brand-header">
+                    <header class="brand-header">
                         <div class="logo-gps">Grupo GPS</div>
                         <div class="logo-separator">•</div>
                         <div class="logo-multiplan">MULTIPLAN</div>
-                    </div>
-                    <div class="login-icon">
+                    </header>
+                    
+                    <div class="login-icon" aria-hidden="true">
                         <span>💧</span>
                         <div class="pulse-ring"></div>
                     </div>
+                    
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.5.2</p>
-                    <div id="loginError" class="error-message"></div>
-                    <form id="loginForm" class="login-form">
+                    <p class="login-version" id="versaoSistema">v2.8.0</p>
+                    
+                    <div id="loginError" class="error-message" role="alert" aria-live="assertive"></div>
+                    
+                    <form id="loginForm" class="login-form" novalidate>
                         <div class="form-group">
-                            <label class="form-label">Usuário</label>
-                            <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="off" required>
+                            <label for="username" class="form-label">Usuário</label>
+                            <input 
+                                type="text" 
+                                id="username" 
+                                class="form-input" 
+                                placeholder="Digite seu usuário" 
+                                autocomplete="username"
+                                autocapitalize="none"
+                                required
+                                aria-required="true"
+                                aria-describedby="username-help"
+                            >
+                            <span id="username-help" class="sr-only">Digite seu nome de usuário fornecido pelo administrador</span>
                         </div>
+                        
                         <div class="form-group">
-                            <label class="form-label">Senha</label>
+                            <label for="password" class="form-label">Senha</label>
                             <div class="password-wrapper">
-                                <input type="password" id="password" class="form-input" placeholder="Digite sua senha" required>
-                                <button type="button" class="toggle-password" onclick="app.togglePassword()">👁️</button>
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    class="form-input" 
+                                    placeholder="Digite sua senha"
+                                    autocomplete="current-password"
+                                    required
+                                    aria-required="true"
+                                    aria-describedby="password-help"
+                                >
+                                <button 
+                                    type="button" 
+                                    class="toggle-password" 
+                                    onclick="app.togglePassword()"
+                                    aria-label="Mostrar ou ocultar senha"
+                                    title="Mostrar/Ocultar senha"
+                                >
+                                    👁️
+                                </button>
                             </div>
+                            <span id="password-help" class="sr-only">Digite sua senha de acesso</span>
                         </div>
+                        
                         <button type="submit" class="btn-primary btn-login">
                             <span>Entrar no Sistema</span>
-                            <div class="btn-shine"></div>
+                            <div class="btn-shine" aria-hidden="true"></div>
                         </button>
                     </form>
-                    <div class="login-footer">
+                    
+                    <footer class="login-footer">
                         <p>Sistema exclusivo para equipe autorizada</p>
-                    </div>
+                        <p id="statusConexao" class="status-conexao">Verificando conexão...</p>
+                    </footer>
                 </div>
             </div>
         </section>
 
-        <!-- HEADER CORPORATIVO -->
-        <header id="corporateHeader" class="corporate-header" style="display:none;">
+        <!-- ============================================
+             HEADER CORPORATIVO
+             ============================================ -->
+        <header id="corporateHeader" class="corporate-header" style="display:none;" role="banner">
             <div class="header-brand">
                 <span class="header-gps">Grupo GPS</span>
                 <span class="header-separator">|</span>
                 <span class="header-multiplan">MULTIPLAN</span>
             </div>
+            
             <div class="header-title">Leitura de Hidrômetros</div>
+            
             <div class="header-user">
                 <span id="userName" class="user-name"></span>
-                <span id="userBadge" class="user-badge">OP</span>
-                <button class="btn-icon" onclick="app.logout()" title="Sair">🚪</button>
+                <span id="userBadge" class="user-badge" aria-label="Nível de acesso">OP</span>
+                <button 
+                    class="btn-icon" 
+                    onclick="app.logout()" 
+                    title="Sair do sistema"
+                    aria-label="Sair do sistema"
+                >
+                    🚪
+                </button>
             </div>
         </header>
 
-        <!-- MENU ADMIN -->
-        <nav id="adminNav" class="admin-nav" style="display:none;">
-            <button class="nav-item active" data-page="dashboard" onclick="app.navigate('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></button>
-            <button class="nav-item" data-page="leituras" onclick="app.navigate('leituras')"><span class="nav-icon">📋</span><span>Leituras</span></button>
-            <button class="nav-item" data-page="analise" onclick="app.navigate('analise')"><span class="nav-icon">📈</span><span>Análise</span></button>
-            <button class="nav-item" data-page="gestao" onclick="app.navigate('gestao')"><span class="nav-icon">⚙️</span><span>Gestão</span></button>
+        <!-- ============================================
+             MENU ADMIN (Apenas para administradores)
+             ============================================ -->
+        <nav id="adminNav" class="admin-nav" style="display:none;" role="navigation" aria-label="Menu administrativo">
+            <button class="nav-item active" data-page="dashboard" onclick="app.navigate('dashboard')" aria-current="page">
+                <span class="nav-icon" aria-hidden="true">📊</span>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-item" data-page="leituras" onclick="app.navigate('leituras')">
+                <span class="nav-icon" aria-hidden="true">📋</span>
+                <span>Leituras</span>
+            </button>
+            <button class="nav-item" data-page="analise" onclick="app.navigate('analise')">
+                <span class="nav-icon" aria-hidden="true">📈</span>
+                <span>Análise</span>
+            </button>
+            <button class="nav-item" data-page="gestao" onclick="app.navigate('gestao')">
+                <span class="nav-icon" aria-hidden="true">⚙️</span>
+                <span>Gestão</span>
+            </button>
         </nav>
 
-        <!-- TELA INICIAL -->
-        <section id="startScreen" class="screen">
+        <!-- ============================================
+             TELA INICIAL (Técnico)
+             ============================================ -->
+        <section id="startScreen" class="screen" role="main" aria-label="Tela inicial">
             <div class="welcome-container">
                 <div class="welcome-card glass-effect">
-                    <div class="welcome-icon">👋</div>
+                    <div class="welcome-icon" aria-hidden="true">👋</div>
                     <h2 class="welcome-title">Olá, <span id="nomeTecnico"></span></h2>
                     <p class="welcome-subtitle">Pronto para iniciar a ronda de leituras?</p>
-                    <div class="welcome-stats" id="welcomeStats" style="display:none;">
-                        <div class="stat-item"><span class="stat-value" id="statPendentes">0</span><span class="stat-label">Pendentes</span></div>
+                    
+                    <!-- Estatísticas de rondas pendentes -->
+                    <div class="welcome-stats" id="welcomeStats" style="display:none;" aria-live="polite">
+                        <div class="stat-item">
+                            <span class="stat-value" id="statPendentes">0</span>
+                            <span class="stat-label">Rondas Pendentes</span>
+                        </div>
+                        <div class="stat-item" id="statUltimaRonda" style="display:none;">
+                            <span class="stat-value" id="statUltimaData">--</span>
+                            <span class="stat-label">Última Ronda</span>
+                        </div>
                     </div>
-                    <button class="btn-primary btn-start" onclick="app.iniciarLeitura()">
-                        <span class="btn-icon">🚀</span>
+                    
+                    <!-- Botão principal -->
+                    <button 
+                        class="btn-primary btn-start" 
+                        onclick="app.iniciarLeitura()"
+                        id="btnIniciar"
+                    >
+                        <span class="btn-icon" aria-hidden="true">🚀</span>
                         <span>INICIAR LEITURA DOS HIDRÔMETROS</span>
                     </button>
-                    <button class="btn-secondary btn-sync" onclick="app.sincronizarPendentes()" id="btnSyncPendentes" style="display:none;">
-                        <span class="btn-icon">☁️</span>
-                        <span>Sincronizar <span id="countPendentes">0</span> pendentes</span>
+                    
+                    <!-- Botão continuar ronda (aparece se houver ronda salva) -->
+                    <button 
+                        class="btn-secondary btn-continuar" 
+                        onclick="app.continuarRonda()"
+                        id="btnContinuarRonda"
+                        style="display:none;"
+                    >
+                        <span class="btn-icon" aria-hidden="true">▶️</span>
+                        <span>Continuar Ronda em Andamento</span>
                     </button>
+                    
+                    <!-- Botão sincronizar -->
+                    <button 
+                        class="btn-secondary btn-sync" 
+                        onclick="app.sincronizarPendentes()" 
+                        id="btnSyncPendentes"
+                        style="display:none;"
+                    >
+                        <span class="btn-icon" aria-hidden="true">☁️</span>
+                        <span>Sincronizar <span id="countPendentes">0</span> pendente(s)</span>
+                    </button>
+                    
+                    <!-- Informações do sistema -->
+                    <div class="system-info">
+                        <p>Versão <span id="versaoDisplay">2.8.0</span> • <span id="statusRede">Online</span></p>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- TELA DE LEITURA -->
-        <section id="leituraScreen" class="screen">
+        <!-- ============================================
+             TELA DE LEITURA (Operação)
+             ============================================ -->
+        <section id="leituraScreen" class="screen" role="main" aria-label="Tela de leitura de hidrômetros">
             <div class="leitura-container">
-                <div class="progress-card">
-                    <div class="progress-header">
-                        <span class="progress-title">Progresso da Ronda</span>
-                        <span class="progress-value" id="progressoTexto">0/0</span>
+                
+                <!-- Card de Progresso V2.8 -->
+                <div class="progresso-container" role="region" aria-label="Progresso da ronda">
+                    <div class="progresso-header">
+                        <span class="progresso-titulo">Progresso da Ronda</span>
+                        <span class="progresso-valor" id="progressText">0/0</span>
                     </div>
-                    <div class="progress-bar-bg">
-                        <div id="progressoBarra" class="progress-bar-fill" style="width:0%"></div>
+                    <div class="barra-progresso" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progressLabel" id="progressBar">
+                        <div class="barra-preenchida" id="progressFill" style="width: 0%"></div>
                     </div>
-                    <div class="progress-meta">
-                        <span id="progressoPercent">0%</span> concluído
-                    </div>
+                    <div class="progresso-percentual" id="progressLabel">0% concluído</div>
                 </div>
 
+                <!-- Info da Ronda -->
+                <div class="ronda-info" id="rondaInfo" style="display:none;">
+                    <span class="ronda-id">Ronda: <span id="rondaIdDisplay">--</span></span>
+                    <span class="ronda-inicio">Início: <span id="rondaInicioDisplay">--</span></span>
+                </div>
+
+                <!-- Seletor de Local -->
                 <div class="local-selector-card">
-                    <label class="selector-label">Selecione o local</label>
+                    <label for="localSelect" class="selector-label">Selecione o local</label>
                     <div class="custom-select">
-                        <select id="localSelect" onchange="app.mudarLocal(this.value)">
+                        <select 
+                            id="localSelect" 
+                            onchange="app.mudarLocal(this.value)"
+                            aria-label="Selecionar local da leitura"
+                        >
                             <option value="">Escolha um local...</option>
                         </select>
-                        <div class="select-arrow">▼</div>
+                        <div class="select-arrow" aria-hidden="true">▼</div>
                     </div>
                 </div>
 
-                <div id="hidrometrosContainer" class="hidrometros-list"></div>
+                <!-- Container de Hidrômetros -->
+                <div id="hidrometrosContainer" class="hidrometros-list" role="region" aria-label="Lista de hidrômetros">
+                    <!-- Cards serão inseridos via JavaScript -->
+                </div>
+                
+                <!-- Espaçador para bottom bar -->
                 <div class="bottom-spacer"></div>
             </div>
 
-            <div id="bottomBar" class="bottom-bar">
-                <button id="btnFinalizar" class="btn-finalizar" disabled onclick="app.finalizarRonda()">
-                    <span class="btn-icon">✓</span>
-                    <span>Finalizar Ronda</span>
-                </button>
+            <!-- Bottom Bar V2.8 - Com botão de pausar -->
+            <div id="bottomBar" class="bottom-bar" style="display: none;" role="toolbar" aria-label="Ações da ronda">
+                <div class="bottom-bar-actions">
+                    <button 
+                        id="btnPausar" 
+                        class="btn-pausar"
+                        onclick="app.pausarRonda()"
+                        aria-label="Pausar ronda e salvar progresso"
+                        title="Pausar ronda (salva automaticamente)"
+                    >
+                        <span aria-hidden="true">⏸️</span>
+                        <span>Pausar</span>
+                    </button>
+                    
+                    <button 
+                        id="btnFinalizar" 
+                        class="btn-finalizar"
+                        disabled
+                        onclick="app.finalizarRonda()"
+                        aria-label="Finalizar ronda e enviar dados"
+                        title="Finalizar ronda (disponível quando todos estiverem completos)"
+                    >
+                        <span aria-hidden="true">✓</span>
+                        <span>Finalizar Ronda</span>
+                    </button>
+                </div>
+                
+                <!-- Status de salvamento -->
+                <div class="save-status" id="saveStatus" aria-live="polite">
+                    <span class="save-indicator" id="saveIndicator"></span>
+                    <span class="save-text" id="saveText">Pronto para leitura</span>
+                </div>
             </div>
         </section>
 
-        <!-- Telas Admin (dashboard e leituras) - mantidas como antes -->
-        <section id="dashboardScreen" class="screen admin-screen">...</section>
-        <section id="leiturasAdminScreen" class="screen admin-screen">...</section>
+        <!-- ============================================
+             TELA ADMIN: DASHBOARD
+             ============================================ -->
+        <section id="dashboardScreen" class="screen admin-screen" role="main" aria-label="Dashboard administrativo">
+            <div class="admin-container">
+                <header class="page-header">
+                    <h1>Dashboard</h1>
+                    <div class="periodo-selector">
+                        <select id="periodoDashboard" onchange="app.atualizarDashboard()">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30">Últimos 30 dias</option>
+                            <option value="90">Últimos 3 meses</option>
+                        </select>
+                    </div>
+                </header>
 
-        <!-- MODAL -->
-        <div id="modalDetalhes" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Detalhes da Leitura</h3>
-                    <button class="btn-close" onclick="app.closeModal()">×</button>
+                <!-- KPIs -->
+                <div class="kpi-grid" role="region" aria-label="Indicadores principais">
+                    <article class="kpi-card kpi-total">
+                        <div class="kpi-icon" aria-hidden="true">💧</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiTotal">0</span>
+                            <span class="kpi-label">Total Leituras</span>
+                        </div>
+                    </article>
+                    
+                    <article class="kpi-card kpi-alertas">
+                        <div class="kpi-icon" aria-hidden="true">⚠️</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiAlertas">0</span>
+                            <span class="kpi-label">Alertas</span>
+                        </div>
+                    </article>
+                    
+                    <article class="kpi-card kpi-vazamentos">
+                        <div class="kpi-icon" aria-hidden="true">🚨</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiVazamentos">0</span>
+                            <span class="kpi-label">Vazamentos</span>
+                        </div>
+                    </article>
+                    
+                    <article class="kpi-card kpi-normal">
+                        <div class="kpi-icon" aria-hidden="true">✓</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiNormal">0</span>
+                            <span class="kpi-label">Normal</span>
+                        </div>
+                    </article>
                 </div>
-                <div class="modal-body" id="modalBody"></div>
+
+                <!-- Gráficos -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Consumo por Local</h3>
+                        <canvas id="chartConsumo"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Leituras por Dia</h3>
+                        <canvas id="chartLeituras"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tabela de Alertas -->
+                <div class="table-card">
+                    <h3>Últimos Alertas</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" role="table" aria-label="Alertas recentes">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Data</th>
+                                    <th scope="col">Local</th>
+                                    <th scope="col">Hidrômetro</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaAlertas">
+                                <!-- Dados via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================
+             TELA ADMIN: LEITURAS
+             ============================================ -->
+        <section id="leiturasAdminScreen" class="screen admin-screen" role="main" aria-label="Gerenciamento de leituras">
+            <div class="admin-container">
+                <header class="page-header">
+                    <h1>Histórico de Leituras</h1>
+                    <button class="btn-export" onclick="app.exportarDados()">
+                        <span>📥</span> Exportar Excel
+                    </button>
+                </header>
+
+                <!-- Filtros -->
+                <div class="filters-card" role="search" aria-label="Filtros de pesquisa">
+                    <div class="filter-group">
+                        <label for="filtroLocal">Local</label>
+                        <select id="filtroLocal">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroStatus">Status</label>
+                        <select id="filtroStatus">
+                            <option value="">Todos</option>
+                            <option value="normal">Normal</option>
+                            <option value="alerta">Alerta</option>
+                            <option value="vazamento">Vazamento</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroDataInicio">De</label>
+                        <input type="date" id="filtroDataInicio">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroDataFim">Até</label>
+                        <input type="date" id="filtroDataFim">
+                    </div>
+                    <button class="btn-primary" onclick="app.aplicarFiltros()" style="padding: 0.625rem 1.25rem;">
+                        Filtrar
+                    </button>
+                </div>
+
+                <!-- Tabela -->
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="data-table" role="table" aria-label="Leituras registradas">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ronda</th>
+                                    <th scope="col">Data/Hora</th>
+                                    <th scope="col">Técnico</th>
+                                    <th scope="col">Local</th>
+                                    <th scope="col">Total</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaLeituras">
+                                <!-- Dados via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginação -->
+                    <nav class="pagination" role="navigation" aria-label="Paginação">
+                        <button class="page-btn" onclick="app.mudarPagina(-1)" aria-label="Página anterior">←</button>
+                        <button class="page-btn active" aria-current="page">1</button>
+                        <button class="page-btn" onclick="app.mudarPagina(1)" aria-label="Próxima página">→</button>
+                    </nav>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================
+             MODAL DE DETALHES
+             ============================================ -->
+        <div id="modalDetalhes" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo" aria-hidden="true">
+            <div class="modal-content" role="document">
+                <header class="modal-header">
+                    <h3 id="modalTitulo">Detalhes da Leitura</h3>
+                    <button 
+                        class="btn-close" 
+                        onclick="app.closeModal()"
+                        aria-label="Fechar modal"
+                    >
+                        ×
+                    </button>
+                </header>
+                <div class="modal-body" id="modalBody">
+                    <!-- Conteúdo dinâmico -->
+                </div>
             </div>
         </div>
-    </div>
 
-    <script src="assets/app.js"></script>
+        <!-- ============================================
+             MODAL DE CONFIRMAÇÃO (Template para JS)
+             ============================================ -->
+        <template id="templateModalConfirmacao">
+            <div class="modal-confirmacao" role="dialog" aria-modal="true">
+                <div class="modal-conteudo">
+                    <p class="mensagem"></p>
+                    <div class="botoes">
+                        <button class="btn-secundario" data-acao="cancelar">Não</button>
+                        <button class="btn-primario" data-acao="confirmar">Sim</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+    </div><!-- /#app -->
+
+    <!-- Scripts -->
+    <script src="assets/app.js?v=2.8.0"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js?v=2.8.0')
+                    .then(registration => {
+                        console.log('[SW] Registrado:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('[SW] Falha:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
