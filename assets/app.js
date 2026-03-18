@@ -1,12 +1,11 @@
-
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.2
- * Correções: Adicionadas funções faltantes logout() e iniciarLeitura()
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.8.3
+ * Correções: Loader centralizado, tratamento de erros melhorado, aliases adicionados
  */
 
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-    VERSAO: '2.8.2',
+    VERSAO: '2.8.3',
     STORAGE_KEYS: {
         USUARIO: 'h2_usuario_v28',
         RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -325,6 +324,79 @@ class SistemaHidrometros {
     logout() {
         console.log('[UI] Alias logout chamado');
         return this.encerrarSessao();
+    }
+
+    async iniciarNovaRonda() {
+        console.log('[Ronda] Iniciando nova ronda...');
+
+        // Verifica se usuário está logado
+        if (!this.estado.usuario) {
+            console.error('[Ronda] Usuário não logado');
+            this.notificar('Erro: Usuário não autenticado', 'error');
+            return;
+        }
+
+        this.mostrarCarregamento('Carregando hidrômetros...');
+
+        try {
+            console.log('[API] Chamando getHidrometros...');
+
+            const resposta = await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'getHidrometros',
+                    usuario: this.estado.usuario.id
+                })
+            });
+
+            console.log('[API] Resposta recebida:', resposta.status);
+
+            if (!resposta.ok) {
+                throw new Error(`HTTP ${resposta.status}: ${resposta.statusText}`);
+            }
+
+            const dados = await resposta.json();
+            console.log('[API] Dados:', dados);
+
+            if (!dados.success) {
+                throw new Error(dados.message || 'Erro ao carregar hidrômetros');
+            }
+
+            if (!dados.hidrometros || !Array.isArray(dados.hidrometros)) {
+                throw new Error('Formato de dados inválido: hidrometros não é array');
+            }
+
+            if (dados.hidrometros.length === 0) {
+                throw new Error('Nenhum hidrômetro encontrado para este usuário');
+            }
+
+            this.estado.ronda = {
+                id: `ronda_${Date.now()}`,
+                hidrometros: dados.hidrometros.map(h => ({
+                    ...h,
+                    leituraAtual: null,
+                    timestampLeitura: null,
+                    justificativa: null,
+                    foto: null
+                })),
+                locais: [...new Set(dados.hidrometros.map(h => h.local))],
+                inicio: new Date().toISOString(),
+                ultimaAlteracao: new Date().toISOString()
+            };
+
+            console.log(`[Ronda] Criada com ${this.estado.ronda.hidrometros.length} hidrômetros`);
+
+            this.salvarRonda(true);
+            this.ocultarCarregamento();
+            this.entrarModoLeitura();
+            this.notificar(`Ronda iniciada! ${this.estado.ronda.hidrometros.length} hidrômetros`, 'success');
+
+        } catch (erro) {
+            this.ocultarCarregamento();
+            console.error('[Ronda] Erro ao iniciar:', erro);
+            this.notificar('Erro: ' + erro.message, 'error');
+        }
     }
 
     entrarModoLeitura() {
@@ -812,49 +884,6 @@ class SistemaHidrometros {
 
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         localStorage.removeItem(CONFIG.STORAGE_KEYS.BACKUP_RONDA);
-    }
-
-    async iniciarNovaRonda() {
-        this.mostrarCarregamento('Carregando hidrômetros...');
-
-        try {
-            const resposta = await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'getHidrometros',
-                    usuario: this.estado.usuario.id
-                })
-            });
-
-            const dados = await resposta.json();
-
-            if (!dados.success) {
-                throw new Error(dados.message || 'Erro ao carregar hidrômetros');
-            }
-
-            this.estado.ronda = {
-                id: `ronda_${Date.now()}`,
-                hidrometros: dados.hidrometros.map(h => ({
-                    ...h,
-                    leituraAtual: null,
-                    timestampLeitura: null,
-                    justificativa: null,
-                    foto: null
-                })),
-                locais: [...new Set(dados.hidrometros.map(h => h.local))],
-                inicio: new Date().toISOString(),
-                ultimaAlteracao: new Date().toISOString()
-            };
-
-            this.salvarRonda(true);
-            this.ocultarCarregamento();
-            this.entrarModoLeitura();
-
-        } catch (erro) {
-            this.ocultarCarregamento();
-            this.notificar(erro.message, 'error');
-        }
     }
 
     async finalizarRonda() {
