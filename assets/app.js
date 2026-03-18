@@ -1,7 +1,7 @@
 /**
  * SISTEMA DE LEITURA DE HIDRÔMETROS v2.6.1
  * JavaScript Completo - Offline First, Dashboard Admin, PWA
- * Correção: Sem erros de sintaxe + recuperação automática ao F5 normal
+ * Correção definitiva: Recuperação automática ao F5 normal sem voltar para tela inicial
  */
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
