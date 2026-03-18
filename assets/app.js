@@ -117,67 +117,83 @@ class HidrometroApp {
     // RECUPERAÇÃO AUTOMÁTICA DE RONDA AO RECARREGAR
     // ============================================
     resumeRondaIfExists() {
-        const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
-        if (!rondaSalva || !this.usuario || this.usuario.nivel === 'admin') {
-            console.log('Nenhuma ronda salva para recuperar');
-            return;
-        }
-
-        try {
-            const ronda = JSON.parse(rondaSalva);
-            this.hidrometros = ronda.hidrometros || [];
-            this.rondaAtual = ronda.rondaId;
-            this.locais = [...new Set(this.hidrometros.map(h => h.local))];
-
-            if (this.hidrometros.length > 0) {
-                console.log(`✅ Iniciando recuperação de ${this.hidrometros.length} hidrômetros da ronda ${this.rondaAtual}`);
-
-                this.showScreen('leituraScreen');
-                document.getElementById('bottomBar').style.display = 'block';
-
-                this.preencherSelectLocais();
-                if (this.locais.length > 0) {
-                    this.mostrarHidrometrosDoLocal(this.locais[0]);
-                    document.getElementById('localSelect').value = this.locais[0];
-                }
-
-                // Polling inteligente: tenta preencher os inputs até conseguir ou desistir após 10 tentativas
-                const tryFillInputs = (attempt = 0) => {
-                    let filledCount = 0;
-                    let totalToFill = this.hidrometros.length;
-
-                    this.hidrometros.forEach(h => {
-                        const input = document.getElementById(`input-${h.id}`);
-                        if (input) {
-                            input.value = h.leituraAtual || '';
-                            console.log(`Tentativa ${attempt + 1}: Input ${h.id} preenchido com ${h.leituraAtual}`);
-                            this.atualizarUIHidrometro(h.id);
-                            filledCount++;
-                        }
-                    });
-
-                    if (filledCount === totalToFill) {
-                        console.log(`✅ Todos os ${filledCount} inputs preenchidos com sucesso na tentativa ${attempt + 1}`);
-                        this.atualizarProgresso();
-                    } else if (attempt < 10) {
-                        console.log(`Tentativa ${attempt + 1}: ${filledCount}/${totalToFill} inputs encontrados. Tentando novamente em 300ms...`);
-                        setTimeout(() => tryFillInputs(attempt + 1), 300);
-                    } else {
-                        console.warn(`❌ Não conseguiu preencher todos os inputs após 10 tentativas`);
-                    }
-                };
-
-                // Inicia o polling após 800ms (tempo para tela carregar)
-                setTimeout(() => tryFillInputs(), 800);
-
-                this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
-            }
-        } catch (e) {
-            console.error('Erro ao recuperar ronda:', e);
-            localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
-        }
+    const rondaSalva = localStorage.getItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
+    if (!rondaSalva || !this.usuario || this.usuario.nivel === 'admin') {
+        console.log('Nenhuma ronda salva para recuperar');
+        return;
     }
 
+    try {
+        const ronda = JSON.parse(rondaSalva);
+        this.hidrometros = ronda.hidrometros || [];
+        this.rondaAtual = ronda.rondaId;
+        this.locais = [...new Set(this.hidrometros.map(h => h.local))];
+
+        if (this.hidrometros.length > 0) {
+            console.log(`✅ Iniciando recuperação de ${this.hidrometros.length} hidrômetros da ronda ${this.rondaAtual}`);
+
+            this.showScreen('leituraScreen');
+            document.getElementById('bottomBar').style.display = 'block';
+
+            this.preencherSelectLocais();
+            if (this.locais.length > 0) {
+                this.mostrarHidrometrosDoLocal(this.locais[0]);
+                document.getElementById('localSelect').value = this.locais[0];
+            }
+
+            // Observa o container até os cards serem adicionados
+            const container = document.getElementById('hidrometrosContainer');
+            if (!container) {
+                console.warn('Container #hidrometrosContainer não encontrado');
+                return;
+            }
+
+            const observer = new MutationObserver(() => {
+                // Verifica se já tem cards (filhos > 0)
+                if (container.children.length > 0) {
+                    console.log(`Container tem ${container.children.length} cards. Iniciando preenchimento.`);
+                    fillInputs();
+                    observer.disconnect(); // para de observar
+                }
+            });
+
+            observer.observe(container, { childList: true, subtree: true });
+
+            // Fallback caso MutationObserver não dispare (timeout de 5 segundos)
+            setTimeout(() => {
+                if (observer.takeRecords().length === 0) {
+                    console.warn('MutationObserver não detectou mudanças. Forçando preenchimento.');
+                    fillInputs();
+                    observer.disconnect();
+                }
+            }, 5000);
+
+            const fillInputs = () => {
+                let filledCount = 0;
+                this.hidrometros.forEach(h => {
+                    const input = document.getElementById(`input-${h.id}`);
+                    if (input) {
+                        input.value = h.leituraAtual || '';
+                        console.log(`Input ${h.id} preenchido com ${h.leituraAtual}`);
+                        this.atualizarUIHidrometro(h.id);
+                        filledCount++;
+                    }
+                });
+                if (filledCount > 0) {
+                    console.log(`Preenchidos ${filledCount} inputs com sucesso`);
+                    this.atualizarProgresso();
+                } else {
+                    console.warn('Nenhum input encontrado mesmo após MutationObserver');
+                }
+            };
+
+            this.showToast(`Ronda anterior recuperada (${this.hidrometros.length} hidrômetros)`, 'success');
+        }
+    } catch (e) {
+        console.error('Erro ao recuperar ronda:', e);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATUAL);
+    }
+}
     // ============================================
     // OPERAÇÃO - LEITURAS EM CAMPO
     // ============================================
