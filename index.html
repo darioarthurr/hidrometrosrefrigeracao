@@ -231,6 +231,86 @@
         <div id="toastContainer" class="toast-container" role="region" aria-live="polite" aria-label="Notificações"></div>
 
         <!-- ============================================
+     TELA ADMIN: LEITURAS (COM FILTROS FUNCIONAIS)
+     ============================================ -->
+<section id="leiturasAdminScreen" class="screen admin-screen" role="main">
+    <div class="admin-container">
+        <header class="page-header">
+            <h1>Histórico de Leituras</h1>
+            <button class="btn-export" onclick="app.exportarDados()">
+                <span>📥</span> Exportar CSV
+            </button>
+        </header>
+        
+        <!-- FILTROS CORRIGIDOS (com botões) -->
+        <div class="filters-card" style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px;">
+                <div class="filter-group">
+                    <label for="filtroLocalLeituras">Local</label>
+                    <select id="filtroLocalLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filtroStatusLeituras">Status</label>
+                    <select id="filtroStatusLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                        <option value="">Todos</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="VAZAMENTO">Vazamento</option>
+                        <option value="ALERTA_VARIACAO">Alerta Variação</option>
+                        <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                        <option value="ANOMALIA_NEGATIVO">Anomalia</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filtroDataInicio">Data Início</label>
+                    <input type="date" id="filtroDataInicio" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                </div>
+                <div class="filter-group">
+                    <label for="filtroDataFim">Data Fim</label>
+                    <input type="date" id="filtroDataFim" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                </div>
+            </div>
+            
+            <!-- BOTÕES DE FILTRO -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="app.limparFiltrosLeituras()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+                    Limpar Filtros
+                </button>
+                <button onclick="app.aplicarFiltrosLeituras()" style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+                    🔍 Aplicar Filtros
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="data-table" style="width:100%;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:12px;text-align:left;">Ronda</th>
+                            <th style="padding:12px;text-align:left;">Data/Hora</th>
+                            <th style="padding:12px;text-align:left;">Técnico</th>
+                            <th style="padding:12px;text-align:left;">Local</th>
+                            <th style="padding:12px;text-align:left;">Status</th>
+                            <th style="padding:12px;text-align:center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaLeituras">
+                        <tr>
+                            <td colspan="6" style="text-align:center;padding:30px;color:#666;">
+                                Clique em "Aplicar Filtros" para carregar o histórico
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+        <!-- ============================================
              TELA LOGIN
              ============================================ -->
         <section id="loginScreen" class="screen active" role="main" aria-label="Tela de login">
