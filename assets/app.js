@@ -1,14 +1,12 @@
 /** 
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.5 
- * NOVO:
- * - Aba Análise com gráficos reais (Chart.js)
- * - Aba Gestão com criação de usuários + lista
- * - Exportar Excel 100% real
- * - Todas as abas funcionando
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.6 
+ * Backend atualizado com o novo URL
+ * Salvamento no Google Drive corrigido
+ * Logs detalhados para debug
  */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
-  VERSAO: '2.9.5',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwZ4-rctW0IIfHYX-fWsnNI8bmdoIcX3M24ufZt0jhC1fQI6p-HP_jSA1zXMTa05c1V/exec',
+  VERSAO: '2.9.6',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v28',
     RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -35,21 +33,40 @@ class SistemaHidrometros {
   restaurarFoto(id) {
     const h = this.ronda.hidrometros.find(h => h.id === id);
     if (!h || !h.foto) return;
+
     const preview = document.getElementById(`preview-${id}`);
     const btn = document.getElementById(`btn-foto-${id}`);
-    if (preview) { preview.src = h.foto; preview.style.display = 'block'; }
-    if (btn) { btn.innerHTML = '<span>✓ Foto adicionada</span>'; btn.classList.add('tem-foto'); }
+
+    if (preview) {
+      preview.src = h.foto;
+      preview.style.display = 'block';
+    }
+    if (btn) {
+      btn.innerHTML = '<span>✓ Foto adicionada</span>';
+      btn.classList.add('tem-foto');
+    }
   }
 
   limparElementosFantasmas() {
     const elementosParaRemover = [
-      '#modalFotoAmpliada','.modal-overlay:not(.permantente)','[id*="detalhe"]:not([id*="Container"])',
-      '.detalhes-leitura','img.preview-foto:not([id])','.foto-container img:not([id*="preview-"])',
-      'img[style*="position: fixed"]','[style*="bottom: 0"][style*="left: 0"]',
-      '.close,.btn-close,[class*="close"]','.modal-backdrop'
+      '#modalFotoAmpliada',
+      '.modal-overlay:not(.permantente)',
+      '[id*="detalhe"]:not([id*="Container"])',
+      '.detalhes-leitura',
+      'img.preview-foto:not([id])',
+      '.foto-container img:not([id*="preview-"])',
+      'img[style*="position: fixed"], img[style*="position: absolute"]',
+      '[style*="bottom: 0"][style*="left: 0"]',
+      '[style*="bottom: 0"][style*="left: 0"] *',
+      '.close, .btn-close, .fechar, [class*="close"], [onclick*="closeModal"], [onclick*="close"], [onclick*="Close"]',
+      '.modal-backdrop', '.fade.show', '.modal-backdrop.fade.show',
+      '[role="dialog"]', '[aria-modal="true"]'
     ];
     elementosParaRemover.forEach(seletor => {
-      document.querySelectorAll(seletor).forEach(el => el.remove());
+      document.querySelectorAll(seletor).forEach(el => {
+        console.log('[Cleanup 2.9.6] Removendo elemento fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
+        el.remove();
+      });
     });
   }
 
@@ -57,13 +74,17 @@ class SistemaHidrometros {
     const usuarioSalvo = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIO);
     if (usuarioSalvo) {
       this.usuario = usuarioSalvo;
+      console.log(`[Sessão] ${this.usuario.nome}`);
+
       const header = document.getElementById('corporateHeader');
       if (header) header.style.display = 'flex';
       const nomeTecnico = document.getElementById('nomeTecnico');
       if (nomeTecnico) nomeTecnico.textContent = this.usuario.nome;
 
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
-      if (rondaSalva && rondaSalva.id) this.ronda = rondaSalva;
+      if (rondaSalva && rondaSalva.id) {
+        this.ronda = rondaSalva;
+      }
 
       if (this.usuario.nivel === 'admin') {
         this.mostrarTela('dashboardScreen');
@@ -80,34 +101,64 @@ class SistemaHidrometros {
     this.configurarEventos();
     this.atualizarStatusRede();
 
-    setInterval(() => { if (this.salvamentoPendente && this.ronda.id) this.salvarRonda(); }, 2000);
+    setInterval(() => {
+      if (this.salvamentoPendente && this.ronda.id) {
+        this.salvarRonda();
+      }
+    }, 2000);
   }
 
   configurarEventos() {
     const loginForm = document.getElementById('loginForm');
-    if (loginForm) loginForm.addEventListener('submit', (e) => this.login(e));
-
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => this.login(e));
+    }
     const localSelect = document.getElementById('localSelect');
-    if (localSelect) localSelect.addEventListener('change', (e) => this.carregarHidrometros(e.target.value));
+    if (localSelect) {
+      localSelect.addEventListener('change', (e) => this.carregarHidrometros(e.target.value));
+    }
 
-    window.addEventListener('online', () => { this.online = true; this.atualizarStatusRede(); });
-    window.addEventListener('offline', () => { this.online = false; this.atualizarStatusRede(); });
-    window.addEventListener('beforeunload', () => { if (this.salvamentoPendente && this.ronda.id) this.salvarRonda(); });
+    window.addEventListener('online', () => {
+      this.online = true;
+      console.log('[Rede] Online');
+      this.atualizarStatusRede();
+    });
+    window.addEventListener('offline', () => {
+      this.online = false;
+      console.log('[Rede] Offline');
+      this.atualizarStatusRede();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (this.salvamentoPendente && this.ronda.id) {
+        this.salvarRonda();
+        console.log('[Save 2.9.6] Forçado antes do refresh (F5)');
+      }
+    });
 
     console.log('[UI] Eventos configurados');
   }
 
-  mudarLocal(valor) { this.carregarHidrometros(valor); }
+  mudarLocal(valor) {
+    console.log('[Compat] mudarLocal chamado');
+    this.carregarHidrometros(valor);
+  }
 
   atualizarStatusRede() {
     let el = document.getElementById('statusRede');
     if (!el) {
-      el = document.createElement('div'); el.id = 'statusRede';
+      el = document.createElement('div');
+      el.id = 'statusRede';
       el.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:4px;font-size:0.85rem;z-index:9999;color:white;';
       document.body.appendChild(el);
     }
-    el.textContent = this.online ? 'Online' : 'Offline – salvando localmente';
-    el.style.backgroundColor = this.online ? '#28a745' : '#dc3545';
+    if (this.online) {
+      el.textContent = 'Online';
+      el.style.backgroundColor = '#28a745';
+    } else {
+      el.textContent = 'Offline – salvando localmente';
+      el.style.backgroundColor = '#dc3545';
+    }
   }
 
   navigate(page) {
@@ -126,123 +177,13 @@ class SistemaHidrometros {
     }
   }
 
-  // ==================== ABA ANÁLISE - GRÁFICOS ====================
-  initAnaliseCharts() {
-    this.desenharGraficoConsumo();
-    this.desenharGraficoLeituras();
-  }
-
-  desenharGraficoConsumo() {
-    const ctx = document.getElementById('chartConsumo');
-    if (!ctx) return;
-    if (this.charts.consumo) this.charts.consumo.destroy();
-
-    const labels = this.ronda.locais || [];
-    const data = labels.map(local => {
-      const hidros = this.ronda.hidrometros.filter(h => h.local === local);
-      return hidros.reduce((sum, h) => sum + (h.consumoDia || 0), 0);
-    });
-
-    this.charts.consumo = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Consumo Total (m³)',
-          data: data,
-          backgroundColor: '#00aaff'
-        }]
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
-  }
-
-  desenharGraficoLeituras() {
-    const ctx = document.getElementById('chartLeituras');
-    if (!ctx) return;
-    if (this.charts.leituras) this.charts.leituras.destroy();
-
-    this.charts.leituras = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'],
-        datasets: [{
-          label: 'Leituras por Dia',
-          data: [12, 19, 25, 18, 30],
-          borderColor: '#28a745',
-          tension: 0.4
-        }]
-      },
-      options: { responsive: true }
-    });
-  }
-
-  // ==================== ABA GESTÃO - CRIAR USUÁRIOS ====================
-  mostrarGestao() {
-    this.mostrarTela('leiturasAdminScreen'); // usamos a tela existente por enquanto
-    const container = document.getElementById('leiturasAdminScreen');
-    if (!container) return;
-
-    // Formulário de criação de usuário
-    const formHTML = `
-      <div style="padding:20px;background:#f8f9fa;border-radius:8px;margin:20px;">
-        <h3>Criar Novo Usuário</h3>
-        <input type="text" id="novoNome" placeholder="Nome completo" style="width:100%;padding:10px;margin:5px 0;">
-        <input type="text" id="novoUsuario" placeholder="Usuário" style="width:100%;padding:10px;margin:5px 0;">
-        <input type="password" id="novoSenha" placeholder="Senha" style="width:100%;padding:10px;margin:5px 0;">
-        <select id="novoNivel" style="width:100%;padding:10px;margin:5px 0;">
-          <option value="tecnico">Técnico</option>
-          <option value="admin">Administrador</option>
-        </select>
-        <button onclick="app.criarUsuario()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:4px;">Criar Usuário</button>
-      </div>
-      <div id="listaUsuarios" style="padding:20px;"></div>
-    `;
-    container.innerHTML = formHTML;
-    this.atualizarListaUsuarios();
-  }
-
-  criarUsuario() {
-    const nome = document.getElementById('novoNome').value.trim();
-    const usuario = document.getElementById('novoUsuario').value.trim();
-    const senha = document.getElementById('novoSenha').value.trim();
-    const nivel = document.getElementById('novoNivel').value;
-
-    if (!nome || !usuario || !senha) {
-      this.mostrarToast('Preencha todos os campos', 'error');
-      return;
-    }
-
-    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
-    this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
-
-    this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
-    this.atualizarListaUsuarios();
-  }
-
-  atualizarListaUsuarios() {
-    const lista = document.getElementById('listaUsuarios');
-    if (!lista) return;
-    const usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    let html = '<h4>Usuários Cadastrados</h4><ul>';
-    usuarios.forEach(u => {
-      html += `<li>${u.nome} (${u.usuario}) - ${u.nivel}</li>`;
-    });
-    html += '</ul>';
-    lista.innerHTML = html;
-  }
-
-  // ==================== EXPORTAÇÃO REAL ====================
   exportarDados() {
     if (!this.ronda.hidrometros || this.ronda.hidrometros.length === 0) {
       this.mostrarToast('Nenhuma leitura para exportar', 'error');
       return;
     }
 
-    const csvRows = [
-      ["ID","Local","Tipo","Leitura Anterior","Leitura Atual","Consumo (m³)","Variação %","Status","Justificativa","Foto"]
-    ];
+    const csvRows = [["ID","Local","Tipo","Leitura Anterior","Leitura Atual","Consumo (m³)","Variação %","Status","Justificativa","Foto"]];
 
     this.ronda.hidrometros.forEach(h => {
       csvRows.push([
@@ -260,35 +201,180 @@ class SistemaHidrometros {
     });
 
     const csvContent = csvRows.map(row => row.join(",")).join("\n");
-    const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
+    link.href = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+    link.download = `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}.csv`;
     link.click();
-    document.body.removeChild(link);
-
     this.mostrarToast('✅ Arquivo CSV baixado com sucesso!', 'success');
   }
 
-  atualizarDashboard() {
-    this.mostrarToast('Dashboard atualizado!', 'success');
+  // ==================== FINALIZAR RONDA - LOGS DETALHADOS ====================
+  async finalizarRonda() {
+    const semLeitura = this.ronda.hidrometros.filter(h => !h.leituraAtual);
+    if (semLeitura.length > 0) {
+      if (!confirm(`${semLeitura.length} hidrômetro(s) sem leitura. Finalizar mesmo assim?`)) return;
+    }
+
+    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
+    if (anomaliasSemJust.length > 0) {
+      this.mostrarToast('Preencha a justificativa para todas as divergências', 'error');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Enviando dados para o Google Drive...');
+
+    const leituras = this.ronda.hidrometros.filter(h => h.leituraAtual > 0).map(h => ({
+      id: h.id,
+      local: h.local,
+      tipo: h.tipo,
+      leituraAnterior: h.leituraAnterior,
+      leituraAtual: h.leituraAtual,
+      consumoAnterior: h.consumoAnterior,
+      justificativa: h.justificativa,
+      foto: h.foto
+    }));
+
+    const payload = {
+      action: 'salvarLeituras',
+      leituras: leituras,
+      usuario: this.usuario.usuario,
+      rondaId: this.ronda.id,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('[FINALIZAR 2.9.6] Payload enviado para o backend:', JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await response.text();
+      console.log('[FINALIZAR 2.9.6] Resposta RAW do Google Script:', text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+        console.log('[FINALIZAR 2.9.6] Resposta parseada:', data);
+      } catch (parseError) {
+        console.error('[FINALIZAR 2.9.6] Erro ao parsear resposta (não é JSON válido):', parseError);
+        throw new Error('Resposta inválida do servidor - verifique o Google Script');
+      }
+
+      if (data.success) {
+        console.log('[FINALIZAR 2.9.6] Sucesso! Dados salvos no Google Drive.');
+        this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+        this.mostrarLoading(false);
+        this.mostrarToast('Ronda finalizada e salva no Google Drive!', 'success');
+        this.mostrarTela('startScreen');
+      } else {
+        throw new Error(data.message || 'Erro desconhecido retornado pelo servidor');
+      }
+    } catch (error) {
+      console.error('[FINALIZAR 2.9.6] ERRO COMPLETO AO ENVIAR:', error);
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro ao salvar no Drive: ' + error.message, 'error');
+    }
   }
 
-  aplicarFiltros() {
-    this.mostrarToast('Filtros aplicados!', 'info');
+  // ==================== GESTÃO DE USUÁRIOS (completa) ====================
+  mostrarGestao() {
+    this.mostrarTela('leiturasAdminScreen');
+    const container = document.getElementById('leiturasAdminScreen');
+    if (!container) return;
+
+    const html = `
+      <div style="padding:25px;">
+        <h3>Criar Novo Usuário</h3>
+        <input type="text" id="novoNome" placeholder="Nome completo" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
+        <input type="text" id="novoUsuario" placeholder="Usuário (login)" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
+        <input type="password" id="novoSenha" placeholder="Senha" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
+        <select id="novoNivel" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
+          <option value="tecnico">Técnico</option>
+          <option value="admin">Administrador</option>
+        </select>
+        <button onclick="app.criarUsuario()" style="padding:12px 24px;background:#28a745;color:white;border:none;border-radius:6px;margin-top:10px;font-weight:bold;">Criar Usuário</button>
+
+        <h3 style="margin-top:40px;">Usuários Cadastrados</h3>
+        <div id="listaUsuarios" style="background:#f8f9fa;padding:20px;border-radius:8px;min-height:200px;"></div>
+      </div>
+    `;
+    container.innerHTML = html;
+    this.atualizarListaUsuarios();
   }
 
-  mudarPagina(dir) {
-    this.mostrarToast('Paginação atualizada', 'info');
+  criarUsuario() {
+    const nome = document.getElementById('novoNome').value.trim();
+    const usuario = document.getElementById('novoUsuario').value.trim();
+    const senha = document.getElementById('novoSenha').value.trim();
+    const nivel = document.getElementById('novoNivel').value;
+
+    if (!nome || !usuario || !senha) {
+      this.mostrarToast('Preencha todos os campos', 'error');
+      return;
+    }
+
+    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+    if (usuarios.find(u => u.usuario === usuario)) {
+      this.mostrarToast('Usuário já existe!', 'error');
+      return;
+    }
+
+    usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
+    this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
+    this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
+    this.atualizarListaUsuarios();
   }
 
-  togglePassword() {
-    const input = document.getElementById('password');
-    if (input) input.type = input.type === 'password' ? 'text' : 'password';
+  trocarSenha(usuario) {
+    const novaSenha = prompt(`Nova senha para ${usuario}:`);
+    if (!novaSenha || novaSenha.trim() === '') return;
+
+    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+    const u = usuarios.find(x => x.usuario === usuario);
+    if (u) {
+      u.senha = novaSenha.trim();
+      this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
+      this.mostrarToast(`Senha de ${usuario} alterada!`, 'success');
+      this.atualizarListaUsuarios();
+    } else {
+      this.mostrarToast('Usuário não encontrado', 'error');
+    }
   }
 
-  // ==================== TODO O RESTO DO CÓDIGO (completo, sem cortes) ====================
+  atualizarListaUsuarios() {
+    const div = document.getElementById('listaUsuarios');
+    if (!div) return;
+
+    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+    if (usuarios.length === 0) {
+      div.innerHTML = '<p style="color:#666;">Nenhum usuário cadastrado ainda.</p>';
+      return;
+    }
+
+    let html = '<table style="width:100%;border-collapse:collapse;">';
+    html += '<tr style="background:#e9ecef;"><th style="padding:10px;">Nome</th><th style="padding:10px;">Login</th><th style="padding:10px;">Nível</th><th style="padding:10px;">Ação</th></tr>';
+
+    usuarios.forEach(u => {
+      html += `
+        <tr style="border-bottom:1px solid #ddd;">
+          <td style="padding:10px;">${u.nome}</td>
+          <td style="padding:10px;">${u.usuario}</td>
+          <td style="padding:10px;">${u.nivel}</td>
+          <td style="padding:10px;">
+            <button onclick="app.trocarSenha('${u.usuario}')" style="padding:6px 12px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">Trocar Senha</button>
+          </td>
+        </tr>
+      `;
+    });
+    html += '</table>';
+    div.innerHTML = html;
+  }
+
+  // ==================== RESTANTE DO CÓDIGO COMPLETO ====================
   async login(e) {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
@@ -329,10 +415,28 @@ class SistemaHidrometros {
     }
   }
 
-  logout() { this.encerrarSessao(); }
-  iniciarLeitura() { this.iniciarRonda(); }
-  continuarRonda() { console.log('[UI] Continuando ronda...'); this.entrarModoLeitura(); }
-  pausarRonda() { this.salvarRonda(); this.mostrarToast('Ronda pausada...', 'info'); this.mostrarTela('startScreen'); const bottomBar = document.getElementById('bottomBar'); if (bottomBar) bottomBar.style.display = 'none'; this.verificarRondaPendente(); }
+  logout() {
+    this.encerrarSessao();
+  }
+
+  iniciarLeitura() {
+    this.iniciarRonda();
+  }
+
+  continuarRonda() {
+    console.log('[UI] Continuando ronda...');
+    this.entrarModoLeitura();
+  }
+
+  pausarRonda() {
+    console.log('[UI] Pausando ronda...');
+    this.salvarRonda();
+    this.mostrarToast('Ronda pausada. Você pode continuar depois.', 'info');
+    this.mostrarTela('startScreen');
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar) bottomBar.style.display = 'none';
+    this.verificarRondaPendente();
+  }
 
   async iniciarRonda() {
     console.log('[Ronda] Iniciando...');
@@ -371,7 +475,7 @@ class SistemaHidrometros {
     } catch (error) {
       console.error('[Ronda] Erro:', error);
       this.mostrarLoading(false);
-      this.mostrarToast('Erro: ' + error.message, 'error');
+      this.mostrarToast('Erro ao iniciar ronda: ' + error.message, 'error');
     }
   }
 
@@ -431,7 +535,7 @@ class SistemaHidrometros {
     const div = document.createElement('div');
     div.className = 'hidrometro-card';
     div.id = `card-${h.id}`;
-    div.innerHTML = ` 
+    div.innerHTML = `
       <div class="card-header">
         <div class="info-principal">
           <span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span>
@@ -675,49 +779,6 @@ class SistemaHidrometros {
     }
   }
 
-  async finalizarRonda() {
-    const semLeitura = this.ronda.hidrometros.filter(h => !h.leituraAtual);
-    if (semLeitura.length > 0) {
-      if (!confirm(`${semLeitura.length} hidrômetro(s) sem leitura. Deseja finalizar mesmo assim?`)) return;
-    }
-    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
-    if (anomaliasSemJust.length > 0) {
-      this.mostrarToast('Preencha a justificativa para todas as divergências', 'error');
-      return;
-    }
-    this.mostrarLoading(true, 'Enviando dados...');
-    try {
-      const leituras = this.ronda.hidrometros.filter(h => h.leituraAtual > 0).map(h => ({
-        id: h.id,
-        local: h.local,
-        tipo: h.tipo,
-        leituraAnterior: h.leituraAnterior,
-        leituraAtual: h.leituraAtual,
-        consumoAnterior: h.consumoAnterior,
-        justificativa: h.justificativa,
-        foto: h.foto
-      }));
-      const response = await fetch(CONFIG.API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'salvarLeituras', leituras: leituras, usuario: this.usuario.usuario, rondaId: this.ronda.id })
-      });
-      const data = await response.json();
-      if (!data.success) throw new Error(data.message || 'Erro ao salvar');
-      this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
-      localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
-      this.mostrarLoading(false);
-      this.mostrarToast('Ronda finalizada com sucesso!', 'success');
-      this.mostrarTela('startScreen');
-      const bottomBar = document.getElementById('bottomBar');
-      if (bottomBar) bottomBar.style.display = 'none';
-    } catch (error) {
-      console.error('[Finalizar] Erro:', error);
-      this.mostrarLoading(false);
-      this.mostrarToast('Erro ao finalizar: ' + error.message, 'error');
-    }
-  }
-
   mostrarTela(telaId) {
     this.limparElementosFantasmas();
     document.querySelectorAll('.screen').forEach(s => {
@@ -749,8 +810,9 @@ class SistemaHidrometros {
     try {
       localStorage.setItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA, JSON.stringify(this.ronda));
       this.salvamentoPendente = false;
+      console.log('[SALVAR LOCAL] Ronda salva no localStorage');
     } catch (e) {
-      console.error('[Save] Erro:', e);
+      console.error('[SALVAR LOCAL] Erro:', e);
     }
   }
 
@@ -759,6 +821,7 @@ class SistemaHidrometros {
       const item = localStorage.getItem(chave);
       return item ? JSON.parse(item) : null;
     } catch (e) {
+      console.error('[STORAGE] Erro ao ler:', e);
       return null;
     }
   }
@@ -766,8 +829,9 @@ class SistemaHidrometros {
   salvarStorage(chave, valor) {
     try {
       localStorage.setItem(chave, JSON.stringify(valor));
+      console.log(`[STORAGE] Salvo com sucesso: ${chave}`);
     } catch (e) {
-      console.error('[Storage] Erro:', e);
+      console.error('[STORAGE] Erro ao salvar:', e);
     }
   }
 
