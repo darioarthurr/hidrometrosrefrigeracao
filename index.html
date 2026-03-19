@@ -23,7 +23,7 @@
     <meta name="author" content="Grupo GPS">
     <meta name="robots" content="noindex, nofollow">
    
-    <title>Leitura de Hidrômetros v2.9.4 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.8.2 | Grupo GPS • Multiplan</title>
    
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -38,10 +38,179 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
    
     <!-- Estilos -->
-    <link rel="stylesheet" href="assets/style.css?v=2.9.4">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.8.2">
    
     <!-- Preload crítico -->
-    <link rel="preload" href="assets/app.js?v=2.9.4" as="script">
+    <link rel="preload" href="assets/app.js?v=2.9.8.2" as="script">
+    
+    <style>
+        /* Estilos adicionais para correções v2.9.8.2 */
+        .status-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            z-index: 9999;
+            color: white;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        #nivelUsuario {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 10px;
+        }
+        
+        .filtros-dashboard {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+        
+        .filtros-dashboard select,
+        .filtros-dashboard input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .filtros-dashboard button {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .filtros-dashboard button:first-of-type {
+            background: #007bff;
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .badge-danger { background: #dc3545; color: white; }
+        .badge-warning { background: #ffc107; color: #000; }
+        .badge-normal { background: #28a745; color: white; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .gestao-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .gestao-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .gestao-card h3 {
+            margin-top: 0;
+            color: #003366;
+            margin-bottom: 20px;
+        }
+        
+        .form-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-grid input,
+        .form-grid select {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .users-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-secondary-sm {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .level-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .level-admin { background: #dc3545; }
+        .level-tecnico { background: #007bff; }
+    </style>
 </head>
 <body>
     <div id="app" role="application" aria-label="Sistema de Leitura de Hidrômetros">
@@ -55,10 +224,12 @@
             </div>
             <div id="loadingText" class="loading-text">Carregando...</div>
         </div>
+
         <!-- ============================================
              NOTIFICAÇÕES (TOASTS)
              ============================================ -->
         <div id="toastContainer" class="toast-container" role="region" aria-live="polite" aria-label="Notificações"></div>
+
         <!-- ============================================
              TELA LOGIN
              ============================================ -->
@@ -77,7 +248,7 @@
                     </div>
                    
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version" id="versaoSistema">v2.9.4</p>
+                    <p class="login-version" id="versaoSistema">v2.9.8.2</p>
                    
                     <div id="loginError" class="error-message" role="alert" aria-live="assertive"></div>
                    
@@ -93,9 +264,7 @@
                                 autocapitalize="none"
                                 required
                                 aria-required="true"
-                                aria-describedby="username-help"
                             >
-                            <span id="username-help" class="sr-only">Digite seu nome de usuário fornecido pelo administrador</span>
                         </div>
                        
                         <div class="form-group">
@@ -109,36 +278,33 @@
                                     autocomplete="current-password"
                                     required
                                     aria-required="true"
-                                    aria-describedby="password-help"
                                 >
                                 <button
                                     type="button"
                                     class="toggle-password"
-                                    onclick="app.togglePassword()"
+                                    onclick="app.togglePassword ? app.togglePassword() : null"
                                     aria-label="Mostrar ou ocultar senha"
-                                    title="Mostrar/Ocultar senha"
                                 >
                                     👁️
                                 </button>
                             </div>
-                            <span id="password-help" class="sr-only">Digite sua senha de acesso</span>
                         </div>
                        
                         <button type="submit" class="btn-primary btn-login">
                             <span>Entrar no Sistema</span>
-                            <div class="btn-shine" aria-hidden="true"></div>
                         </button>
                     </form>
                    
                     <footer class="login-footer">
                         <p>Sistema exclusivo para equipe autorizada</p>
-                        <p id="statusConexao" class="status-conexao">Verificando conexão...</p>
+                        <p id="statusRede" style="font-size: 0.85rem; margin-top: 10px; color: #666;">Verificando conexão...</p>
                     </footer>
                 </div>
             </div>
         </section>
+
         <!-- ============================================
-             HEADER CORPORATIVO
+             HEADER CORPORATIVO (CORRIGIDO IDs)
              ============================================ -->
         <header id="corporateHeader" class="corporate-header" style="display:none;" role="banner">
             <div class="header-brand">
@@ -150,8 +316,8 @@
             <div class="header-title">Leitura de Hidrômetros</div>
            
             <div class="header-user">
-                <span id="userName" class="user-name"></span>
-                <span id="userBadge" class="user-badge" aria-label="Nível de acesso">OP</span>
+                <span id="nomeTecnico" class="user-name"></span>
+                <span id="nivelUsuario" class="user-badge" aria-label="Nível de acesso">OP</span>
                 <button
                     class="btn-icon"
                     onclick="app.logout()"
@@ -162,6 +328,7 @@
                 </button>
             </div>
         </header>
+
         <!-- ============================================
              MENU ADMIN (Apenas para administradores)
              ============================================ -->
@@ -183,6 +350,7 @@
                 <span>Gestão</span>
             </button>
         </nav>
+
         <!-- ============================================
              TELA INICIAL (Técnico)
              ============================================ -->
@@ -190,22 +358,9 @@
             <div class="welcome-container">
                 <div class="welcome-card glass-effect">
                     <div class="welcome-icon" aria-hidden="true">👋</div>
-                    <h2 class="welcome-title">Olá, <span id="nomeTecnico"></span></h2>
+                    <h2 class="welcome-title">Olá, <span id="nomeTecnicoStart"></span></h2>
                     <p class="welcome-subtitle">Pronto para iniciar a ronda de leituras?</p>
                    
-                    <!-- Estatísticas de rondas pendentes -->
-                    <div class="welcome-stats" id="welcomeStats" style="display:none;" aria-live="polite">
-                        <div class="stat-item">
-                            <span class="stat-value" id="statPendentes">0</span>
-                            <span class="stat-label">Rondas Pendentes</span>
-                        </div>
-                        <div class="stat-item" id="statUltimaRonda" style="display:none;">
-                            <span class="stat-value" id="statUltimaData">--</span>
-                            <span class="stat-label">Última Ronda</span>
-                        </div>
-                    </div>
-                   
-                    <!-- Botão principal -->
                     <button
                         class="btn-primary btn-start"
                         onclick="app.iniciarLeitura()"
@@ -215,7 +370,6 @@
                         <span>INICIAR LEITURA DOS HIDRÔMETROS</span>
                     </button>
                    
-                    <!-- Botão continuar ronda (aparece se houver ronda salva) -->
                     <button
                         class="btn-secondary btn-continuar"
                         onclick="app.continuarRonda()"
@@ -226,121 +380,80 @@
                         <span>Continuar Ronda em Andamento</span>
                     </button>
                    
-                    <!-- Botão sincronizar -->
-                    <button
-                        class="btn-secondary btn-sync"
-                        onclick="app.sincronizarPendentes()"
-                        id="btnSyncPendentes"
-                        style="display:none;"
-                    >
-                        <span class="btn-icon" aria-hidden="true">☁️</span>
-                        <span>Sincronizar <span id="countPendentes">0</span> pendente(s)</span>
-                    </button>
-                   
-                    <!-- Informações do sistema -->
                     <div class="system-info">
-                        <p>Versão <span id="versaoDisplay">2.9.4</span> • <span id="statusRede">Online</span></p>
+                        <p>Versão <span id="versaoDisplay">2.9.8.2</span></p>
                     </div>
                 </div>
             </div>
         </section>
+
         <!-- ============================================
              TELA DE LEITURA (Operação)
              ============================================ -->
         <section id="leituraScreen" class="screen" role="main" aria-label="Tela de leitura de hidrômetros">
             <div class="leitura-container">
                
-                <!-- Card de Progresso V2.8 -->
                 <div class="progresso-container" role="region" aria-label="Progresso da ronda">
                     <div class="progresso-header">
                         <span class="progresso-titulo">Progresso da Ronda</span>
                         <span class="progresso-valor" id="progressText">0/0</span>
                     </div>
-                    <div class="barra-progresso" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progressLabel" id="progressBar">
-                        <div class="barra-preenchida" id="progressFill" style="width: 0%"></div>
+                    <div class="barra-progresso" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+                        <div class="barra-preenchida" style="width: 0%"></div>
                     </div>
                     <div class="progresso-percentual" id="progressLabel">0% concluído</div>
                 </div>
-                <!-- Info da Ronda -->
-                <div class="ronda-info" id="rondaInfo" style="display:none;">
-                    <span class="ronda-id">Ronda: <span id="rondaIdDisplay">--</span></span>
-                    <span class="ronda-inicio">Início: <span id="rondaInicioDisplay">--</span></span>
-                </div>
-                <!-- Seletor de Local -->
+
                 <div class="local-selector-card">
                     <label for="localSelect" class="selector-label">Selecione o local</label>
                     <div class="custom-select">
-                        <select
-                            id="localSelect"
-                            onchange="app.carregarHidrometros(this.value)"
-                            aria-label="Selecionar local da leitura"
-                        >
+                        <select id="localSelect" onchange="app.carregarHidrometros(this.value)">
                             <option value="">Escolha um local...</option>
                         </select>
                         <div class="select-arrow" aria-hidden="true">▼</div>
                     </div>
                 </div>
-                <!-- Container de Hidrômetros -->
-                <div id="hidrometrosContainer" class="hidrometros-list" role="region" aria-label="Lista de hidrômetros">
-                    <!-- Cards serão inseridos via JavaScript -->
-                </div>
+
+                <div id="hidrometrosContainer" class="hidrometros-list"></div>
                
-                <!-- Espaçador para bottom bar -->
                 <div class="bottom-spacer"></div>
             </div>
-            <!-- Bottom Bar V2.8 - Com botão de pausar -->
-            <div id="bottomBar" class="bottom-bar" style="display: none;" role="toolbar" aria-label="Ações da ronda">
+
+            <div id="bottomBar" class="bottom-bar" style="display: none;" role="toolbar">
                 <div class="bottom-bar-actions">
-                    <button
-                        id="btnPausar"
-                        class="btn-pausar"
-                        onclick="app.pausarRonda()"
-                        aria-label="Pausar ronda e salvar progresso"
-                        title="Pausar ronda (salva automaticamente)"
-                    >
-                        <span aria-hidden="true">⏸️</span>
+                    <button id="btnPausar" class="btn-pausar" onclick="app.pausarRonda()">
+                        <span>⏸️</span>
                         <span>Pausar</span>
                     </button>
                    
-                    <button
-                        id="btnFinalizar"
-                        class="btn-finalizar"
-                        disabled
-                        onclick="app.finalizarRonda()"
-                        aria-label="Finalizar ronda e enviar dados"
-                        title="Finalizar ronda (disponível quando todos estiverem completos)"
-                    >
-                        <span aria-hidden="true">✓</span>
+                    <button id="btnFinalizar" class="btn-finalizar" disabled onclick="app.finalizarRonda()">
+                        <span>✓</span>
                         <span>Finalizar Ronda</span>
                     </button>
                 </div>
-               
-                <!-- Status de salvamento -->
-                <div class="save-status" id="saveStatus" aria-live="polite">
-                    <span class="save-indicator" id="saveIndicator"></span>
-                    <span class="save-text" id="saveText">Pronto para leitura</span>
-                </div>
             </div>
         </section>
+
         <!-- ============================================
-             TELA ADMIN: DASHBOARD
+             TELA ADMIN: DASHBOARD (CORRIGIDA)
              ============================================ -->
         <section id="dashboardScreen" class="screen admin-screen" role="main" aria-label="Dashboard administrativo">
             <div class="admin-container">
                 <header class="page-header">
                     <h1>Dashboard</h1>
                     <div class="periodo-selector">
-                        <select id="periodoDashboard" onchange="app.atualizarDashboard()">
+                        <select id="periodoDashboard" onchange="app.carregarDashboard()">
                             <option value="7">Últimos 7 dias</option>
-                            <option value="30">Últimos 30 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
                             <option value="90">Últimos 3 meses</option>
                         </select>
                     </div>
                 </header>
+
                 <!-- KPIs -->
-                <div class="kpi-grid" role="region" aria-label="Indicadores principais">
+                <div class="kpi-grid">
                     <article class="kpi-card kpi-total">
-                        <div class="kpi-icon" aria-hidden="true">💧</div>
+                        <div class="kpi-icon">💧</div>
                         <div class="kpi-content">
                             <span class="kpi-value" id="kpiTotal">0</span>
                             <span class="kpi-label">Total Leituras</span>
@@ -348,7 +461,7 @@
                     </article>
                    
                     <article class="kpi-card kpi-alertas">
-                        <div class="kpi-icon" aria-hidden="true">⚠️</div>
+                        <div class="kpi-icon">⚠️</div>
                         <div class="kpi-content">
                             <span class="kpi-value" id="kpiAlertas">0</span>
                             <span class="kpi-label">Alertas</span>
@@ -356,7 +469,7 @@
                     </article>
                    
                     <article class="kpi-card kpi-vazamentos">
-                        <div class="kpi-icon" aria-hidden="true">🚨</div>
+                        <div class="kpi-icon">🚨</div>
                         <div class="kpi-content">
                             <span class="kpi-value" id="kpiVazamentos">0</span>
                             <span class="kpi-label">Vazamentos</span>
@@ -364,159 +477,168 @@
                     </article>
                    
                     <article class="kpi-card kpi-normal">
-                        <div class="kpi-icon" aria-hidden="true">✓</div>
+                        <div class="kpi-icon">✓</div>
                         <div class="kpi-content">
                             <span class="kpi-value" id="kpiNormal">0</span>
                             <span class="kpi-label">Normal</span>
                         </div>
                     </article>
                 </div>
+
+                <!-- FILTROS DO DASHBOARD (NOVO) -->
+                <div class="filtros-dashboard">
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px; color: #666;">Local</label>
+                        <select id="filtroLocal">
+                            <option value="">Todos os locais</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px; color: #666;">Status</label>
+                        <select id="filtroStatus">
+                            <option value="">Todos os status</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="VAZAMENTO">Vazamento</option>
+                            <option value="ALERTA_VARIACAO">Alerta Variação</option>
+                            <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                            <option value="ANOMALIA_NEGATIVO">Anomalia</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px; color: #666;">Data</label>
+                        <input type="date" id="filtroData">
+                    </div>
+                    <button onclick="app.aplicarFiltros()">Aplicar Filtros</button>
+                    <button onclick="app.limparFiltros()">Limpar</button>
+                </div>
+
                 <!-- Gráficos -->
                 <div class="charts-grid">
                     <div class="chart-card">
                         <h3>Consumo por Local</h3>
-                        <canvas id="chartConsumo"></canvas>
+                        <canvas id="chartLocais"></canvas>
                     </div>
                     <div class="chart-card">
                         <h3>Leituras por Dia</h3>
-                        <canvas id="chartLeituras"></canvas>
+                        <canvas id="chartDias"></canvas>
                     </div>
                 </div>
-                <!-- Tabela de Alertas -->
+
+                <!-- Tabela de Últimas Leituras (NOVA) -->
                 <div class="table-card">
-                    <h3>Últimos Alertas</h3>
+                    <h3>Últimas Leituras</h3>
                     <div class="table-responsive">
-                        <table class="data-table" role="table" aria-label="Alertas recentes">
+                        <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">Data</th>
-                                    <th scope="col">Local</th>
-                                    <th scope="col">Hidrômetro</th>
-                                    <th scope="col">Tipo</th>
-                                    <th scope="col">Status</th>
+                                    <th>Data</th>
+                                    <th>Local</th>
+                                    <th>Técnico</th>
+                                    <th>Leitura</th>
+                                    <th>Status</th>
+                                    <th>Variação</th>
                                 </tr>
                             </thead>
-                            <tbody id="tabelaAlertas">
-                                <!-- Dados via JS -->
+                            <tbody id="ultimasLeituras">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px; color: #666;">
+                                        Carregando dados...
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </section>
+
         <!-- ============================================
-             TELA ADMIN: LEITURAS
+             TELA ADMIN: LEITURAS (Histórico)
              ============================================ -->
-        <section id="leiturasAdminScreen" class="screen admin-screen" role="main" aria-label="Gerenciamento de leituras">
+        <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
             <div class="admin-container">
                 <header class="page-header">
                     <h1>Histórico de Leituras</h1>
                     <button class="btn-export" onclick="app.exportarDados()">
-                        <span>📥</span> Exportar Excel
+                        <span>📥</span> Exportar CSV
                     </button>
                 </header>
-                <!-- Filtros -->
-                <div class="filters-card" role="search" aria-label="Filtros de pesquisa">
-                    <div class="filter-group">
-                        <label for="filtroLocal">Local</label>
-                        <select id="filtroLocal">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="filtroStatus">Status</label>
-                        <select id="filtroStatus">
-                            <option value="">Todos</option>
-                            <option value="normal">Normal</option>
-                            <option value="alerta">Alerta</option>
-                            <option value="vazamento">Vazamento</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="filtroDataInicio">De</label>
-                        <input type="date" id="filtroDataInicio">
-                    </div>
-                    <div class="filter-group">
-                        <label for="filtroDataFim">Até</label>
-                        <input type="date" id="filtroDataFim">
-                    </div>
-                    <button class="btn-primary" onclick="app.aplicarFiltros()" style="padding: 0.625rem 1.25rem;">
-                        Filtrar
-                    </button>
-                </div>
-                <!-- Tabela -->
+                
                 <div class="table-card">
                     <div class="table-responsive">
-                        <table class="data-table" role="table" aria-label="Leituras registradas">
+                        <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">Ronda</th>
-                                    <th scope="col">Data/Hora</th>
-                                    <th scope="col">Técnico</th>
-                                    <th scope="col">Local</th>
-                                    <th scope="col">Total</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Ações</th>
+                                    <th>Ronda</th>
+                                    <th>Data/Hora</th>
+                                    <th>Técnico</th>
+                                    <th>Local</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaLeituras">
-                                <!-- Dados via JS -->
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px; color: #666;">
+                                        Use os filtros acima para carregar o histórico
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
-                   
-                    <!-- Paginação -->
-                    <nav class="pagination" role="navigation" aria-label="Paginação">
-                        <button class="page-btn" onclick="app.mudarPagina(-1)" aria-label="Página anterior">←</button>
-                        <button class="page-btn active" aria-current="page">1</button>
-                        <button class="page-btn" onclick="app.mudarPagina(1)" aria-label="Próxima página">→</button>
-                    </nav>
                 </div>
             </div>
         </section>
+
         <!-- ============================================
-             MODAL DE DETALHES
+             TELA ADMIN: GESTÃO DE USUÁRIOS (NOVA)
              ============================================ -->
-        <div id="modalDetalhes" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo" aria-hidden="true">
-            <div class="modal-content" role="document">
-                <header class="modal-header">
-                    <h3 id="modalTitulo">Detalhes da Leitura</h3>
-                    <button
-                        class="btn-close"
-                        onclick="app.limparElementosFantasmas()"
-                        aria-label="Fechar modal"
-                    >
-                        ×
-                    </button>
+        <section id="gestaoScreen" class="screen admin-screen" role="main" aria-label="Gestão de usuários">
+            <div class="gestao-container">
+                <header class="page-header">
+                    <h1>Gestão de Usuários</h1>
                 </header>
-                <div class="modal-body" id="modalBody">
-                    <!-- Conteúdo dinâmico -->
-                </div>
-            </div>
-        </div>
-        <!-- ============================================
-             MODAL DE CONFIRMAÇÃO (Template para JS)
-             ============================================ -->
-        <template id="templateModalConfirmacao">
-            <div class="modal-confirmacao" role="dialog" aria-modal="true">
-                <div class="modal-conteudo">
-                    <p class="mensagem"></p>
-                    <div class="botoes">
-                        <button class="btn-secundario" data-acao="cancelar">Não</button>
-                        <button class="btn-primario" data-acao="confirmar">Sim</button>
+
+                <!-- Criar Usuário -->
+                <div class="gestao-card">
+                    <h3>👤 Criar Novo Usuário</h3>
+                    <div class="form-grid" style="max-width: 600px;">
+                        <input type="text" id="novoNome" placeholder="Nome completo">
+                        <input type="text" id="novoUsuario" placeholder="Usuário (login)">
+                        <input type="password" id="novoSenha" placeholder="Senha">
+                        <select id="novoNivel">
+                            <option value="tecnico">Técnico</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <button class="btn-success" onclick="app.criarUsuario()" style="justify-self: start;">
+                            Criar Usuário
+                        </button>
                     </div>
                 </div>
+
+                <!-- Lista de Usuários -->
+                <div class="gestao-card">
+                    <h3>👥 Usuários Cadastrados</h3>
+                    <div id="listaUsuarios">
+                        <p style="color: #666; text-align: center; padding: 20px;">Carregando usuários...</p>
+                    </div>
+                    <button onclick="app.carregarUsuariosDoServidor()" style="margin-top: 15px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🔄 Atualizar Lista
+                    </button>
+                </div>
             </div>
-        </template>
+        </section>
+
     </div><!-- /#app -->
+
     <!-- Scripts -->
-    <script src="assets/app.js?v=2.9.4"></script>
+    <script src="assets/app.js?v=2.9.8.2"></script>
    
     <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.4')
+                navigator.serviceWorker.register('sw.js?v=2.9.8.2')
                     .then(registration => {
                         console.log('[SW] Registrado:', registration.scope);
                     })
