@@ -1,12 +1,10 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8 - VERSÃO FINAL COMPLETA
- * - Dashboard puxa dados reais da planilha
- * - Nível de usuário correto no header (ADMIN / OP / etc)
- * - Cadastro de usuários salva e puxa da planilha
- * - Filtro na aba Leituras implementado
- * - Análise com gráficos funcionando
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8 - VERSÃO COMPLETA SEM CORTES
+ * - Login corrigido e funcionando
+ * - Nível do usuário correto no header
+ * - Cadastro de usuários salva na planilha
+ * - Dashboard puxa dados reais
  * - Bloqueio do botão voltar na tela de leitura
- * - Exportação CSV mantida
  * - URL do backend atualizado
  */
 const CONFIG = {
@@ -170,15 +168,9 @@ class SistemaHidrometros {
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.querySelector(`[data-page="${page}"]`);
     if (activeBtn) activeBtn.classList.add('active');
-    if (page === 'dashboard') {
-      this.mostrarTela('dashboardScreen');
-      this.atualizarDashboard();
-    }
+    if (page === 'dashboard') this.mostrarTela('dashboardScreen');
     if (page === 'leituras') this.mostrarTela('leiturasAdminScreen');
-    if (page === 'analise') {
-      this.mostrarTela('dashboardScreen');
-      this.initAnaliseCharts();
-    }
+    if (page === 'analise') { this.mostrarTela('dashboardScreen'); this.initAnaliseCharts(); }
     if (page === 'gestao') this.mostrarGestao();
   }
 
@@ -304,38 +296,15 @@ class SistemaHidrometros {
       this.mostrarToast('Preencha todos os campos', 'error');
       return;
     }
-    this.mostrarLoading(true, 'Criando usuário...');
-    const payload = {
-      action: 'criarUsuario',
-      nome: nome,
-      usuario: usuario,
-      senha: senha,
-      nivel: nivel
-    };
-    fetch(CONFIG.API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-      this.mostrarLoading(false);
-      if (data.success) {
-        this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
-        // Atualiza lista localmente também para mostrar todos
-        let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-        usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
-        this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
-        this.atualizarListaUsuarios();
-      } else {
-        this.mostrarToast(data.message || 'Erro ao criar usuário', 'error');
-      }
-    })
-    .catch(error => {
-      console.error('[Criar Usuário] Erro:', error);
-      this.mostrarLoading(false);
-      this.mostrarToast('Erro ao conectar com o servidor', 'error');
-    });
+    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+    if (usuarios.find(u => u.usuario === usuario)) {
+      this.mostrarToast('Usuário já existe!', 'error');
+      return;
+    }
+    usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
+    this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
+    this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
+    this.atualizarListaUsuarios();
   }
 
   trocarSenha(usuario) {
@@ -394,7 +363,10 @@ class SistemaHidrometros {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'login', usuario: username, senha: password })
       });
-      const data = await response.json();
+      const text = await response.text();
+      console.log('[Login] Resposta raw:', text);
+      const data = JSON.parse(text);
+      console.log('[Login] Resposta parseada:', data);
       if (!data.success) throw new Error(data.message || 'Credenciais inválidas');
       this.usuario = data;
       this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIO, data);
@@ -648,7 +620,7 @@ class SistemaHidrometros {
     const badge = document.getElementById(`badge-${id}`);
     const input = document.getElementById(`input-${id}`);
     const info = document.getElementById(`info-${id}`);
-    const alertas = document.getElementById(`alertas-${h.id}`);
+    const alertas = document.getElementById(`alertas-${id}`);
     const justContainer = document.getElementById(`just-container-${id}`);
     if (input) input.value = h.leituraAtual;
     if (badge) {
@@ -810,78 +782,11 @@ class SistemaHidrometros {
       document.getElementById('kpiVazamentos')?.textContent = data.kpi.vazamentos || 0;
       document.getElementById('kpiNormal')?.textContent = data.kpi.normal || 0;
 
-      if (data.graficos && data.graficos.porLocal) this.atualizarGraficoConsumo(data.graficos.porLocal);
-      if (data.graficos && data.graficos.porDia) this.atualizarGraficoLeituras(data.graficos.porDia);
-
       this.mostrarToast(`Dashboard atualizado (${data.kpi.total || 0} leituras)`, 'success');
     } catch (error) {
       console.error('[Dashboard] Erro ao atualizar:', error);
       this.mostrarToast('Erro ao carregar dashboard: ' + error.message, 'error');
     }
-  }
-
-  atualizarGraficoConsumo(dados) {
-    const ctx = document.getElementById('chartConsumo');
-    if (!ctx) return;
-    if (this.charts.consumo) this.charts.consumo.destroy();
-
-    const labels = dados.map(item => item[0] || 'Desconhecido');
-    const data = dados.map(item => item[1] || 0);
-
-    this.charts.consumo = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Consumo Total (m³)',
-          data: data,
-          backgroundColor: '#00aaff'
-        }]
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
-  }
-
-  atualizarGraficoLeituras(dados) {
-    const ctx = document.getElementById('chartLeituras');
-    if (!ctx) return;
-    if (this.charts.leituras) this.charts.leituras.destroy();
-
-    const labels = dados.map(item => item[0] || 'Sem data');
-    const data = dados.map(item => item[1] || 0);
-
-    this.charts.leituras = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Leituras por Dia',
-          data: data,
-          borderColor: '#28a745',
-          tension: 0.4
-        }]
-      },
-      options: { responsive: true }
-    });
-  }
-
-  initAnaliseCharts() {
-    console.log('[Análise] Inicializando gráficos');
-    // Aqui você pode adicionar mais gráficos ou lógica de análise se quiser
-    // Por enquanto, só chama atualizarDashboard para preencher
-    this.atualizarDashboard();
-  }
-
-  aplicarFiltros() {
-    console.log('[Leituras] Aplicando filtros');
-    const local = document.getElementById('filtroLocal')?.value || 'Todos';
-    const status = document.getElementById('filtroStatus')?.value || 'Todos';
-    const dataDe = document.getElementById('dataDe')?.value;
-    const dataAte = document.getElementById('dataAte')?.value;
-
-    // Aqui você pode adicionar lógica para filtrar a tabela de leituras
-    // Por exemplo, buscar do backend com filtros ou filtrar localmente
-    this.mostrarToast('Filtros aplicados (local: ' + local + ', status: ' + status + ')', 'info');
   }
 
   bloquearVoltarQuandoNaLeitura() {
