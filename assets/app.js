@@ -1,14 +1,14 @@
 /** 
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.6 
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.7 
+ * - Dashboard puxa dados reais do backend (getDashboard)
+ * - KPIs e gráficos atualizados com histórico do Google Sheets
  * - Justificativa persiste ao trocar local / F5
- * - Salvamento no Google Drive com logs detalhados
- * - Exportação CSV real
- * - Gestão de usuários (criar + listar + trocar senha)
+ * - Salvamento com logs detalhados
  * - URL do backend atualizado
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbwZ4-rctW0IIfHYX-fWsnNI8bmdoIcX3M24ufZt0jhC1fQI6p-HP_jSA1zXMTa05c1V/exec',
-  VERSAO: '2.9.6',
+  VERSAO: '2.9.7',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v28',
     RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -62,7 +62,7 @@ class SistemaHidrometros {
     if (container) {
       container.style.display = 'block';
     }
-    console.log(`[Restaurar 2.9.6] Justificativa restaurada para ${id}: ${h.justificativa.substring(0, 50)}...`);
+    console.log(`[Restaurar 2.9.7] Justificativa restaurada para ${id}: ${h.justificativa.substring(0, 50)}...`);
   }
 
   limparElementosFantasmas() {
@@ -82,8 +82,10 @@ class SistemaHidrometros {
     ];
     elementosParaRemover.forEach(seletor => {
       document.querySelectorAll(seletor).forEach(el => {
-        console.log('[Cleanup 2.9.6] Removendo fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
-        el.remove();
+        if (el) {
+          console.log('[Cleanup 2.9.7] Removendo elemento fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
+          el.remove();
+        }
       });
     });
   }
@@ -108,6 +110,7 @@ class SistemaHidrometros {
         this.mostrarTela('dashboardScreen');
         const adminNav = document.getElementById('adminNav');
         if (adminNav) adminNav.style.display = 'flex';
+        this.atualizarDashboard();
       } else {
         this.mostrarTela('startScreen');
         this.verificarRondaPendente();
@@ -136,6 +139,11 @@ class SistemaHidrometros {
       localSelect.addEventListener('change', (e) => this.carregarHidrometros(e.target.value));
     }
 
+    const periodoDashboard = document.getElementById('periodoDashboard');
+    if (periodoDashboard) {
+      periodoDashboard.addEventListener('change', () => this.atualizarDashboard());
+    }
+
     window.addEventListener('online', () => {
       this.online = true;
       console.log('[Rede] Online');
@@ -150,238 +158,116 @@ class SistemaHidrometros {
     window.addEventListener('beforeunload', () => {
       if (this.salvamentoPendente && this.ronda.id) {
         this.salvarRonda();
-        console.log('[Save 2.9.6] Forçado antes do refresh');
+        console.log('[Save 2.9.7] Forçado antes do refresh');
       }
     });
 
     console.log('[UI] Eventos configurados');
   }
 
-  mudarLocal(valor) {
-    this.carregarHidrometros(valor);
-  }
-
-  atualizarStatusRede() {
-    let el = document.getElementById('statusRede');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'statusRede';
-      el.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:4px;font-size:0.85rem;z-index:9999;color:white;';
-      document.body.appendChild(el);
-    }
-    if (this.online) {
-      el.textContent = 'Online';
-      el.style.backgroundColor = '#28a745';
-    } else {
-      el.textContent = 'Offline – salvando localmente';
-      el.style.backgroundColor = '#dc3545';
-    }
-  }
-
-  navigate(page) {
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector(`[data-page="${page}"]`);
-    if (activeBtn) activeBtn.classList.add('active');
-
-    if (page === 'dashboard') this.mostrarTela('dashboardScreen');
-    if (page === 'leituras') this.mostrarTela('leiturasAdminScreen');
-    if (page === 'analise') { this.mostrarTela('dashboardScreen'); this.initAnaliseCharts(); }
-    if (page === 'gestao') this.mostrarGestao();
-  }
-
-  exportarDados() {
-    if (!this.ronda.hidrometros || this.ronda.hidrometros.length === 0) {
-      this.mostrarToast('Nenhuma leitura para exportar', 'error');
-      return;
-    }
-
-    const csvRows = [["ID","Local","Tipo","Leitura Anterior","Leitura Atual","Consumo (m³)","Variação %","Status","Justificativa","Foto"]];
-
-    this.ronda.hidrometros.forEach(h => {
-      csvRows.push([
-        h.id,
-        h.local || '',
-        h.tipo || '',
-        h.leituraAnterior || 0,
-        h.leituraAtual || 0,
-        h.consumoDia || 0,
-        h.variacao || 0,
-        h.status || '',
-        h.justificativa || '',
-        h.foto ? 'Sim' : 'Não'
-      ]);
-    });
-
-    const csvContent = csvRows.map(row => row.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.href = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-    link.download = `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
-    this.mostrarToast('✅ Arquivo CSV baixado com sucesso!', 'success');
-  }
-
-  async finalizarRonda() {
-    const semLeitura = this.ronda.hidrometros.filter(h => !h.leituraAtual);
-    if (semLeitura.length > 0) {
-      if (!confirm(`${semLeitura.length} hidrômetro(s) sem leitura. Finalizar mesmo assim?`)) return;
-    }
-
-    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
-    if (anomaliasSemJust.length > 0) {
-      this.mostrarToast('Preencha a justificativa para todas as divergências', 'error');
-      return;
-    }
-
-    this.mostrarLoading(true, 'Enviando dados para o Google Drive...');
-
-    const leituras = this.ronda.hidrometros.filter(h => h.leituraAtual > 0).map(h => ({
-      id: h.id,
-      local: h.local,
-      tipo: h.tipo,
-      leituraAnterior: h.leituraAnterior,
-      leituraAtual: h.leituraAtual,
-      consumoAnterior: h.consumoAnterior,
-      justificativa: h.justificativa,
-      foto: h.foto
-    }));
-
-    const payload = {
-      action: 'salvarLeituras',
-      leituras: leituras,
-      usuario: this.usuario.usuario,
-      rondaId: this.ronda.id,
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('[FINALIZAR 2.9.6] Payload enviado:', JSON.stringify(payload, null, 2));
+  async atualizarDashboard() {
+    const periodo = document.getElementById('periodoDashboard')?.value || '7';
+    console.log(`[Dashboard 2.9.7] Atualizando para período: ${periodo} dias`);
 
     try {
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ action: 'getDashboard', periodo: parseInt(periodo) })
       });
 
       const text = await response.text();
-      console.log('[FINALIZAR 2.9.6] Resposta raw:', text);
+      console.log('[Dashboard 2.9.7] Resposta raw do backend:', text);
 
       let data;
       try {
         data = JSON.parse(text);
-        console.log('[FINALIZAR 2.9.6] Resposta parseada:', data);
-      } catch (e) {
-        console.error('[FINALIZAR 2.9.6] Erro ao parsear JSON:', e);
+        console.log('[Dashboard 2.9.7] Dados recebidos:', data);
+      } catch (parseError) {
+        console.error('[Dashboard 2.9.7] Erro ao parsear JSON:', parseError);
         throw new Error('Resposta inválida do servidor');
       }
 
-      if (data.success) {
-        console.log('[FINALIZAR 2.9.6] Sucesso! Dados salvos no Drive.');
-        this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
-        this.mostrarLoading(false);
-        this.mostrarToast('Ronda finalizada e salva no Google Drive!', 'success');
-        this.mostrarTela('startScreen');
-      } else {
-        throw new Error(data.message || 'Erro desconhecido no servidor');
-      }
+      if (!data.success) throw new Error(data.message || 'Erro ao buscar dados');
+
+      // Atualizar KPIs
+      const kpiTotal = document.getElementById('kpiTotal');
+      if (kpiTotal) kpiTotal.textContent = data.kpi.total || 0;
+
+      const kpiAlertas = document.getElementById('kpiAlertas');
+      if (kpiAlertas) kpiAlertas.textContent = data.kpi.alertas || 0;
+
+      const kpiVazamentos = document.getElementById('kpiVazamentos');
+      if (kpiVazamentos) kpiVazamentos.textContent = data.kpi.vazamentos || 0;
+
+      const kpiNormal = document.getElementById('kpiNormal');
+      if (kpiNormal) kpiNormal.textContent = data.kpi.normal || 0;
+
+      // Atualizar gráficos
+      this.atualizarGraficoConsumo(data.graficos.porLocal || []);
+      this.atualizarGraficoLeituras(data.graficos.porDia || []);
+
+      this.mostrarToast(`Dashboard atualizado (${data.kpi.total || 0} leituras encontradas)`, 'success');
     } catch (error) {
-      console.error('[FINALIZAR 2.9.6] ERRO:', error);
-      this.mostrarLoading(false);
-      this.mostrarToast('Erro ao salvar no Drive: ' + error.message, 'error');
+      console.error('[Dashboard 2.9.7] Erro ao atualizar:', error);
+      this.mostrarToast('Erro ao carregar dashboard: ' + error.message, 'error');
     }
   }
 
-  mostrarGestao() {
-    this.mostrarTela('leiturasAdminScreen');
-    const container = document.getElementById('leiturasAdminScreen');
-    if (!container) return;
+  atualizarGraficoConsumo(dadosPorLocal) {
+    const ctx = document.getElementById('chartConsumo');
+    if (!ctx) return;
+    if (this.charts.consumo) this.charts.consumo.destroy();
 
-    const html = `
-      <div style="padding:25px;">
-        <h3>Criar Novo Usuário</h3>
-        <input type="text" id="novoNome" placeholder="Nome completo" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
-        <input type="text" id="novoUsuario" placeholder="Usuário (login)" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
-        <input type="password" id="novoSenha" placeholder="Senha" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
-        <select id="novoNivel" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:4px;">
-          <option value="tecnico">Técnico</option>
-          <option value="admin">Administrador</option>
-        </select>
-        <button onclick="app.criarUsuario()" style="padding:12px 24px;background:#28a745;color:white;border:none;border-radius:6px;margin-top:10px;font-weight:bold;">Criar Usuário</button>
+    const labels = dadosPorLocal.map(item => item[0] || 'Desconhecido');
+    const data = dadosPorLocal.map(item => item[1] || 0);
 
-        <h3 style="margin-top:40px;">Usuários Cadastrados</h3>
-        <div id="listaUsuarios" style="background:#f8f9fa;padding:20px;border-radius:8px;min-height:200px;"></div>
-      </div>
-    `;
-    container.innerHTML = html;
-    this.atualizarListaUsuarios();
-  }
-
-  criarUsuario() {
-    const nome = document.getElementById('novoNome').value.trim();
-    const usuario = document.getElementById('novoUsuario').value.trim();
-    const senha = document.getElementById('novoSenha').value.trim();
-    const nivel = document.getElementById('novoNivel').value;
-
-    if (!nome || !usuario || !senha) {
-      this.mostrarToast('Preencha todos os campos', 'error');
-      return;
-    }
-
-    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    if (usuarios.find(u => u.usuario === usuario)) {
-      this.mostrarToast('Usuário já existe!', 'error');
-      return;
-    }
-
-    usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
-    this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
-    this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
-    this.atualizarListaUsuarios();
-  }
-
-  trocarSenha(usuario) {
-    const novaSenha = prompt(`Nova senha para ${usuario}:`);
-    if (!novaSenha || novaSenha.trim() === '') return;
-
-    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    const u = usuarios.find(x => x.usuario === usuario);
-    if (u) {
-      u.senha = novaSenha.trim();
-      this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
-      this.mostrarToast(`Senha de ${usuario} alterada!`, 'success');
-      this.atualizarListaUsuarios();
-    } else {
-      this.mostrarToast('Usuário não encontrado', 'error');
-    }
-  }
-
-  atualizarListaUsuarios() {
-    const div = document.getElementById('listaUsuarios');
-    if (!div) return;
-
-    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    if (usuarios.length === 0) {
-      div.innerHTML = '<p style="color:#666;">Nenhum usuário cadastrado ainda.</p>';
-      return;
-    }
-
-    let html = '<table style="width:100%;border-collapse:collapse;">';
-    html += '<tr style="background:#e9ecef;"><th style="padding:10px;">Nome</th><th style="padding:10px;">Login</th><th style="padding:10px;">Nível</th><th style="padding:10px;">Ação</th></tr>';
-
-    usuarios.forEach(u => {
-      html += `
-        <tr style="border-bottom:1px solid #ddd;">
-          <td style="padding:10px;">${u.nome}</td>
-          <td style="padding:10px;">${u.usuario}</td>
-          <td style="padding:10px;">${u.nivel}</td>
-          <td style="padding:10px;">
-            <button onclick="app.trocarSenha('${u.usuario}')" style="padding:6px 12px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">Trocar Senha</button>
-          </td>
-        </tr>
-      `;
+    this.charts.consumo = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Consumo Total (m³)',
+          data: data,
+          backgroundColor: '#00aaff',
+          borderColor: '#0088cc',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: true } }
+      }
     });
-    html += '</table>';
-    div.innerHTML = html;
+  }
+
+  atualizarGraficoLeituras(dadosPorDia) {
+    const ctx = document.getElementById('chartLeituras');
+    if (!ctx) return;
+    if (this.charts.leituras) this.charts.leituras.destroy();
+
+    const labels = dadosPorDia.map(item => item[0] || 'Sem data');
+    const data = dadosPorDia.map(item => item[1] || 0);
+
+    this.charts.leituras = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Leituras por Dia',
+          data: data,
+          borderColor: '#28a745',
+          backgroundColor: 'rgba(40, 167, 69, 0.2)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
   }
 
   async login(e) {
@@ -413,6 +299,7 @@ class SistemaHidrometros {
         this.mostrarTela('dashboardScreen');
         const adminNav = document.getElementById('adminNav');
         if (adminNav) adminNav.style.display = 'flex';
+        this.atualizarDashboard();
       } else {
         this.mostrarTela('startScreen');
         this.verificarRondaPendente();
@@ -716,7 +603,7 @@ class SistemaHidrometros {
       h.justificativa = input.value.trim();
       this.salvamentoPendente = true;
       this.salvarRonda();
-      console.log(`[Justificativa 2.9.6] Salva para ${id}: ${h.justificativa.substring(0, 50)}...`);
+      console.log(`[Justificativa 2.9.7] Salva para ${id}: ${h.justificativa.substring(0, 50)}...`);
     }
   }
 
@@ -798,6 +685,77 @@ class SistemaHidrometros {
         btnFinalizar.textContent = `Finalizar (${percentual}%)`;
         btnFinalizar.disabled = true;
       }
+    }
+  }
+
+  async finalizarRonda() {
+    const semLeitura = this.ronda.hidrometros.filter(h => !h.leituraAtual);
+    if (semLeitura.length > 0) {
+      if (!confirm(`${semLeitura.length} hidrômetro(s) sem leitura. Finalizar mesmo assim?`)) return;
+    }
+
+    const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
+    if (anomaliasSemJust.length > 0) {
+      this.mostrarToast('Preencha a justificativa para todas as divergências', 'error');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Enviando dados para o Google Drive...');
+
+    const leituras = this.ronda.hidrometros.filter(h => h.leituraAtual > 0).map(h => ({
+      id: h.id,
+      local: h.local,
+      tipo: h.tipo,
+      leituraAnterior: h.leituraAnterior,
+      leituraAtual: h.leituraAtual,
+      consumoAnterior: h.consumoAnterior,
+      justificativa: h.justificativa,
+      foto: h.foto
+    }));
+
+    const payload = {
+      action: 'salvarLeituras',
+      leituras: leituras,
+      usuario: this.usuario.usuario,
+      rondaId: this.ronda.id,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('[FINALIZAR 2.9.7] Payload enviado:', JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await response.text();
+      console.log('[FINALIZAR 2.9.7] Resposta raw:', text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+        console.log('[FINALIZAR 2.9.7] Resposta parseada:', data);
+      } catch (e) {
+        console.error('[FINALIZAR 2.9.7] Erro ao parsear JSON:', e);
+        throw new Error('Resposta inválida do servidor');
+      }
+
+      if (data.success) {
+        console.log('[FINALIZAR 2.9.7] Sucesso! Dados salvos no Drive.');
+        this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+        this.mostrarLoading(false);
+        this.mostrarToast('Ronda finalizada e salva no Google Drive!', 'success');
+        this.mostrarTela('startScreen');
+      } else {
+        throw new Error(data.message || 'Erro desconhecido no servidor');
+      }
+    } catch (error) {
+      console.error('[FINALIZAR 2.9.7] ERRO:', error);
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro ao salvar no Drive: ' + error.message, 'error');
     }
   }
 
