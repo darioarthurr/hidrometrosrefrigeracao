@@ -880,3 +880,22 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
   app = new SistemaHidrometros();
 });
+// Só ativa quando está na tela de leitura ativa
+function bloquearVoltarQuandoNaLeitura() {
+  if (document.getElementById('leituraScreen')?.style.display === 'block') {
+    history.pushState(null, null, window.location.href);
+    window.addEventListener('popstate', bloquearPopstate);
+  } else {
+    window.removeEventListener('popstate', bloquearPopstate);
+  }
+}
+
+function bloquearPopstate(event) {
+  event.preventDefault();
+  history.pushState(null, null, window.location.href);
+  app.mostrarToast('Volte usando o botão "Pausar Ronda" para não perder dados', 'warning');
+}
+
+// Chame isso quando entrar/sair da tela de leitura
+// Exemplo: no entrarModoLeitura()
+bloquearVoltarQuandoNaLeitura();
