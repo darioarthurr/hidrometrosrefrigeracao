@@ -1,19 +1,21 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.3
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.4
  * CORREÇÕES:
- * - Fix: Gráficos com altura limitada (max 300px)
- * - Fix: Botões de filtro na tela de Leituras
- * - Add: Alterar nível do usuário (Admin/Técnico)
+ * - Fix: Gráfico de consumo por local agora soma consumo (m³) em vez de contar leituras
+ * - Add: Coluna de consumo na tabela Últimas Leituras
+ * - Fix: Função exportarDados() implementada corretamente
+ * - Fix: Cabeçalho da aba Leituras corrigido (sticky)
+ * - Add: Aba Análise com dados comparativos inteligentes
  */
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzObtvq5kbKHUCj28XjW4Ao4K-u_rTUuiO9Ywv3sM9Rzu2xAgISmqM8JlsMBGsBy5oN/exec',
-  VERSAO: '2.9.8.3',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
+  VERSAO: '2.9.8.4',
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2983',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2983',
-    BACKUP_RONDA: 'h2_backup_ronda_v2983',
-    USUARIOS: 'h2_usuarios_v2983'
+    USUARIO: 'h2_usuario_v2984',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2984',
+    BACKUP_RONDA: 'h2_backup_ronda_v2984',
+    USUARIOS: 'h2_usuarios_v2984'
   }
 };
 
@@ -27,7 +29,8 @@ class SistemaHidrometros {
     this.charts = {};
     this.usuariosCadastrados = [];
     this.dashboardData = null;
-    this.leiturasCache = []; // Cache para filtros de leituras
+    this.leiturasCache = [];
+    this.analiseData = null;
     
     console.log(`[v${CONFIG.VERSAO}] Inicializando...`);
     this.criarStatusRede();
@@ -125,7 +128,7 @@ class SistemaHidrometros {
     }
   }
 
-  // ==================== DASHBOARD (GRÁFICOS CORRIGIDOS) ====================
+  // ==================== DASHBOARD (CORRIGIDO) ====================
 
   async carregarDashboard() {
     if (!this.online) {
@@ -138,7 +141,10 @@ class SistemaHidrometros {
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'getDashboard', periodo: parseInt(document.getElementById('periodoDashboard')?.value) || 30 })
+        body: JSON.stringify({ 
+          action: 'getDashboard', 
+          periodo: parseInt(document.getElementById('periodoDashboard')?.value) || 30 
+        })
       });
       
       const data = await response.json();
@@ -181,7 +187,6 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartLocais');
     if (!canvas) return;
     
-    // CORREÇÃO: Altura máxima de 300px
     canvas.style.maxHeight = '300px';
     canvas.height = 300;
     
@@ -189,14 +194,14 @@ class SistemaHidrometros {
     if (this.charts.locais) this.charts.locais.destroy();
     
     const labels = dados.map(d => d[0]);
-    const values = dados.map(d => d[1]);
+    const values = dados.map(d => d[1]); // Agora já vem somado do backend
     
     this.charts.locais = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Leituras',
+          label: 'Consumo Total (m³)',
           data: values,
           backgroundColor: '#007bff',
           borderRadius: 4
@@ -204,12 +209,26 @@ class SistemaHidrometros {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false, // Permite altura fixa
+        maintainAspectRatio: false,
         plugins: {
-          legend: { display: false }
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y.toFixed(2) + ' m³';
+              }
+            }
+          }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          y: { 
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value.toFixed(1) + ' m³';
+              }
+            }
+          },
           x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
         }
       }
@@ -220,7 +239,6 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartDias');
     if (!canvas) return;
     
-    // CORREÇÃO: Altura máxima de 250px
     canvas.style.maxHeight = '250px';
     canvas.height = 250;
     
@@ -249,7 +267,7 @@ class SistemaHidrometros {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false, // Permite altura fixa
+        maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } }
       }
@@ -268,11 +286,15 @@ class SistemaHidrometros {
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
       else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
+      // CORREÇÃO: Adicionar coluna de consumo
+      const consumo = l.consumoDia || (l.leitura - (l.leituraAnterior || 0));
+      
       return `<tr>
         <td>${dataStr}</td>
         <td>${l.local}</td>
         <td>${l.tecnico}</td>
         <td>${l.leitura} m³</td>
+        <td><strong>${consumo.toFixed(2)} m³</strong></td>
         <td><span class="badge ${statusClass}">${l.status}</span></td>
         <td>${l.variacao > 0 ? '+' : ''}${l.variacao.toFixed(1)}%</td>
       </tr>`;
@@ -309,7 +331,6 @@ class SistemaHidrometros {
     
     this.renderizarUltimasLeituras(filtradas);
     
-    // Atualizar KPIs dos filtrados
     const total = filtradas.length;
     const alertas = filtradas.filter(l => l.status !== 'NORMAL').length;
     this.atualizarElemento('kpiTotal', total);
@@ -323,7 +344,205 @@ class SistemaHidrometros {
     if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
   }
 
-  // ==================== TELA LEITURAS (HISTÓRICO) - CORRIGIDA ====================
+  // ==================== ANÁLISE (NOVO - DADOS COMPARATIVOS) ====================
+
+  async carregarAnalise() {
+    if (!this.online) {
+      this.mostrarToast('Sem conexão - Análise indisponível offline', 'warning');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Gerando análise comparativa...');
+    
+    try {
+      // Buscar dados de 2 períodos para comparar
+      const [atual, anterior] = await Promise.all([
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
+        }).then(r => r.json()),
+        
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 }) // 60 dias para pegar média anterior
+        }).then(r => r.json())
+      ]);
+
+      if (atual.success && anterior.success) {
+        this.renderizarAnalise(atual, anterior);
+      }
+    } catch (error) {
+      console.error('[Análise] Erro:', error);
+      this.mostrarToast('Erro ao carregar análise', 'error');
+    } finally {
+      this.mostrarLoading(false);
+    }
+  }
+
+  renderizarAnalise(dadosAtual, dadosAnterior) {
+    // Comparativo de consumo
+    const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (l.consumoDia || 0), 0);
+    const consumoAnterior = dadosAnterior.ultimas
+      .filter(l => {
+        const data = new Date(l.data);
+        const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
+        return diasAtras > 30 && diasAtras <= 60;
+      })
+      .reduce((acc, l) => acc + (l.consumoDia || 0), 0);
+    
+    const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
+    
+    // Eficiência (alertas vs total)
+    const eficienciaAtual = dadosAtual.kpi.total > 0 ? 
+      ((dadosAtual.kpi.total - dadosAtual.kpi.alertas) / dadosAtual.kpi.total) * 100 : 100;
+    
+    // Top locais com maiores variações
+    const locaisVariacao = {};
+    dadosAtual.ultimas.forEach(l => {
+      if (!locaisVariacao[l.local]) {
+        locaisVariacao[l.local] = { total: 0, count: 0, alertas: 0 };
+      }
+      locaisVariacao[l.local].total += Math.abs(l.variacao || 0);
+      locaisVariacao[l.local].count++;
+      if (l.status !== 'NORMAL') locaisVariacao[l.local].alertas++;
+    });
+    
+    const topVariacoes = Object.entries(locaisVariacao)
+      .map(([local, dados]) => ({
+        local,
+        mediaVariacao: dados.total / dados.count,
+        alertas: dados.alertas
+      }))
+      .sort((a, b) => b.mediaVariacao - a.mediaVariacao)
+      .slice(0, 5);
+
+    // Renderizar cards de análise
+    const container = document.getElementById('analiseContainer');
+    if (container) {
+      container.innerHTML = `
+        <div class="analise-grid">
+          <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}">
+            <h4>Comparativo de Consumo</h4>
+            <div class="analise-valor">${variacaoConsumo > 0 ? '+' : ''}${variacaoConsumo.toFixed(1)}%</div>
+            <p>vs período anterior (30 dias)</p>
+            <small>Atual: ${consumoAtual.toFixed(2)} m³ | Anterior: ${consumoAnterior.toFixed(2)} m³</small>
+          </div>
+          
+          <div class="analise-card">
+            <h4>Eficiência das Leituras</h4>
+            <div class="analise-valor">${eficienciaAtual.toFixed(1)}%</div>
+            <p>Leituras normais sem alerta</p>
+            <small>${dadosAtual.kpi.alertas} alertas em ${dadosAtual.kpi.total} leituras</small>
+          </div>
+          
+          <div class="analise-card">
+            <h4>Média de Consumo por Leitura</h4>
+            <div class="analise-valor">${(consumoAtual / (dadosAtual.kpi.total || 1)).toFixed(2)} m³</div>
+            <p>Consumo médio diário</p>
+          </div>
+        </div>
+        
+        <div class="analise-section">
+          <h3>Locais com Maior Instabilidade</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Local</th>
+                <th>Variação Média</th>
+                <th>Alertas</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topVariacoes.map(item => `
+                <tr>
+                  <td>${item.local}</td>
+                  <td>${item.mediaVariacao.toFixed(1)}%</td>
+                  <td>${item.alertas}</td>
+                  <td><span class="badge ${item.alertas > 2 ? 'badge-danger' : item.alertas > 0 ? 'badge-warning' : 'badge-normal'}">
+                    ${item.alertas > 2 ? 'Crítico' : item.alertas > 0 ? 'Atenção' : 'Estável'}
+                  </span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="analise-section">
+          <h3>Tendência por Tipo de Hidrômetro</h3>
+          <canvas id="chartAnaliseTipo" height="250"></canvas>
+        </div>
+      `;
+      
+      // Gráfico de tendência por tipo
+      this.renderizarGraficoAnaliseTipo(dadosAtual.ultimas);
+    }
+  }
+
+  renderizarGraficoAnaliseTipo(leituras) {
+    const canvas = document.getElementById('chartAnaliseTipo');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (this.charts.analiseTipo) this.charts.analiseTipo.destroy();
+    
+    // Agrupar por tipo
+    const porTipo = {};
+    leituras.forEach(l => {
+      const tipo = l.tipo || 'Desconhecido';
+      if (!porTipo[tipo]) porTipo[tipo] = { consumo: 0, count: 0 };
+      porTipo[tipo].consumo += (l.consumoDia || 0);
+      porTipo[tipo].count++;
+    });
+    
+    const labels = Object.keys(porTipo);
+    const consumos = labels.map(t => porTipo[t].consumo);
+    const medias = labels.map(t => porTipo[t].consumo / porTipo[t].count);
+    
+    this.charts.analiseTipo = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Consumo Total (m³)',
+            data: consumos,
+            backgroundColor: '#007bff',
+            yAxisID: 'y'
+          },
+          {
+            label: 'Média por Leitura (m³)',
+            data: medias,
+            backgroundColor: '#28a745',
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            title: { display: true, text: 'Consumo Total (m³)' }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Média (m³)' }
+          }
+        }
+      }
+    });
+  }
+
+  // ==================== LEITURAS (HISTÓRICO) ====================
 
   async carregarLeituras() {
     if (!this.online) {
@@ -343,7 +562,7 @@ class SistemaHidrometros {
       const data = await response.json();
       if (data.success && data.leituras) {
         this.leiturasCache = data.leituras;
-        this.renderizarTabelaLeituras(data.leituras);
+        this.renderizarTabelaLeituras(data.leituras.slice(-50)); // Últimas 50
         this.popularFiltrosLeituras(data.leituras);
       }
     } catch (error) {
@@ -362,8 +581,7 @@ class SistemaHidrometros {
       return;
     }
     
-    // Pegar apenas as 50 mais recentes para performance
-    const recentes = leituras.slice(-50).reverse();
+    const recentes = leituras.slice().reverse(); // Mais recentes primeiro
     
     tbody.innerHTML = recentes.map(l => {
       const data = new Date(l.data);
@@ -372,14 +590,15 @@ class SistemaHidrometros {
       let statusClass = 'badge-normal';
       if (l.status === 'VAZAMENTO') statusClass = 'badge-danger';
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
+      else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
       return `<tr>
-        <td>${l.rondaId?.substring(0, 20) || '--'}...</td>
-        <td>${dataStr}</td>
-        <td>${l.tecnico}</td>
-        <td>${l.local}</td>
-        <td><span class="badge ${statusClass}">${l.status}</span></td>
-        <td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.rondaId?.substring(0, 20) || '--'}...</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${dataStr}</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.tecnico}</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.local}</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;"><span class="badge ${statusClass}">${l.status}</span></td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;text-align:center;">
           <button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">
             Ver
           </button>
@@ -389,7 +608,6 @@ class SistemaHidrometros {
   }
 
   popularFiltrosLeituras(leituras) {
-    // Popular select de locais
     const locais = [...new Set(leituras.map(l => l.local))].filter(l => l).sort();
     const selectLocal = document.getElementById('filtroLocalLeituras');
     if (selectLocal) {
@@ -398,7 +616,6 @@ class SistemaHidrometros {
     }
   }
 
-  // NOVO: Aplicar filtros na tela de Leituras
   aplicarFiltrosLeituras() {
     if (!this.leiturasCache.length) return;
     
@@ -438,10 +655,127 @@ class SistemaHidrometros {
     const leitura = this.leiturasCache.find(l => l.id === id);
     if (!leitura) return;
     
-    alert(`Detalhes da Leitura:\n\nLocal: ${leitura.local}\nHidrômetro: ${leitura.hidrometroId}\nLeitura: ${leitura.leituraAtual} m³\nAnterior: ${leitura.leituraAnterior} m³\nVariação: ${leitura.variacao?.toFixed(2)}%\nStatus: ${leitura.status}\nTécnico: ${leitura.tecnico}`);
+    const consumo = leitura.consumoDia || (leitura.leituraAtual - leitura.leituraAnterior);
+    
+    alert(`Detalhes da Leitura:
+    
+📍 Local: ${leitura.local}
+🔧 Hidrômetro: ${leitura.hidrometroId} (${leitura.tipo})
+📊 Leitura Atual: ${leitura.leituraAtual} m³
+📊 Leitura Anterior: ${leitura.leituraAnterior} m³
+💧 Consumo: ${consumo.toFixed(2)} m³
+📈 Variação: ${leitura.variacao?.toFixed(2)}%
+⚠️ Status: ${leitura.status}
+👤 Técnico: ${leitura.tecnico}
+📝 Justificativa: ${leitura.justificativa || 'Nenhuma'}
+📅 Data: ${new Date(leitura.data).toLocaleString('pt-BR')}`);
   }
 
-  // ==================== GESTÃO DE USUÁRIOS (ALTERAR NÍVEL) ====================
+  // ==================== EXPORTAR CSV (CORRIGIDO) ====================
+
+  exportarDados() {
+    // Determinar qual tela está ativa para exportar dados apropriados
+    const telaAtiva = document.querySelector('.screen.active')?.id;
+    
+    let dados = [];
+    let nomeArquivo = '';
+    
+    if (telaAtiva === 'leiturasAdminScreen' && this.leiturasCache.length > 0) {
+      // Exportar histórico de leituras
+      dados = this.leiturasCache;
+      nomeArquivo = `Historico_Leituras_${new Date().toISOString().slice(0,10)}`;
+      
+      const csv = this.converterParaCSV(dados, [
+        { key: 'data', label: 'Data/Hora', format: (v) => new Date(v).toLocaleString('pt-BR') },
+        { key: 'rondaId', label: 'Ronda' },
+        { key: 'tecnico', label: 'Técnico' },
+        { key: 'local', label: 'Local' },
+        { key: 'hidrometroId', label: 'Hidrômetro' },
+        { key: 'leituraAnterior', label: 'Leitura Anterior (m³)' },
+        { key: 'leituraAtual', label: 'Leitura Atual (m³)' },
+        { key: 'consumoDia', label: 'Consumo (m³)', format: (v) => v?.toFixed(2) || '0.00' },
+        { key: 'variacao', label: 'Variação (%)', format: (v) => v?.toFixed(2) || '0.00' },
+        { key: 'status', label: 'Status' },
+        { key: 'justificativa', label: 'Justificativa' }
+      ]);
+      
+      this.baixarCSV(csv, nomeArquivo);
+      
+    } else if (telaAtiva === 'dashboardScreen' && this.dashboardData) {
+      // Exportar dados do dashboard (últimas leituras)
+      dados = this.dashboardData.ultimas;
+      nomeArquivo = `Dashboard_${new Date().toISOString().slice(0,10)}`;
+      
+      const csv = this.converterParaCSV(dados, [
+        { key: 'data', label: 'Data/Hora', format: (v) => new Date(v).toLocaleString('pt-BR') },
+        { key: 'local', label: 'Local' },
+        { key: 'tecnico', label: 'Técnico' },
+        { key: 'leitura', label: 'Leitura (m³)' },
+        { key: 'status', label: 'Status' },
+        { key: 'variacao', label: 'Variação (%)', format: (v) => v?.toFixed(2) || '0.00' }
+      ]);
+      
+      this.baixarCSV(csv, nomeArquivo);
+      
+    } else if (this.ronda.hidrometros.length > 0) {
+      // Exportar ronda atual
+      dados = this.ronda.hidrometros;
+      nomeArquivo = `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}`;
+      
+      const csv = this.converterParaCSV(dados, [
+        { key: 'id', label: 'ID' },
+        { key: 'local', label: 'Local' },
+        { key: 'tipo', label: 'Tipo' },
+        { key: 'leituraAnterior', label: 'Leitura Anterior (m³)' },
+        { key: 'leituraAtual', label: 'Leitura Atual (m³)' },
+        { key: 'consumoDia', label: 'Consumo (m³)', format: (v) => v?.toFixed(2) || '' },
+        { key: 'variacao', label: 'Variação (%)', format: (v) => v?.toFixed(2) || '' },
+        { key: 'status', label: 'Status' },
+        { key: 'justificativa', label: 'Justificativa' }
+      ]);
+      
+      this.baixarCSV(csv, nomeArquivo);
+      
+    } else {
+      this.mostrarToast('Nenhum dado disponível para exportar', 'error');
+    }
+  }
+
+  converterParaCSV(dados, colunas) {
+    // Header
+    let csv = colunas.map(c => `"${c.label}"`).join(';') + '\n';
+    
+    // Dados
+    dados.forEach(row => {
+      const linha = colunas.map(col => {
+        let valor = row[col.key];
+        if (col.format && valor !== undefined) {
+          valor = col.format(valor);
+        }
+        // Escapar aspas e envolver em aspas se necessário
+        if (valor === null || valor === undefined) valor = '';
+        valor = String(valor).replace(/"/g, '""');
+        return `"${valor}"`;
+      }).join(';');
+      csv += linha + '\n';
+    });
+    
+    return '\ufeff' + csv; // BOM para Excel reconhecer UTF-8
+  }
+
+  baixarCSV(conteudo, nomeArquivo) {
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${nomeArquivo}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.mostrarToast('✅ Arquivo CSV baixado com sucesso!', 'success');
+  }
+
+  // ==================== GESTÃO DE USUÁRIOS ====================
 
   mostrarGestao() {
     this.mostrarTela('gestaoScreen');
@@ -489,7 +823,6 @@ class SistemaHidrometros {
       const nivelClass = isAdmin ? 'level-admin' : 'level-tecnico';
       const nivelText = this.normalizarNivel(u.nivel);
       
-      // NOVO: Botão para alternar nível
       const proximoNivel = isAdmin ? 'tecnico' : 'admin';
       const textoBotaoNivel = isAdmin ? '↓ Tornar Técnico' : '↑ Tornar Admin';
       const corBotaoNivel = isAdmin ? '#6c757d' : '#dc3545';
@@ -511,7 +844,6 @@ class SistemaHidrometros {
     div.innerHTML = html;
   }
 
-  // NOVO: Função para alternar nível do usuário
   async alternarNivel(usuario, novoNivel) {
     const nivelTexto = novoNivel === 'admin' ? 'ADMINISTRADOR' : 'TÉCNICO';
     if (!confirm(`Deseja realmente alterar ${usuario} para ${nivelTexto}?`)) return;
@@ -522,11 +854,7 @@ class SistemaHidrometros {
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'alterarNivel',
-          usuario: usuario,
-          novoNivel: novoNivel
-        })
+        body: JSON.stringify({ action: 'alterarNivel', usuario, novoNivel })
       });
       
       const data = await response.json();
@@ -534,7 +862,7 @@ class SistemaHidrometros {
       
       if (data.success) {
         this.mostrarToast(`Nível de ${usuario} alterado para ${nivelTexto}!`, 'success');
-        await this.carregarUsuariosDoServidor(); // Recarregar lista
+        await this.carregarUsuariosDoServidor();
       } else {
         throw new Error(data.message);
       }
@@ -665,10 +993,10 @@ class SistemaHidrometros {
       this.carregarDashboard();
     } else if (page === 'leituras') {
       this.mostrarTela('leiturasAdminScreen');
-      this.carregarLeituras(); // Carrega histórico ao entrar
+      this.carregarLeituras();
     } else if (page === 'analise') {
-      this.mostrarTela('dashboardScreen');
-      this.carregarDashboard();
+      this.mostrarTela('analiseScreen');
+      this.carregarAnalise();
     } else if (page === 'gestao') {
       this.mostrarGestao();
     }
