@@ -3,9 +3,10 @@
  * CORREÇÕES:
  * - Foto persiste ao trocar local e após F5
  * - Fantasma no canto inferior esquerdo removido
- * - Select de local funcionando sem erro
- * - Tela ADMIN 100% restaurada (dashboard, filtros, exportar, paginação)
- * - togglePassword funcionando
+ * - Select de local funcionando
+ * - ABAS ADMIN funcionando (Dashboard / Leituras / Análise / Gestão)
+ * - adminNav aparece automaticamente para nível 'admin'
+ * - Botões de navegação com classe 'active' correta
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbztb2Zp6RTJKfzlDrOIN1zAyWl0Tz9PSmotNKUk4qKPX0JbOtT0mcytauJIuiAiWW9l/exec',
@@ -89,6 +90,8 @@ class SistemaHidrometros {
 
       if (this.usuario.nivel === 'admin') {
         this.mostrarTela('dashboardScreen');
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav) adminNav.style.display = 'flex';
       } else {
         this.mostrarTela('startScreen');
         this.verificarRondaPendente();
@@ -139,7 +142,6 @@ class SistemaHidrometros {
   }
 
   mudarLocal(valor) {
-    console.log('[Compat] mudarLocal chamado');
     this.carregarHidrometros(valor);
   }
 
@@ -160,8 +162,14 @@ class SistemaHidrometros {
     }
   }
 
-  // ==================== FUNÇÕES ADMIN RESTAURADAS ====================
+  // ==================== NAVEGAÇÃO DAS ABAS ADMIN (corrigido) ====================
   navigate(page) {
+    // Remove active de todos
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    // Adiciona active no botão clicado
+    const activeBtn = document.querySelector(`[data-page="${page}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
     if (page === 'dashboard') this.mostrarTela('dashboardScreen');
     if (page === 'leituras') this.mostrarTela('leiturasAdminScreen');
     if (page === 'analise') this.mostrarToast('Análise em desenvolvimento', 'info');
@@ -221,8 +229,11 @@ class SistemaHidrometros {
       if (header) header.style.display = 'flex';
       const nomeTecnico = document.getElementById('nomeTecnico');
       if (nomeTecnico) nomeTecnico.textContent = data.nome;
+
       if (data.nivel === 'admin') {
         this.mostrarTela('dashboardScreen');
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav) adminNav.style.display = 'flex';
       } else {
         this.mostrarTela('startScreen');
         this.verificarRondaPendente();
@@ -354,7 +365,7 @@ class SistemaHidrometros {
     const div = document.createElement('div');
     div.className = 'hidrometro-card';
     div.id = `card-${h.id}`;
-    div.innerHTML = `
+    div.innerHTML = ` 
       <div class="card-header">
         <div class="info-principal">
           <span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span>
