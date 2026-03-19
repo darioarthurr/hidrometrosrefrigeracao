@@ -313,6 +313,10 @@ class SistemaHidrometros {
       this.mostrarLoading(false);
       if (data.success) {
         this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
+        // Atualiza lista localmente também
+        let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+        usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
+        this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
         this.atualizarListaUsuarios();
       } else {
         this.mostrarToast(data.message || 'Erro ao criar usuário', 'error');
