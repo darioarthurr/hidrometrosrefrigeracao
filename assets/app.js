@@ -1,8 +1,10 @@
 /** 
  * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.6 
- * Backend atualizado com o novo URL
- * Salvamento no Google Drive corrigido
- * Logs detalhados para debug
+ * - Justificativa persiste ao trocar local / F5
+ * - Salvamento no Google Drive com logs detalhados
+ * - Exportação CSV real
+ * - Gestão de usuários (criar + listar + trocar senha)
+ * - URL do backend atualizado
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbwZ4-rctW0IIfHYX-fWsnNI8bmdoIcX3M24ufZt0jhC1fQI6p-HP_jSA1zXMTa05c1V/exec',
@@ -47,6 +49,22 @@ class SistemaHidrometros {
     }
   }
 
+  restaurarJustificativa(id) {
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h || !h.justificativa) return;
+
+    const textarea = document.getElementById(`just-${id}`);
+    const container = document.getElementById(`just-container-${id}`);
+
+    if (textarea) {
+      textarea.value = h.justificativa;
+    }
+    if (container) {
+      container.style.display = 'block';
+    }
+    console.log(`[Restaurar 2.9.6] Justificativa restaurada para ${id}: ${h.justificativa.substring(0, 50)}...`);
+  }
+
   limparElementosFantasmas() {
     const elementosParaRemover = [
       '#modalFotoAmpliada',
@@ -64,7 +82,7 @@ class SistemaHidrometros {
     ];
     elementosParaRemover.forEach(seletor => {
       document.querySelectorAll(seletor).forEach(el => {
-        console.log('[Cleanup 2.9.6] Removendo elemento fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
+        console.log('[Cleanup 2.9.6] Removendo fantasma:', el.outerHTML.substring(0, 100) || el.id || el.className);
         el.remove();
       });
     });
@@ -132,7 +150,7 @@ class SistemaHidrometros {
     window.addEventListener('beforeunload', () => {
       if (this.salvamentoPendente && this.ronda.id) {
         this.salvarRonda();
-        console.log('[Save 2.9.6] Forçado antes do refresh (F5)');
+        console.log('[Save 2.9.6] Forçado antes do refresh');
       }
     });
 
@@ -140,7 +158,6 @@ class SistemaHidrometros {
   }
 
   mudarLocal(valor) {
-    console.log('[Compat] mudarLocal chamado');
     this.carregarHidrometros(valor);
   }
 
@@ -168,13 +185,8 @@ class SistemaHidrometros {
 
     if (page === 'dashboard') this.mostrarTela('dashboardScreen');
     if (page === 'leituras') this.mostrarTela('leiturasAdminScreen');
-    if (page === 'analise') {
-      this.mostrarTela('dashboardScreen');
-      this.initAnaliseCharts();
-    }
-    if (page === 'gestao') {
-      this.mostrarGestao();
-    }
+    if (page === 'analise') { this.mostrarTela('dashboardScreen'); this.initAnaliseCharts(); }
+    if (page === 'gestao') this.mostrarGestao();
   }
 
   exportarDados() {
@@ -208,7 +220,6 @@ class SistemaHidrometros {
     this.mostrarToast('✅ Arquivo CSV baixado com sucesso!', 'success');
   }
 
-  // ==================== FINALIZAR RONDA - LOGS DETALHADOS ====================
   async finalizarRonda() {
     const semLeitura = this.ronda.hidrometros.filter(h => !h.leituraAtual);
     if (semLeitura.length > 0) {
@@ -242,7 +253,7 @@ class SistemaHidrometros {
       timestamp: new Date().toISOString()
     };
 
-    console.log('[FINALIZAR 2.9.6] Payload enviado para o backend:', JSON.stringify(payload, null, 2));
+    console.log('[FINALIZAR 2.9.6] Payload enviado:', JSON.stringify(payload, null, 2));
 
     try {
       const response = await fetch(CONFIG.API_URL, {
@@ -252,35 +263,34 @@ class SistemaHidrometros {
       });
 
       const text = await response.text();
-      console.log('[FINALIZAR 2.9.6] Resposta RAW do Google Script:', text);
+      console.log('[FINALIZAR 2.9.6] Resposta raw:', text);
 
       let data;
       try {
         data = JSON.parse(text);
         console.log('[FINALIZAR 2.9.6] Resposta parseada:', data);
-      } catch (parseError) {
-        console.error('[FINALIZAR 2.9.6] Erro ao parsear resposta (não é JSON válido):', parseError);
-        throw new Error('Resposta inválida do servidor - verifique o Google Script');
+      } catch (e) {
+        console.error('[FINALIZAR 2.9.6] Erro ao parsear JSON:', e);
+        throw new Error('Resposta inválida do servidor');
       }
 
       if (data.success) {
-        console.log('[FINALIZAR 2.9.6] Sucesso! Dados salvos no Google Drive.');
+        console.log('[FINALIZAR 2.9.6] Sucesso! Dados salvos no Drive.');
         this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         this.mostrarLoading(false);
         this.mostrarToast('Ronda finalizada e salva no Google Drive!', 'success');
         this.mostrarTela('startScreen');
       } else {
-        throw new Error(data.message || 'Erro desconhecido retornado pelo servidor');
+        throw new Error(data.message || 'Erro desconhecido no servidor');
       }
     } catch (error) {
-      console.error('[FINALIZAR 2.9.6] ERRO COMPLETO AO ENVIAR:', error);
+      console.error('[FINALIZAR 2.9.6] ERRO:', error);
       this.mostrarLoading(false);
       this.mostrarToast('Erro ao salvar no Drive: ' + error.message, 'error');
     }
   }
 
-  // ==================== GESTÃO DE USUÁRIOS (completa) ====================
   mostrarGestao() {
     this.mostrarTela('leiturasAdminScreen');
     const container = document.getElementById('leiturasAdminScreen');
@@ -374,7 +384,6 @@ class SistemaHidrometros {
     div.innerHTML = html;
   }
 
-  // ==================== RESTANTE DO CÓDIGO COMPLETO ====================
   async login(e) {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
@@ -515,18 +524,30 @@ class SistemaHidrometros {
     if (!local) return;
     this.localAtual = local;
     this.limparElementosFantasmas();
+
     const container = document.getElementById('hidrometrosContainer');
     if (!container) return;
     container.innerHTML = '';
+
     const hidros = this.ronda.hidrometros.filter(h => h.local === local);
     hidros.forEach((h) => {
       const card = this.criarCardHidrometro(h);
       container.appendChild(card);
-      if (h.leituraAtual) this.atualizarUI(h.id);
-      if (h.foto) this.restaurarFoto(h.id);
+
+      if (h.leituraAtual) {
+        this.atualizarUI(h.id);
+      }
+      if (h.foto) {
+        this.restaurarFoto(h.id);
+      }
+      if (h.justificativa) {
+        this.restaurarJustificativa(h.id);
+      }
     });
+
     this.atualizarProgresso();
     this.popularSelectLocais();
+
     const select = document.getElementById('localSelect');
     if (select) select.value = local;
   }
@@ -692,9 +713,10 @@ class SistemaHidrometros {
     if (!input) return;
     const h = this.ronda.hidrometros.find(h => h.id === id);
     if (h) {
-      h.justificativa = input.value;
+      h.justificativa = input.value.trim();
       this.salvamentoPendente = true;
       this.salvarRonda();
+      console.log(`[Justificativa 2.9.6] Salva para ${id}: ${h.justificativa.substring(0, 50)}...`);
     }
   }
 
