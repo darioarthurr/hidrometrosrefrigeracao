@@ -1,15 +1,15 @@
-/** 
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.7 
+/**
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8
  * - Bloqueio do botão de voltar/gesto no celular quando na tela de leitura
  * - Justificativa persiste ao trocar local / F5
  * - Salvamento no Google Drive com logs detalhados
  * - Exportação CSV real
  * - Gestão de usuários (criar + listar + trocar senha)
- * - URL do backend atualizado
+ * - URL do backend atualizado: https://script.google.com/macros/s/AKfycbyTLDhK7RBQMbdWZKaRE3MQ7ZrYVd3fbGeRTvQcdP-Eg2TvI2Hvc2s5wTgXV-vKaUrv/exec
  */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwZ4-rctW0IIfHYX-fWsnNI8bmdoIcX3M24ufZt0jhC1fQI6p-HP_jSA1zXMTa05c1V/exec',
-  VERSAO: '2.9.7',
+  API_URL: 'https://script.google.com/macros/s/AKfycbyTLDhK7RBQMbdWZKaRE3MQ7ZrYVd3fbGeRTvQcdP-Eg2TvI2Hvc2s5wTgXV-vKaUrv/exec',
+  VERSAO: '2.9.8',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v28',
     RONDA_ATIVA: 'h2_ronda_ativa_v28',
@@ -88,6 +88,8 @@ class SistemaHidrometros {
       if (header) header.style.display = 'flex';
       const nomeTecnico = document.getElementById('nomeTecnico');
       if (nomeTecnico) nomeTecnico.textContent = this.usuario.nome;
+      const nivelSpan = document.getElementById('nivelUsuario');
+      if (nivelSpan) nivelSpan.textContent = this.usuario.nivel.toUpperCase();
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
       if (rondaSalva && rondaSalva.id) {
         this.ronda = rondaSalva;
@@ -293,15 +295,34 @@ class SistemaHidrometros {
       this.mostrarToast('Preencha todos os campos', 'error');
       return;
     }
-    let usuarios = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
-    if (usuarios.find(u => u.usuario === usuario)) {
-      this.mostrarToast('Usuário já existe!', 'error');
-      return;
-    }
-    usuarios.push({ nome, usuario, senha, nivel, criadoEm: new Date().toISOString() });
-    this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, usuarios);
-    this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
-    this.atualizarListaUsuarios();
+    this.mostrarLoading(true, 'Criando usuário...');
+    const payload = {
+      action: 'criarUsuario',
+      nome: nome,
+      usuario: usuario,
+      senha: senha,
+      nivel: nivel
+    };
+    fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+      this.mostrarLoading(false);
+      if (data.success) {
+        this.mostrarToast(`Usuário ${usuario} criado com sucesso!`, 'success');
+        this.atualizarListaUsuarios();
+      } else {
+        this.mostrarToast(data.message || 'Erro ao criar usuário', 'error');
+      }
+    })
+    .catch(error => {
+      console.error('[Criar Usuário] Erro:', error);
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro ao conectar com o servidor', 'error');
+    });
   }
 
   trocarSenha(usuario) {
@@ -364,6 +385,8 @@ class SistemaHidrometros {
       if (!data.success) throw new Error(data.message || 'Credenciais inválidas');
       this.usuario = data;
       this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIO, data);
+      const nivelSpan = document.getElementById('nivelUsuario');
+      if (nivelSpan) nivelSpan.textContent = data.nivel.toUpperCase();
       this.mostrarLoading(false);
       document.getElementById('loginScreen').classList.remove('active');
       const header = document.getElementById('corporateHeader');
@@ -464,7 +487,7 @@ class SistemaHidrometros {
       }
     }
     this.atualizarProgresso();
-    this.bloquearVoltarQuandoNaLeitura(); // Ativa o bloqueio do botão voltar
+    this.bloquearVoltarQuandoNaLeitura();
   }
 
   popularSelectLocais() {
@@ -825,7 +848,6 @@ class SistemaHidrometros {
       tela.style.display = 'block';
       requestAnimationFrame(() => tela.classList.add('active'));
     }
-    // Desativa o bloqueio do botão voltar quando sai da tela de leitura
     this.bloquearVoltarQuandoNaLeitura();
   }
 
