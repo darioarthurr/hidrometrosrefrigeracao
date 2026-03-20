@@ -318,8 +318,11 @@
             <div class="admin-container">
                 <header class="page-header">
                     <h1>Dashboard</h1>
+                    <!-- CORRIGIDO: Período com Hoje e Ontem -->
                     <div class="periodo-selector">
-                        <select id="periodoDashboard" onchange="app.carregarDashboard()">
+                        <select id="periodoDashboard" onchange="app.atualizarDashboard()">
+                            <option value="hoje">Hoje</option>
+                            <option value="ontem">Ontem</option>
                             <option value="7">Últimos 7 dias</option>
                             <option value="30" selected>Últimos 30 dias</option>
                             <option value="90">Últimos 3 meses</option>
@@ -359,12 +362,19 @@
                     </article>
                 </div>
 
-                <!-- Filtros -->
+                <!-- CORRIGIDO: Filtros com Tipo -->
                 <div class="filtros-dashboard">
                     <div>
                         <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Local</label>
                         <select id="filtroLocal">
                             <option value="">Todos os locais</option>
+                        </select>
+                    </div>
+                    <!-- NOVO: Filtro por Tipo -->
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Tipo</label>
+                        <select id="filtroTipo">
+                            <option value="">Todos os tipos</option>
                         </select>
                     </div>
                     <div>
@@ -426,18 +436,19 @@
             </div>
         </section>
 
-        <!-- TELA LEITURAS (HISTÓRICO) -->
+        <!-- CORRIGIDO: TELA LEITURAS (HISTÓRICO) - sem position sticky -->
         <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
-            <div class="admin-container">
-                <header class="page-header" style="position: sticky; top: 0; background: #f5f7fa; z-index: 100; padding: 20px 0; margin-bottom: 20px;">
+            <div class="admin-container" style="padding: 20px;">
+                <!-- Remover position sticky do header -->
+                <header class="page-header" style="margin-bottom: 20px;">
                     <h1>Histórico de Leituras</h1>
-                    <button class="btn-export" onclick="app.exportarDados()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        <span>📥</span> Exportar CSV
+                    <button onclick="app.exportarDados()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        📥 Exportar CSV
                     </button>
                 </header>
                 
-                <!-- Filtros -->
-                <div class="filters-card" style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);position:sticky;top:80px;z-index:99;">
+                <!-- Filtros sem position sticky -->
+                <div style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px;">
                         <div>
                             <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
@@ -466,27 +477,29 @@
                     </div>
                     
                     <div style="display:flex;gap:10px;justify-content:flex-end;">
-                        <button onclick="app.limparFiltrosLeituras()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar Filtros</button>
-                        <button onclick="app.aplicarFiltrosLeituras()" style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">🔍 Aplicar Filtros</button>
+                        <button onclick="app.limparFiltrosLeituras()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar</button>
+                        <button onclick="app.aplicarFiltrosLeituras()" style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">🔍 Aplicar</button>
                     </div>
                 </div>
 
-                <!-- Tabela -->
-                <div class="table-card" style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                    <div class="table-responsive" style="overflow-x:auto;">
-                        <table class="data-table" style="width:100%;border-collapse:collapse;">
-                            <thead style="position:sticky;top:0;background:#f8f9fa;z-index:10;">
+                <!-- Tabela sem position sticky no thead -->
+                <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead style="background:#f8f9fa;">
                                 <tr>
-                                    <th style="padding:15px 12px;text-align:left;border-bottom:2px solid #dee2e6;">Ronda</th>
-                                    <th style="padding:15px 12px;text-align:left;border-bottom:2px solid #dee2e6;">Data/Hora</th>
-                                    <th style="padding:15px 12px;text-align:left;border-bottom:2px solid #dee2e6;">Técnico</th>
-                                    <th style="padding:15px 12px;text-align:left;border-bottom:2px solid #dee2e6;">Local</th>
-                                    <th style="padding:15px 12px;text-align:left;border-bottom:2px solid #dee2e6;">Status</th>
-                                    <th style="padding:15px 12px;text-align:center;border-bottom:2px solid #dee2e6;">Ações</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Ronda</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Data/Hora</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Técnico</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Local</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Status</th>
+                                    <th style="padding:12px;text-align:center;border-bottom:2px solid #dee2e6;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tabelaLeituras">
-                                <tr><td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar Filtros" para carregar</td></tr>
+                                <tr>
+                                    <td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar Filtros" para carregar</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -520,37 +533,4 @@
                     <div class="form-grid" style="max-width:600px;">
                         <input type="text" id="novoNome" placeholder="Nome completo" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
                         <input type="text" id="novoUsuario" placeholder="Usuário (login)" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
-                        <input type="password" id="novoSenha" placeholder="Senha" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
-                        <select id="novoNivel" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
-                            <option value="tecnico">Técnico</option>
-                            <option value="admin">Administrador</option>
-                        </select>
-                        <button class="btn-success" onclick="app.criarUsuario()" style="justify-self:start;">Criar Usuário</button>
-                    </div>
-                </div>
-
-                <div class="gestao-card">
-                    <h3 style="margin-top:0;color:#003366;">👥 Usuários Cadastrados</h3>
-                    <div id="listaUsuarios">
-                        <p style="color:#666;text-align:center;padding:20px;">Carregando usuários...</p>
-                    </div>
-                    <button onclick="app.carregarUsuariosDoServidor()" style="margin-top:15px;padding:8px 16px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">🔄 Atualizar Lista</button>
-                </div>
-            </div>
-        </section>
-
-    </div>
-
-    <script src="assets/app.js?v=2.9.8.4"></script>
-   
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.8.4')
-                    .then(registration => console.log('[SW] Registrado'))
-                    .catch(error => console.log('[SW] Falha:', error));
-            });
-        }
-    </script>
-</body>
-</html>
+                        
