@@ -1,22 +1,24 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.6
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.4
  * CORREÇÕES:
- * - Add: Método logout() corrigido (antes era encerrarSessao)
- * - Add: Filtro por Tipo (CEDAE, REUSO, etc) no dashboard
- * - Add: Opções "Hoje" e "Ontem" no período do dashboard
- * - Fix: Tabela de leituras com scroll correto (max-height)
- * - Fix: Altura dos gráficos limitada fisicamente
- * - Fix: Código completo (não truncado)
+ * - Fix: Gráfico de consumo por local agora soma consumo (m³) em vez de contar leituras
+ * - Add: Coluna de consumo na tabela Últimas Leituras
+ * - Fix: Função exportarDados() implementada corretamente
+ * - Fix: Cabeçalho da aba Leituras corrigido (sticky)
+ * - Add: Aba Análise com dados comparativos inteligentes
+ * - Fix: Filtro por Tipo adicionado
+ * - Fix: Período Hoje/Ontem implementado
+ * - Fix: Altura do gráfico de análise limitada
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbyTLDhK7RBQMbdWZKaRE3MQ7ZrYVd3fbGeRTvQcdP-Eg2TvI2Hvc2s5wTgXV-vKaUrv/exec',
-  VERSAO: '2.9.8.6',
+  VERSAO: '2.9.8.4',
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2986',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2986',
-    BACKUP_RONDA: 'h2_backup_ronda_v2986',
-    USUARIOS: 'h2_usuarios_v2986'
+    USUARIO: 'h2_usuario_v2984',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2984',
+    BACKUP_RONDA: 'h2_backup_ronda_v2984',
+    USUARIOS: 'h2_usuarios_v2984'
   }
 };
 
@@ -129,7 +131,7 @@ class SistemaHidrometros {
     }
   }
 
-  // ==================== DASHBOARD CORRIGIDO ====================
+  // ==================== DASHBOARD (CORRIGIDO COM TIPO E PERÍODO) ====================
 
   async carregarDashboard() {
     if (!this.online) {
@@ -139,13 +141,12 @@ class SistemaHidrometros {
 
     this.mostrarLoading(true, 'Carregando estatísticas...');
     try {
-      const periodo = document.getElementById('periodoDashboard')?.value || '30';
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ 
           action: 'getDashboard', 
-          periodo: periodo
+          periodo: parseInt(document.getElementById('periodoDashboard')?.value) || 30 
         })
       });
       
@@ -153,7 +154,8 @@ class SistemaHidrometros {
       if (data.success) {
         this.dashboardData = data;
         this.renderizarDashboard(data);
-        this.popularFiltrosDashboard(data);
+        this.popularFiltroLocais(data);
+        this.popularFiltroTipos(data);
       } else {
         throw new Error(data.message);
       }
@@ -163,6 +165,29 @@ class SistemaHidrometros {
     } finally {
       this.mostrarLoading(false);
     }
+  }
+
+  // NOVO: Método para atualizar dashboard com suporte a Hoje/Ontem
+  async atualizarDashboard() {
+    const periodo = document.getElementById('periodoDashboard')?.value;
+    
+    // Se for "hoje" ou "ontem", calcular datas específicas
+    if (periodo === 'hoje' || periodo === 'ontem') {
+      const hoje = new Date();
+      const dataFiltro = periodo === 'hoje' ? hoje : new Date(hoje - 86400000);
+      const dataStr = dataFiltro.toISOString().split('T')[0];
+      
+      // Carregar dashboard normal mas depois filtrar pela data
+      await this.carregarDashboard();
+      
+      // Aplicar filtro de data automaticamente
+      document.getElementById('filtroData').value = dataStr;
+      this.aplicarFiltros();
+      
+      return;
+    }
+    
+    await this.carregarDashboard();
   }
 
   renderizarDashboard(data) {
@@ -189,8 +214,6 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartLocais');
     if (!canvas) return;
     
-    // CORREÇÃO: Altura fixa para evitar estouro
-    canvas.style.height = '300px';
     canvas.style.maxHeight = '300px';
     canvas.height = 300;
     
@@ -198,7 +221,7 @@ class SistemaHidrometros {
     if (this.charts.locais) this.charts.locais.destroy();
     
     const labels = dados.map(d => d[0]);
-    const values = dados.map(d => d[1]);
+    const values = dados.map(d => d[1]); // Agora já vem somado do backend
     
     this.charts.locais = new Chart(ctx, {
       type: 'bar',
@@ -243,8 +266,6 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartDias');
     if (!canvas) return;
     
-    // CORREÇÃO: Altura fixa
-    canvas.style.height = '250px';
     canvas.style.maxHeight = '250px';
     canvas.height = 250;
     
@@ -292,7 +313,8 @@ class SistemaHidrometros {
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
       else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
-      const consumo = l.consumoDia || 0;
+      // CORREÇÃO: Adicionar coluna de consumo
+      const consumo = l.consumoDia || (l.leitura - (l.leituraAnterior || 0));
       
       return `<tr>
         <td>${dataStr}</td>
@@ -306,38 +328,39 @@ class SistemaHidrometros {
     }).join('');
   }
 
-  popularFiltrosDashboard(data) {
-    // Popular locais
-    const selectLocal = document.getElementById('filtroLocal');
-    if (selectLocal && data.graficos?.porLocal) {
-      const locais = data.graficos.porLocal.map(l => l[0]);
-      selectLocal.innerHTML = '<option value="">Todos os locais</option>' + 
-        locais.map(l => `<option value="${l}">${l}</option>`).join('');
-    }
+  popularFiltroLocais(data) {
+    const select = document.getElementById('filtroLocal');
+    if (!select || !data.graficos?.porLocal) return;
     
-    // NOVO: Popular tipos (CEDAE, REUSO, etc)
-    const selectTipo = document.getElementById('filtroTipo');
-    if (selectTipo && data.ultimas) {
-      const tipos = [...new Set(data.ultimas.map(l => l.tipo).filter(t => t))];
-      selectTipo.innerHTML = '<option value="">Todos os tipos</option>' + 
-        tipos.map(t => `<option value="${t}">${t}</option>`).join('');
-    }
+    const locais = data.graficos.porLocal.map(l => l[0]);
+    select.innerHTML = '<option value="">Todos os locais</option>' + 
+      locais.map(l => `<option value="${l}">${l}</option>`).join('');
   }
 
+  // NOVO: Método para popular filtro de tipos
+  popularFiltroTipos(data) {
+    const select = document.getElementById('filtroTipo');
+    if (!select || !data.ultimas) return;
+    
+    const tipos = [...new Set(data.ultimas.map(l => l.tipo).filter(t => t))].sort();
+    select.innerHTML = '<option value="">Todos os tipos</option>' + 
+      tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  // CORRIGIDO: Modificado para incluir filtro de tipo
   aplicarFiltros() {
     if (!this.dashboardData) return;
     
     const filtroLocal = document.getElementById('filtroLocal')?.value || '';
-    const filtroStatus = document.getElementById('filtroStatus')?.value || '';
     const filtroTipo = document.getElementById('filtroTipo')?.value || ''; // NOVO
+    const filtroStatus = document.getElementById('filtroStatus')?.value || '';
     const filtroData = document.getElementById('filtroData')?.value || '';
     
     let filtradas = [...this.dashboardData.ultimas];
     
     if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
-    if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
     if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo); // NOVO
-    
+    if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
     if (filtroData) {
       const dataFiltro = new Date(filtroData);
       filtradas = filtradas.filter(l => {
@@ -356,13 +379,13 @@ class SistemaHidrometros {
 
   limparFiltros() {
     document.getElementById('filtroLocal').value = '';
-    document.getElementById('filtroStatus').value = '';
     document.getElementById('filtroTipo').value = ''; // NOVO
+    document.getElementById('filtroStatus').value = '';
     document.getElementById('filtroData').value = '';
     if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
   }
 
-  // ==================== ANÁLISE (GRÁFICOS LIMITADOS) ====================
+  // ==================== ANÁLISE (CORRIGIDO COM ALTURA LIMITADA) ====================
 
   async carregarAnalise() {
     if (!this.online) {
@@ -373,6 +396,7 @@ class SistemaHidrometros {
     this.mostrarLoading(true, 'Gerando análise comparativa...');
     
     try {
+      // Buscar dados de 2 períodos para comparar
       const [atual, anterior] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
@@ -383,7 +407,7 @@ class SistemaHidrometros {
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 }) // 60 dias para pegar média anterior
         }).then(r => r.json())
       ]);
 
@@ -399,6 +423,7 @@ class SistemaHidrometros {
   }
 
   renderizarAnalise(dadosAtual, dadosAnterior) {
+    // Comparativo de consumo
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (l.consumoDia || 0), 0);
     const consumoAnterior = dadosAnterior.ultimas
       .filter(l => {
@@ -409,9 +434,12 @@ class SistemaHidrometros {
       .reduce((acc, l) => acc + (l.consumoDia || 0), 0);
     
     const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
+    
+    // Eficiência (alertas vs total)
     const eficienciaAtual = dadosAtual.kpi.total > 0 ? 
       ((dadosAtual.kpi.total - dadosAtual.kpi.alertas) / dadosAtual.kpi.total) * 100 : 100;
     
+    // Top locais com maiores variações
     const locaisVariacao = {};
     dadosAtual.ultimas.forEach(l => {
       if (!locaisVariacao[l.local]) {
@@ -431,6 +459,7 @@ class SistemaHidrometros {
       .sort((a, b) => b.mediaVariacao - a.mediaVariacao)
       .slice(0, 5);
 
+    // Renderizar cards de análise
     const container = document.getElementById('analiseContainer');
     if (container) {
       container.innerHTML = `
@@ -450,15 +479,15 @@ class SistemaHidrometros {
           </div>
           
           <div class="analise-card">
-            <h4>Média de Consumo</h4>
+            <h4>Média de Consumo por Leitura</h4>
             <div class="analise-valor">${(consumoAtual / (dadosAtual.kpi.total || 1)).toFixed(2)} m³</div>
             <p>Consumo médio diário</p>
           </div>
         </div>
         
-        <div class="analise-section" style="background:white;padding:20px;border-radius:12px;margin-top:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <div class="analise-section">
           <h3>Locais com Maior Instabilidade</h3>
-          <table class="data-table" style="width:100%;margin-top:15px;">
+          <table class="data-table">
             <thead>
               <tr>
                 <th>Local</th>
@@ -482,29 +511,33 @@ class SistemaHidrometros {
           </table>
         </div>
         
-        <div class="analise-section" style="background:white;padding:20px;border-radius:12px;margin-top:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <!-- CORREÇÃO: Container com altura limitada -->
+        <div class="analise-section">
           <h3>Tendência por Tipo de Hidrômetro</h3>
-          <div style="height:300px;position:relative;">
+          <div style="height: 300px; position: relative;">
             <canvas id="chartAnaliseTipo"></canvas>
           </div>
         </div>
       `;
       
+      // Gráfico de tendência por tipo
       this.renderizarGraficoAnaliseTipo(dadosAtual.ultimas);
     }
   }
 
+  // CORRIGIDO: Altura limitada para 300px
   renderizarGraficoAnaliseTipo(leituras) {
     const canvas = document.getElementById('chartAnaliseTipo');
     if (!canvas) return;
     
-    // CORREÇÃO: Altura fixa
-    canvas.style.height = '300px';
+    // CORREÇÃO: Limitar altura
+    canvas.style.maxHeight = '300px';
     canvas.height = 300;
     
     const ctx = canvas.getContext('2d');
     if (this.charts.analiseTipo) this.charts.analiseTipo.destroy();
     
+    // Agrupar por tipo
     const porTipo = {};
     leituras.forEach(l => {
       const tipo = l.tipo || 'Desconhecido';
@@ -538,7 +571,7 @@ class SistemaHidrometros {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: false, // IMPORTANTE
         scales: {
           y: {
             type: 'linear',
@@ -558,7 +591,7 @@ class SistemaHidrometros {
     });
   }
 
-  // ==================== LEITURAS (HISTÓRICO) - CORREÇÃO SCROLL ====================
+  // ==================== LEITURAS (HISTÓRICO) ====================
 
   async carregarLeituras() {
     if (!this.online) {
@@ -578,7 +611,7 @@ class SistemaHidrometros {
       const data = await response.json();
       if (data.success && data.leituras) {
         this.leiturasCache = data.leituras;
-        this.renderizarTabelaLeituras(data.leituras.slice(-50));
+        this.renderizarTabelaLeituras(data.leituras.slice(-50)); // Últimas 50
         this.popularFiltrosLeituras(data.leituras);
       }
     } catch (error) {
@@ -592,20 +625,12 @@ class SistemaHidrometros {
     const tbody = document.getElementById('tabelaLeituras');
     if (!tbody) return;
     
-    // CORREÇÃO: Container com scroll
-    const container = tbody.parentElement;
-    if (container) {
-      container.style.maxHeight = '400px';
-      container.style.overflowY = 'auto';
-      container.style.display = 'block';
-    }
-    
     if (leituras.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Nenhuma leitura encontrada</td></tr>';
       return;
     }
     
-    const recentes = leituras.slice().reverse();
+    const recentes = leituras.slice().reverse(); // Mais recentes primeiro
     
     tbody.innerHTML = recentes.map(l => {
       const data = new Date(l.data);
@@ -614,6 +639,7 @@ class SistemaHidrometros {
       let statusClass = 'badge-normal';
       if (l.status === 'VAZAMENTO') statusClass = 'badge-danger';
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
+      else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
       return `<tr>
         <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.rondaId?.substring(0, 20) || '--'}...</td>
@@ -622,7 +648,9 @@ class SistemaHidrometros {
         <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.local}</td>
         <td style="padding:12px;border-bottom:1px solid #dee2e6;"><span class="badge ${statusClass}">${l.status}</span></td>
         <td style="padding:12px;border-bottom:1px solid #dee2e6;text-align:center;">
-          <button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">Ver</button>
+          <button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">
+            Ver
+          </button>
         </td>
       </tr>`;
     }).join('');
@@ -678,18 +706,31 @@ class SistemaHidrometros {
     
     const consumo = leitura.consumoDia || (leitura.leituraAtual - leitura.leituraAnterior);
     
-    alert(`Detalhes da Leitura:\n\nLocal: ${leitura.local}\nHidrômetro: ${leitura.hidrometroId} (${leitura.tipo})\nLeitura: ${leitura.leituraAtual} m³\nAnterior: ${leitura.leituraAnterior} m³\nConsumo: ${consumo.toFixed(2)} m³\nVariação: ${leitura.variacao?.toFixed(2)}%\nStatus: ${leitura.status}\nTécnico: ${leitura.tecnico}`);
+    alert(`Detalhes da Leitura:
+    
+📍 Local: ${leitura.local}
+🔧 Hidrômetro: ${leitura.hidrometroId} (${leitura.tipo})
+📊 Leitura Atual: ${leitura.leituraAtual} m³
+📊 Leitura Anterior: ${leitura.leituraAnterior} m³
+💧 Consumo: ${consumo.toFixed(2)} m³
+📈 Variação: ${leitura.variacao?.toFixed(2)}%
+⚠️ Status: ${leitura.status}
+👤 Técnico: ${leitura.tecnico}
+📝 Justificativa: ${leitura.justificativa || 'Nenhuma'}
+📅 Data: ${new Date(leitura.data).toLocaleString('pt-BR')}`);
   }
 
-  // ==================== EXPORTAR ====================
+  // ==================== EXPORTAR CSV (CORRIGIDO) ====================
 
   exportarDados() {
+    // Determinar qual tela está ativa para exportar dados apropriados
     const telaAtiva = document.querySelector('.screen.active')?.id;
     
     let dados = [];
     let nomeArquivo = '';
     
     if (telaAtiva === 'leiturasAdminScreen' && this.leiturasCache.length > 0) {
+      // Exportar histórico de leituras
       dados = this.leiturasCache;
       nomeArquivo = `Historico_Leituras_${new Date().toISOString().slice(0,10)}`;
       
@@ -710,6 +751,7 @@ class SistemaHidrometros {
       this.baixarCSV(csv, nomeArquivo);
       
     } else if (telaAtiva === 'dashboardScreen' && this.dashboardData) {
+      // Exportar dados do dashboard (últimas leituras)
       dados = this.dashboardData.ultimas;
       nomeArquivo = `Dashboard_${new Date().toISOString().slice(0,10)}`;
       
@@ -718,7 +760,6 @@ class SistemaHidrometros {
         { key: 'local', label: 'Local' },
         { key: 'tecnico', label: 'Técnico' },
         { key: 'leitura', label: 'Leitura (m³)' },
-        { key: 'consumoDia', label: 'Consumo (m³)', format: (v) => v?.toFixed(2) || '0.00' },
         { key: 'status', label: 'Status' },
         { key: 'variacao', label: 'Variação (%)', format: (v) => v?.toFixed(2) || '0.00' }
       ]);
@@ -726,6 +767,7 @@ class SistemaHidrometros {
       this.baixarCSV(csv, nomeArquivo);
       
     } else if (this.ronda.hidrometros.length > 0) {
+      // Exportar ronda atual
       dados = this.ronda.hidrometros;
       nomeArquivo = `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}`;
       
@@ -749,12 +791,17 @@ class SistemaHidrometros {
   }
 
   converterParaCSV(dados, colunas) {
+    // Header
     let csv = colunas.map(c => `"${c.label}"`).join(';') + '\n';
     
+    // Dados
     dados.forEach(row => {
       const linha = colunas.map(col => {
         let valor = row[col.key];
-        if (col.format && valor !== undefined) valor = col.format(valor);
+        if (col.format && valor !== undefined) {
+          valor = col.format(valor);
+        }
+        // Escapar aspas e envolver em aspas se necessário
         if (valor === null || valor === undefined) valor = '';
         valor = String(valor).replace(/"/g, '""');
         return `"${valor}"`;
@@ -762,7 +809,7 @@ class SistemaHidrometros {
       csv += linha + '\n';
     });
     
-    return '\ufeff' + csv;
+    return '\ufeff' + csv; // BOM para Excel reconhecer UTF-8
   }
 
   baixarCSV(conteudo, nomeArquivo) {
@@ -1004,16 +1051,9 @@ class SistemaHidrometros {
     }
   }
 
-  // ==================== LOGOUT (CORRIGIDO) ====================
-  
-  // CORREÇÃO: Método logout() adicionado (o HTML estava chamando app.logout())
-  logout() {
-    this.encerrarSessao();
-  }
-
   // ==================== RONDA DE LEITURA ====================
 
-  async iniciarRonda() {
+  async iniciarLeitura() {
     if (!this.usuario) return;
     this.mostrarLoading(true, 'Carregando...');
     
@@ -1423,6 +1463,11 @@ class SistemaHidrometros {
 
   salvarStorage(chave, valor) {
     try { localStorage.setItem(chave, JSON.stringify(valor)); } catch {}
+  }
+
+  // CORRIGIDO: Método logout garantido
+  logout() {
+    this.encerrarSessao();
   }
 
   encerrarSessao() {
