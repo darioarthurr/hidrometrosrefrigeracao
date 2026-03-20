@@ -12,7 +12,7 @@
  */
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyTLDhK7RBQMbdWZKaRE3MQ7ZrYVd3fbGeRTvQcdP-Eg2TvI2Hvc2s5wTgXV-vKaUrv/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
   VERSAO: '2.9.8.4',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
