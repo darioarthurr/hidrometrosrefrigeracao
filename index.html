@@ -7,530 +7,514 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Hidrômetros GPS">
-    <meta name="application-name" content="Hidrômetros GPS">
-    <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
     
-    <title>Leitura de Hidrômetros v2.9.8.4 | Grupo GPS • Multiplan</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
+    <title>Leitura de Hidrômetros v2.9.8.5 | Grupo GPS • Multiplan</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.8.4">
     
     <style>
-        /* Estilos adicionais v2.9.8.4 */
-        .status-badge {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            z-index: 9999;
-            color: white;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f0f2f5; color: #333; }
         
-        #nivelUsuario {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-right: 10px;
-        }
+        /* Loading */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-bottom: 20px;
-        }
+        /* Telas */
+        .screen { display: none; min-height: 100vh; }
+        .screen.active { display: block; }
         
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
+        /* Login */
+        #loginScreen { background: linear-gradient(135deg, #003366 0%, #004080 100%); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-container { width: 100%; max-width: 400px; }
+        .login-card { background: white; border-radius: 16px; padding: 40px 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); text-align: center; }
+        .brand-header { margin-bottom: 30px; }
+        .logo-gps { font-size: 1.5rem; font-weight: bold; color: #003366; }
+        .logo-multiplan { font-size: 1.2rem; color: #666; }
+        .login-icon { font-size: 4rem; margin: 20px 0; position: relative; display: inline-block; }
+        .pulse-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; border: 3px solid rgba(0,123,255,0.3); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+        .login-title { color: #003366; margin-bottom: 10px; font-size: 1.5rem; }
+        .login-version { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; font-size: 0.9rem; }
+        .form-input { width: 100%; padding: 12px; border: 2px solid #e1e1e1; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s; }
+        .form-input:focus { outline: none; border-color: #007bff; }
+        .btn-primary { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        .btn-primary:hover { background: #0056b3; }
+        .error-message { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 6px; margin-bottom: 20px; display: none; font-size: 0.9rem; }
         
-        .badge-danger { background: #dc3545; color: white; }
-        .badge-warning { background: #ffc107; color: #000; }
+        /* Header */
+        .corporate-header { background: #003366; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header-brand { font-weight: bold; font-size: 1.1rem; }
+        .header-user { display: flex; align-items: center; gap: 10px; }
+        .user-name { font-size: 0.9rem; }
+        .btn-icon { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 1.2rem; }
+        
+        /* Menu Admin */
+        .admin-nav { background: white; display: flex; justify-content: center; gap: 10px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: sticky; top: 60px; z-index: 999; }
+        .nav-item { background: none; border: none; padding: 10px 20px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #666; font-weight: 500; transition: all 0.3s; }
+        .nav-item:hover { background: #f0f2f5; color: #007bff; }
+        .nav-item.active { background: #007bff; color: white; }
+        
+        /* Dashboard */
+        .admin-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .page-header h1 { color: #003366; font-size: 1.5rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #007bff; display: flex; align-items: center; gap: 15px; }
+        .kpi-icon { font-size: 2rem; }
+        .kpi-content { display: flex; flex-direction: column; }
+        .kpi-value { font-size: 1.8rem; font-weight: bold; color: #003366; }
+        .kpi-label { color: #666; font-size: 0.9rem; }
+        
+        /* Filtros */
+        .filtros-dashboard { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; flex-wrap: wrap; align-items: end; }
+        .filtros-dashboard select, .filtros-dashboard input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; min-width: 150px; font-size: 0.9rem; }
+        .btn-filtro { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn-limpar { padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        
+        /* Gráficos */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 15px; color: #003366; font-size: 1.1rem; }
+        .chart-container { position: relative; height: 300px; }
+        
+        /* Tabelas */
+        .table-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .table-card h3 { margin-bottom: 15px; color: #003366; font-size: 1.1rem; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; font-size: 0.9rem; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
         .badge-normal { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #000; }
+        .badge-danger { background: #dc3545; color: white; }
         
-        .users-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
+        /* Tela Start */
+        .welcome-container { max-width: 500px; margin: 40px auto; padding: 20px; text-align: center; }
+        .welcome-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .welcome-icon { font-size: 4rem; margin-bottom: 20px; }
+        .welcome-title { color: #003366; margin-bottom: 10px; font-size: 1.5rem; }
+        .btn-start { width: 100%; padding: 20px; background: #28a745; color: white; border: none; border-radius: 12px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-continuar { width: 100%; padding: 15px; background: #ffc107; color: #000; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; }
         
-        .users-table th,
-        .users-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
+        /* Leitura */
+        .leitura-container { max-width: 800px; margin: 0 auto; padding: 20px; padding-bottom: 100px; }
+        .progresso-container { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .progresso-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .barra-progresso { height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden; }
+        .barra-preenchida { height: 100%; background: #28a745; transition: width 0.3s; }
+        .local-selector-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .local-selector-card select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
         
-        .users-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
+        .hidrometro-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #007bff; }
+        .hidrometro-card.completo { border-left-color: #28a745; }
+        .hidrometro-card.anomalia { border-left-color: #dc3545; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .tipo { font-weight: bold; color: #003366; }
+        .id { color: #666; font-size: 0.9rem; margin-left: 10px; }
+        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        .status-badge.pendente { background: #ffc107; color: #000; }
+        .status-badge.completo { background: #28a745; color: white; }
+        .leitura-anterior { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .campo-leitura { display: flex; gap: 10px; margin-bottom: 15px; }
+        .input-leitura { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1.2rem; text-align: center; }
+        .unidade { padding: 12px; background: #f8f9fa; border-radius: 8px; font-weight: bold; color: #666; }
+        .btn-foto { display: inline-block; padding: 10px 20px; background: #6c757d; color: white; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .btn-foto.tem-foto { background: #28a745; }
+        .justificativa-container { margin-top: 15px; }
+        .input-justificativa { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; min-height: 80px; font-family: inherit; }
         
-        .level-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            color: white;
-        }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; gap: 10px; z-index: 1000; }
+        .btn-pausar { flex: 1; padding: 15px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-finalizar { flex: 2; padding: 15px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-finalizar:disabled { background: #ccc; cursor: not-allowed; }
         
-        .level-admin { background: #dc3545; }
-        .level-tecnico { background: #007bff; }
-        
-        .analise-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .analise-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #007bff;
-        }
-        
+        /* Análise */
+        .analise-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .analise-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #007bff; }
         .analise-card.alerta { border-left-color: #dc3545; }
         .analise-card.normal { border-left-color: #28a745; }
+        .analise-valor { font-size: 2rem; font-weight: bold; color: #003366; margin: 10px 0; }
+        .analise-section { margin-bottom: 30px; }
         
-        .analise-valor {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #003366;
-            margin: 10px 0;
-        }
-        
-        .gestao-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .gestao-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .form-grid {
-            display: grid;
-            gap: 15px;
-        }
-        
-        .btn-success {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .filtros-dashboard {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: end;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+        /* Gestão */
+        .gestao-container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .gestao-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .gestao-card h3 { margin-top: 0; color: #003366; margin-bottom: 20px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+        .form-grid input, .form-grid select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; }
+        .btn-success { background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .users-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .users-table th, .users-table td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        .users-table th { background: #f8f9fa; font-weight: 600; color: #495057; }
+        .level-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: white; }
+        .level-admin { background: #dc3545; }
+        .level-tecnico { background: #007bff; }
     </style>
 </head>
 <body>
-    <div id="app" role="application">
-       
-        <!-- Loading -->
-        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-            <div class="spinner"></div>
-            <div id="loadingText" class="loading-text">Carregando...</div>
+    <!-- Loading -->
+    <div id="loadingOverlay" style="display:none;"></div>
+
+    <!-- TELA LOGIN -->
+    <section id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="brand-header">
+                    <div class="logo-gps">Grupo GPS</div>
+                    <div style="color:#ccc;font-size:0.8rem;">•</div>
+                    <div class="logo-multiplan">MULTIPLAN</div>
+                </div>
+               
+                <div class="login-icon">
+                    <span>💧</span>
+                    <div class="pulse-ring"></div>
+                </div>
+               
+                <h1 class="login-title">Leitura de Hidrômetros</h1>
+                <p class="login-version">v2.9.8.5</p>
+               
+                <div id="loginError" class="error-message"></div>
+               
+                <form id="loginForm" novalidate>
+                    <div class="form-group">
+                        <label class="form-label">Usuário</label>
+                        <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="username" required>
+                    </div>
+                   
+                    <div class="form-group">
+                        <label class="form-label">Senha</label>
+                        <input type="password" id="password" class="form-input" placeholder="Digite sua senha" autocomplete="current-password" required>
+                    </div>
+                   
+                    <button type="submit" class="btn-primary">Entrar no Sistema</button>
+                </form>
+               
+                <p style="color:#666;font-size:0.85rem;margin-top:20px;">Sistema exclusivo para equipe autorizada</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- HEADER CORPORATIVO -->
+    <header id="corporateHeader" class="corporate-header" style="display:none;">
+        <div class="header-brand">
+            <span>Grupo GPS</span>
+            <span style="margin:0 8px;">|</span>
+            <span>MULTIPLAN</span>
+        </div>
+        <div style="font-size:0.9rem;opacity:0.9;">Leitura de Hidrômetros</div>
+        <div class="header-user">
+            <span id="nomeTecnico" class="user-name"></span>
+            <span id="nivelUsuario" style="background:#007bff;color:white;padding:4px 8px;border-radius:4px;font-size:0.75rem;font-weight:bold;">TECNICO</span>
+            <button class="btn-icon" onclick="app.logout()" title="Sair">🚪</button>
+        </div>
+    </header>
+
+    <!-- MENU ADMIN -->
+    <nav id="adminNav" class="admin-nav" style="display:none;">
+        <button class="nav-item active" data-page="dashboard" onclick="app.navigate('dashboard')">
+            <span>📊</span><span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-page="leituras" onclick="app.navigate('leituras')">
+            <span>📋</span><span>Leituras</span>
+        </button>
+        <button class="nav-item" data-page="analise" onclick="app.navigate('analise')">
+            <span>📈</span><span>Análise</span>
+        </button>
+        <button class="nav-item" data-page="gestao" onclick="app.navigate('gestao')">
+            <span>⚙️</span><span>Gestão</span>
+        </button>
+    </nav>
+
+    <!-- TELA INICIAL (Técnico) -->
+    <section id="startScreen" class="screen">
+        <div class="welcome-container">
+            <div class="welcome-card">
+                <div class="welcome-icon">👋</div>
+                <h2 class="welcome-title">Olá, <span id="nomeTecnicoStart"></span></h2>
+                <p style="color:#666;margin-bottom:30px;">Pronto para iniciar a ronda de leituras?</p>
+               
+                <button class="btn-start" onclick="app.iniciarLeitura()" id="btnIniciar">
+                    <span>🚀</span><span>INICIAR LEITURA DOS HIDRÔMETROS</span>
+                </button>
+               
+                <button class="btn-continuar" onclick="app.continuarRonda()" id="btnContinuarRonda" style="display:none;">
+                    <span>▶️</span><span>Continuar Ronda em Andamento</span>
+                </button>
+               
+                <p style="color:#999;font-size:0.9rem;margin-top:20px;">Versão 2.9.8.5</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELA DE LEITURA -->
+    <section id="leituraScreen" class="screen">
+        <div class="leitura-container">
+            <div class="progresso-container">
+                <div class="progresso-header">
+                    <span style="font-weight:600;color:#003366;">Progresso da Ronda</span>
+                    <span id="progressText" style="font-weight:bold;color:#007bff;">0/0 (0%)</span>
+                </div>
+                <div class="barra-progresso">
+                    <div class="barra-preenchida" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="local-selector-card">
+                <label style="display:block;margin-bottom:8px;font-weight:500;color:#555;">Selecione o local</label>
+                <select id="localSelect" onchange="app.carregarHidrometros(this.value)">
+                    <option value="">Escolha um local...</option>
+                </select>
+            </div>
+
+            <div id="hidrometrosContainer"></div>
         </div>
 
-        <!-- Toast Container -->
-        <div id="toastContainer" class="toast-container"></div>
-
-        <!-- TELA LOGIN -->
-        <section id="loginScreen" class="screen active" role="main">
-            <div class="login-container">
-                <div class="login-card">
-                    <header class="brand-header">
-                        <div class="logo-gps">Grupo GPS</div>
-                        <div class="logo-separator">•</div>
-                        <div class="logo-multiplan">MULTIPLAN</div>
-                    </header>
-                   
-                    <div class="login-icon">
-                        <span>💧</span>
-                        <div class="pulse-ring"></div>
-                    </div>
-                   
-                    <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.8.4</p>
-                   
-                    <div id="loginError" class="error-message"></div>
-                   
-                    <form id="loginForm" class="login-form" novalidate>
-                        <div class="form-group">
-                            <label for="username" class="form-label">Usuário</label>
-                            <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="username" required>
-                        </div>
-                       
-                        <div class="form-group">
-                            <label for="password" class="form-label">Senha</label>
-                            <div class="password-wrapper">
-                                <input type="password" id="password" class="form-input" placeholder="Digite sua senha" autocomplete="current-password" required>
-                                <button type="button" class="toggle-password" onclick="app.togglePassword ? app.togglePassword() : null">👁️</button>
-                            </div>
-                        </div>
-                       
-                        <button type="submit" class="btn-primary btn-login">
-                            <span>Entrar no Sistema</span>
-                        </button>
-                    </form>
-                   
-                    <footer class="login-footer">
-                        <p>Sistema exclusivo para equipe autorizada</p>
-                        <p id="statusRede" style="font-size: 0.85rem; margin-top: 10px; color: #666;">Verificando conexão...</p>
-                    </footer>
-                </div>
-            </div>
-        </section>
-
-        <!-- HEADER CORPORATIVO -->
-        <header id="corporateHeader" class="corporate-header" style="display:none;">
-            <div class="header-brand">
-                <span class="header-gps">Grupo GPS</span>
-                <span class="header-separator">|</span>
-                <span class="header-multiplan">MULTIPLAN</span>
-            </div>
-            <div class="header-title">Leitura de Hidrômetros</div>
-            <div class="header-user">
-                <span id="nomeTecnico" class="user-name"></span>
-                <span id="nivelUsuario" class="user-badge">OP</span>
-                <button class="btn-icon" onclick="app.logout()" title="Sair">🚪</button>
-            </div>
-        </header>
-
-        <!-- MENU ADMIN -->
-        <nav id="adminNav" class="admin-nav" style="display:none;">
-            <button class="nav-item active" data-page="dashboard" onclick="app.navigate('dashboard')">
-                <span>📊</span><span>Dashboard</span>
+        <div id="bottomBar" class="bottom-bar" style="display: none;">
+            <button class="btn-pausar" onclick="app.pausarRonda()">
+                <span>⏸️</span><span>Pausar</span>
             </button>
-            <button class="nav-item" data-page="leituras" onclick="app.navigate('leituras')">
-                <span>📋</span><span>Leituras</span>
+            <button class="btn-finalizar" id="btnFinalizar" disabled onclick="app.finalizarRonda()">
+                <span>✓</span><span>Finalizar Ronda</span>
             </button>
-            <button class="nav-item" data-page="analise" onclick="app.navigate('analise')">
-                <span>📈</span><span>Análise</span>
-            </button>
-            <button class="nav-item" data-page="gestao" onclick="app.navigate('gestao')">
-                <span>⚙️</span><span>Gestão</span>
-            </button>
-        </nav>
+        </div>
+    </section>
 
-        <!-- TELA INICIAL (Técnico) -->
-        <section id="startScreen" class="screen" role="main">
-            <div class="welcome-container">
-                <div class="welcome-card">
-                    <div class="welcome-icon">👋</div>
-                    <h2 class="welcome-title">Olá, <span id="nomeTecnicoStart"></span></h2>
-                    <p class="welcome-subtitle">Pronto para iniciar a ronda de leituras?</p>
-                   
-                    <button class="btn-primary btn-start" onclick="app.iniciarLeitura()" id="btnIniciar">
-                        <span>🚀</span><span>INICIAR LEITURA DOS HIDRÔMETROS</span>
-                    </button>
-                   
-                    <button class="btn-secondary btn-continuar" onclick="app.continuarRonda()" id="btnContinuarRonda" style="display:none;">
-                        <span>▶️</span><span>Continuar Ronda em Andamento</span>
-                    </button>
-                   
-                    <div class="system-info">
-                        <p>Versão 2.9.8.4</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TELA DE LEITURA -->
-        <section id="leituraScreen" class="screen" role="main">
-            <div class="leitura-container">
-                <div class="progresso-container">
-                    <div class="progresso-header">
-                        <span class="progresso-titulo">Progresso da Ronda</span>
-                        <span class="progresso-valor" id="progressText">0/0</span>
-                    </div>
-                    <div class="barra-progresso" id="progressBar">
-                        <div class="barra-preenchida" style="width: 0%"></div>
-                    </div>
-                    <div class="progresso-percentual">0% concluído</div>
-                </div>
-
-                <div class="local-selector-card">
-                    <label for="localSelect">Selecione o local</label>
-                    <select id="localSelect" onchange="app.carregarHidrometros(this.value)">
-                        <option value="">Escolha um local...</option>
+    <!-- TELA DASHBOARD -->
+    <section id="dashboardScreen" class="screen admin-screen">
+        <div class="admin-container">
+            <div class="page-header">
+                <h1>Dashboard</h1>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <select id="periodoDashboard" onchange="app.carregarDashboard()" style="padding:10px;border:1px solid #ddd;border-radius:6px;">
+                        <option value="hoje">Hoje</option>
+                        <option value="ontem">Ontem</option>
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="30" selected>Últimos 30 dias</option>
+                        <option value="90">Últimos 3 meses</option>
                     </select>
                 </div>
-
-                <div id="hidrometrosContainer" class="hidrometros-list"></div>
-                <div class="bottom-spacer"></div>
             </div>
 
-            <div id="bottomBar" class="bottom-bar" style="display: none;">
-                <div class="bottom-bar-actions">
-                    <button id="btnPausar" class="btn-pausar" onclick="app.pausarRonda()">
-                        <span>⏸️</span><span>Pausar</span>
-                    </button>
-                    <button id="btnFinalizar" class="btn-finalizar" disabled onclick="app.finalizarRonda()">
-                        <span>✓</span><span>Finalizar Ronda</span>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- TELA DASHBOARD -->
-        <section id="dashboardScreen" class="screen admin-screen" role="main">
-            <div class="admin-container">
-                <header class="page-header">
-                    <h1>Dashboard</h1>
-                    <!-- CORRIGIDO: Período com Hoje e Ontem -->
-                    <div class="periodo-selector">
-                        <select id="periodoDashboard" onchange="app.atualizarDashboard()">
-                            <option value="hoje">Hoje</option>
-                            <option value="ontem">Ontem</option>
-                            <option value="7">Últimos 7 dias</option>
-                            <option value="30" selected>Últimos 30 dias</option>
-                            <option value="90">Últimos 3 meses</option>
-                        </select>
-                    </div>
-                </header>
-
-                <!-- KPIs -->
-                <div class="kpi-grid">
-                    <article class="kpi-card">
-                        <div class="kpi-icon">💧</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiTotal">0</span>
-                            <span class="kpi-label">Total Leituras</span>
-                        </div>
-                    </article>
-                    <article class="kpi-card" style="border-left-color: #ffc107;">
-                        <div class="kpi-icon">⚠️</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiAlertas">0</span>
-                            <span class="kpi-label">Alertas</span>
-                        </div>
-                    </article>
-                    <article class="kpi-card" style="border-left-color: #dc3545;">
-                        <div class="kpi-icon">🚨</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiVazamentos">0</span>
-                            <span class="kpi-label">Vazamentos</span>
-                        </div>
-                    </article>
-                    <article class="kpi-card" style="border-left-color: #28a745;">
-                        <div class="kpi-icon">✓</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiNormal">0</span>
-                            <span class="kpi-label">Normal</span>
-                        </div>
-                    </article>
-                </div>
-
-                <!-- CORRIGIDO: Filtros com Tipo -->
-                <div class="filtros-dashboard">
-                    <div>
-                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Local</label>
-                        <select id="filtroLocal">
-                            <option value="">Todos os locais</option>
-                        </select>
-                    </div>
-                    <!-- NOVO: Filtro por Tipo -->
-                    <div>
-                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Tipo</label>
-                        <select id="filtroTipo">
-                            <option value="">Todos os tipos</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Status</label>
-                        <select id="filtroStatus">
-                            <option value="">Todos</option>
-                            <option value="NORMAL">Normal</option>
-                            <option value="VAZAMENTO">Vazamento</option>
-                            <option value="ALERTA_VARIACAO">Alerta</option>
-                            <option value="CONSUMO_BAIXO">Consumo Baixo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Data</label>
-                        <input type="date" id="filtroData">
-                    </div>
-                    <button onclick="app.aplicarFiltros()" style="padding:8px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">Aplicar</button>
-                    <button onclick="app.limparFiltros()" style="padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar</button>
-                </div>
-
-                <!-- Gráficos -->
-                <div class="charts-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-                    <div class="chart-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                        <h3>Consumo por Local (m³)</h3>
-                        <div class="chart-container">
-                            <canvas id="chartLocais"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                        <h3>Leituras por Dia</h3>
-                        <div class="chart-container">
-                            <canvas id="chartDias"></canvas>
-                        </div>
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">💧</div>
+                    <div class="kpi-content">
+                        <span class="kpi-value" id="kpiTotal">0</span>
+                        <span class="kpi-label">Total Leituras</span>
                     </div>
                 </div>
-
-                <!-- Tabela Últimas Leituras -->
-                <div class="table-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                    <h3>Últimas Leituras</h3>
-                    <div class="table-responsive">
-                        <table class="data-table" style="width:100%;border-collapse:collapse;">
-                            <thead>
-                                <tr style="background:#f8f9fa;">
-                                    <th style="padding:12px;text-align:left;">Data</th>
-                                    <th style="padding:12px;text-align:left;">Local</th>
-                                    <th style="padding:12px;text-align:left;">Técnico</th>
-                                    <th style="padding:12px;text-align:left;">Leitura</th>
-                                    <th style="padding:12px;text-align:left;">Consumo</th>
-                                    <th style="padding:12px;text-align:left;">Status</th>
-                                    <th style="padding:12px;text-align:left;">Variação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ultimasLeituras">
-                                <tr><td colspan="7" style="text-align:center;padding:20px;">Carregando...</td></tr>
-                            </tbody>
-                        </table>
+                <div class="kpi-card" style="border-left-color: #ffc107;">
+                    <div class="kpi-icon">⚠️</div>
+                    <div class="kpi-content">
+                        <span class="kpi-value" id="kpiAlertas">0</span>
+                        <span class="kpi-label">Alertas</span>
+                    </div>
+                </div>
+                <div class="kpi-card" style="border-left-color: #dc3545;">
+                    <div class="kpi-icon">🚨</div>
+                    <div class="kpi-content">
+                        <span class="kpi-value" id="kpiVazamentos">0</span>
+                        <span class="kpi-label">Vazamentos</span>
+                    </div>
+                </div>
+                <div class="kpi-card" style="border-left-color: #28a745;">
+                    <div class="kpi-icon">✓</div>
+                    <div class="kpi-content">
+                        <span class="kpi-value" id="kpiNormal">0</span>
+                        <span class="kpi-label">Normal</span>
                     </div>
                 </div>
             </div>
-        </section>
 
-        <!-- CORRIGIDO: TELA LEITURAS (HISTÓRICO) - sem position sticky -->
-        <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
-            <div class="admin-container" style="padding: 20px;">
-                <!-- Remover position sticky do header -->
-                <header class="page-header" style="margin-bottom: 20px;">
-                    <h1>Histórico de Leituras</h1>
-                    <button onclick="app.exportarDados()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        📥 Exportar CSV
-                    </button>
-                </header>
-                
-                <!-- Filtros sem position sticky -->
-                <div style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px;">
-                        <div>
-                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
-                            <select id="filtroLocalLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
-                                <option value="">Todos</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Status</label>
-                            <select id="filtroStatusLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
-                                <option value="">Todos</option>
-                                <option value="NORMAL">Normal</option>
-                                <option value="VAZAMENTO">Vazamento</option>
-                                <option value="ALERTA_VARIACAO">Alerta</option>
-                                <option value="CONSUMO_BAIXO">Consumo Baixo</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">De</label>
-                            <input type="date" id="filtroDataInicio" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Até</label>
-                            <input type="date" id="filtroDataFim" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex;gap:10px;justify-content:flex-end;">
-                        <button onclick="app.limparFiltrosLeituras()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar</button>
-                        <button onclick="app.aplicarFiltrosLeituras()" style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">🔍 Aplicar</button>
+            <!-- Filtros -->
+            <div class="filtros-dashboard">
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
+                    <select id="filtroLocal">
+                        <option value="">Todos os locais</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Tipo</label>
+                    <select id="filtroTipo">
+                        <option value="">Todos os tipos</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Status</label>
+                    <select id="filtroStatus">
+                        <option value="">Todos</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="VAZAMENTO">Vazamento</option>
+                        <option value="ALERTA_VARIACAO">Alerta</option>
+                        <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Data</label>
+                    <input type="date" id="filtroData">
+                </div>
+                <button class="btn-filtro" onclick="app.aplicarFiltros()">Aplicar</button>
+                <button class="btn-limpar" onclick="app.limparFiltros()">Limpar</button>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Consumo por Local (m³)</h3>
+                    <div class="chart-container">
+                        <canvas id="chartLocais"></canvas>
                     </div>
                 </div>
-
-                <!-- Tabela sem position sticky no thead -->
-                <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;">
-                            <thead style="background:#f8f9fa;">
-                                <tr>
-                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Ronda</th>
-                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Data/Hora</th>
-                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Técnico</th>
-                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Local</th>
-                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Status</th>
-                                    <th style="padding:12px;text-align:center;border-bottom:2px solid #dee2e6;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaLeituras">
-                                <tr>
-                                    <td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar Filtros" para carregar</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="chart-card">
+                    <h3>Leituras por Dia</h3>
+                    <div class="chart-container">
+                        <canvas id="chartDias"></canvas>
                     </div>
                 </div>
             </div>
-        </section>
 
-        <!-- TELA ANÁLISE -->
-        <section id="analiseScreen" class="screen admin-screen" role="main">
-            <div class="admin-container">
-                <header class="page-header">
-                    <h1>Análise Comparativa</h1>
-                    <p style="color:#666;margin-top:5px;">Comparativos inteligentes e tendências</p>
-                </header>
-                
-                <div id="analiseContainer">
-                    <div style="text-align:center;padding:40px;color:#666;">Carregando análise...</div>
+            <!-- Tabela -->
+            <div class="table-card">
+                <h3>Últimas Leituras</h3>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Local</th>
+                                <th>Técnico</th>
+                                <th>Leitura</th>
+                                <th>Consumo</th>
+                                <th>Status</th>
+                                <th>Variação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ultimasLeituras">
+                            <tr><td colspan="7" style="text-align:center;padding:20px;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- TELA GESTÃO -->
-        <section id="gestaoScreen" class="screen admin-screen" role="main">
-            <div class="gestao-container">
-                <header class="page-header">
-                    <h1>Gestão de Usuários</h1>
-                </header>
+    <!-- TELA LEITURAS (HISTÓRICO) -->
+    <section id="leiturasAdminScreen" class="screen admin-screen">
+        <div class="admin-container">
+            <div class="page-header">
+                <h1>Histórico de Leituras</h1>
+                <button onclick="app.exportarDados()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+                    📥 Exportar CSV
+                </button>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="filtros-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
+                    <select id="filtroLocalLeituras">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Status</label>
+                    <select id="filtroStatusLeituras">
+                        <option value="">Todos</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="VAZAMENTO">Vazamento</option>
+                        <option value="ALERTA_VARIACAO">Alerta</option>
+                        <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">De</label>
+                    <input type="date" id="filtroDataInicio">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Até</label>
+                    <input type="date" id="filtroDataFim">
+                </div>
+                <div style="display:flex;gap:10px;align-items:end;">
+                    <button class="btn-limpar" onclick="app.limparFiltrosLeituras()">Limpar</button>
+                    <button class="btn-filtro" onclick="app.aplicarFiltrosLeituras()">🔍 Aplicar</button>
+                </div>
+            </div>
 
-                <div class="gestao-card">
-                    <h3 style="margin-top:0;color:#003366;">👤 Criar Novo Usuário</h3>
-                    <div class="form-grid" style="max-width:600px;">
-                        <input type="text" id="novoNome" placeholder="Nome completo" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
-                        <input type="text" id="novoUsuario" placeholder="Usuário (login)" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
-                        
+            <!-- Tabela -->
+            <div class="table-card">
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ronda</th>
+                                <th>Data/Hora</th>
+                                <th>Técnico</th>
+                                <th>Local</th>
+                                <th>Status</th>
+                                <th style="text-align:center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaLeituras">
+                            <tr><td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar" para carregar</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELA ANÁLISE -->
+    <section id="analiseScreen" class="screen admin-screen">
+        <div class="admin-container">
+            <div class="page-header">
+                <h1>Análise Comparativa</h1>
+                <p style="color:#666;">Comparativos inteligentes e tendências</p>
+            </div>
+            
+            <div id="analiseContainer">
+                <div style="text-align:center;padding:40px;color:#666;">Carregando análise...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELA GESTÃO -->
+    <section id="gestaoScreen" class="screen admin-screen">
+        <div class="gestao-container">
+            <div class="page-header">
+                <h1>Gestão de Usuários</h1>
+            </div>
+
+            <div class="gestao-card">
+                <h3>👤 Criar Novo Usuário</h3>
+                <div class="form-grid" style="margin-top:15px;">
+                    <input type="text" id="novoNome" placeholder="Nome completo">
+                    <input type="text" id="novoUsuario" placeholder="Usuário (login)">
+                    <input type="password" id="novoSenha" placeholder="Senha">
+                    <select id="novoNivel">
+                        <option value="tecnico">Técnico</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <button class="btn-success" onclick="app.criarUsuario()" style="margin-top:15px;">Criar Usuário</button>
+            </div>
+
+            <div class="gestao-card">
+                <h3>👥 Usuários Cadastrados</h3>
+                <div id="listaUsuarios">
+                    <p style="color:#666;text-align:center;padding:20px;">Carregando...</p>
+                </div>
+                <button onclick="app.carregarUsuariosDoServidor()" style="margin-top:15px;padding:8px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">🔄 Atualizar Lista</button>
+            </div>
+        </div>
+    </section>
+
+    <script src="app.js?v=2.9.8.5"></script>
+</body>
+</html>
