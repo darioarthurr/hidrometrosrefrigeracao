@@ -1,19 +1,15 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.4
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.5
  * CORREÇÕES:
- * - Fix: Gráfico de consumo por local agora soma consumo (m³) em vez de contar leituras
- * - Add: Coluna de consumo na tabela Últimas Leituras
- * - Fix: Função exportarDados() implementada corretamente
- * - Fix: Cabeçalho da aba Leituras corrigido (sticky)
- * - Add: Aba Análise com dados comparativos inteligentes
- * - Fix: Filtro por Tipo adicionado
- * - Fix: Período Hoje/Ontem implementado
- * - Fix: Altura do gráfico de análise limitada
+ * - Fix: Verificação de nulidade em todos os filtros
+ * - Fix: Tratamento de erro no carregamento de usuários
+ * - Fix: Compatibilidade retroativa com elementos HTML
+ * - Fix: Método iniciarLeitura garantido no escopo
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.4',
+  VERSAO: '2.9.8.5',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -33,11 +29,9 @@ class SistemaHidrometros {
     this.usuariosCadastrados = [];
     this.dashboardData = null;
     this.leiturasCache = [];
-    this.analiseData = null;
     
     console.log(`[v${CONFIG.VERSAO}] Inicializando...`);
     this.criarStatusRede();
-    this.limparElementosFantasmas();
     this.inicializar();
   }
 
@@ -46,7 +40,7 @@ class SistemaHidrometros {
     if (!el) {
       el = document.createElement('div');
       el.id = 'statusRede';
-      el.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:4px;font-size:0.85rem;z-index:9999;color:white;transition:all 0.3s;';
+      el.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:4px;font-size:0.85rem;z-index:9999;color:white;transition:all 0.3s;background:#666;';
       document.body.appendChild(el);
     }
     this.atualizarStatusRede();
@@ -118,20 +112,22 @@ class SistemaHidrometros {
     const header = document.getElementById('corporateHeader');
     if (header) header.style.display = 'flex';
     const nomeTecnico = document.getElementById('nomeTecnico');
-    if (nomeTecnico) nomeTecnico.textContent = this.usuario.nome;
+    if (nomeTecnico) nomeTecnico.textContent = this.usuario?.nome || '';
     const nivelSpan = document.getElementById('nivelUsuario');
     if (nivelSpan) {
-      nivelSpan.textContent = this.normalizarNivel(this.usuario.nivel);
-      nivelSpan.style.backgroundColor = this.isAdmin(this.usuario.nivel) ? '#dc3545' : '#007bff';
+      nivelSpan.textContent = this.normalizarNivel(this.usuario?.nivel);
+      nivelSpan.style.backgroundColor = this.isAdmin(this.usuario?.nivel) ? '#dc3545' : '#007bff';
       nivelSpan.style.color = 'white';
       nivelSpan.style.padding = '4px 8px';
       nivelSpan.style.borderRadius = '4px';
       nivelSpan.style.fontSize = '0.75rem';
       nivelSpan.style.fontWeight = 'bold';
     }
+    const nomeStart = document.getElementById('nomeTecnicoStart');
+    if (nomeStart) nomeStart.textContent = this.usuario?.nome || '';
   }
 
-  // ==================== DASHBOARD (CORRIGIDO COM TIPO E PERÍODO) ====================
+  // ==================== DASHBOARD ====================
 
   async carregarDashboard() {
     if (!this.online) {
@@ -141,13 +137,22 @@ class SistemaHidrometros {
 
     this.mostrarLoading(true, 'Carregando estatísticas...');
     try {
+      const periodoSelect = document.getElementById('periodoDashboard');
+      let periodo = 30;
+      if (periodoSelect) {
+        const val = periodoSelect.value;
+        if (val === 'hoje' || val === 'ontem') {
+          // Se for hoje/ontem, buscar 30 dias e filtrar depois
+          periodo = 30;
+        } else {
+          periodo = parseInt(val) || 30;
+        }
+      }
+
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-          action: 'getDashboard', 
-          periodo: parseInt(document.getElementById('periodoDashboard')?.value) || 30 
-        })
+        body: JSON.stringify({ action: 'getDashboard', periodo: periodo })
       });
       
       const data = await response.json();
@@ -156,6 +161,11 @@ class SistemaHidrometros {
         this.renderizarDashboard(data);
         this.popularFiltroLocais(data);
         this.popularFiltroTipos(data);
+        
+        // Se era hoje/ontem, aplicar filtro de data automaticamente
+        if (periodoSelect && (periodoSelect.value === 'hoje' || periodoSelect.value === 'ontem')) {
+          this.aplicarFiltroDataEspecial(periodoSelect.value);
+        }
       } else {
         throw new Error(data.message);
       }
@@ -167,27 +177,16 @@ class SistemaHidrometros {
     }
   }
 
-  // NOVO: Método para atualizar dashboard com suporte a Hoje/Ontem
-  async atualizarDashboard() {
-    const periodo = document.getElementById('periodoDashboard')?.value;
+  aplicarFiltroDataEspecial(tipo) {
+    const hoje = new Date();
+    const dataFiltro = tipo === 'hoje' ? hoje : new Date(hoje - 86400000);
+    const dataStr = dataFiltro.toISOString().split('T')[0];
     
-    // Se for "hoje" ou "ontem", calcular datas específicas
-    if (periodo === 'hoje' || periodo === 'ontem') {
-      const hoje = new Date();
-      const dataFiltro = periodo === 'hoje' ? hoje : new Date(hoje - 86400000);
-      const dataStr = dataFiltro.toISOString().split('T')[0];
-      
-      // Carregar dashboard normal mas depois filtrar pela data
-      await this.carregarDashboard();
-      
-      // Aplicar filtro de data automaticamente
-      document.getElementById('filtroData').value = dataStr;
+    const filtroData = document.getElementById('filtroData');
+    if (filtroData) {
+      filtroData.value = dataStr;
       this.aplicarFiltros();
-      
-      return;
     }
-    
-    await this.carregarDashboard();
   }
 
   renderizarDashboard(data) {
@@ -214,14 +213,11 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartLocais');
     if (!canvas) return;
     
-    canvas.style.maxHeight = '300px';
-    canvas.height = 300;
-    
     const ctx = canvas.getContext('2d');
     if (this.charts.locais) this.charts.locais.destroy();
     
     const labels = dados.map(d => d[0]);
-    const values = dados.map(d => d[1]); // Agora já vem somado do backend
+    const values = dados.map(d => d[1]);
     
     this.charts.locais = new Chart(ctx, {
       type: 'bar',
@@ -266,9 +262,6 @@ class SistemaHidrometros {
     const canvas = document.getElementById('chartDias');
     if (!canvas) return;
     
-    canvas.style.maxHeight = '250px';
-    canvas.height = 250;
-    
     const ctx = canvas.getContext('2d');
     if (this.charts.dias) this.charts.dias.destroy();
     
@@ -305,6 +298,11 @@ class SistemaHidrometros {
     const tbody = document.getElementById('ultimasLeituras');
     if (!tbody) return;
     
+    if (!leituras || leituras.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhuma leitura encontrada</td></tr>';
+      return;
+    }
+    
     tbody.innerHTML = leituras.map(l => {
       const data = new Date(l.data);
       const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
@@ -313,17 +311,16 @@ class SistemaHidrometros {
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
       else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
-      // CORREÇÃO: Adicionar coluna de consumo
       const consumo = l.consumoDia || (l.leitura - (l.leituraAnterior || 0));
       
       return `<tr>
         <td>${dataStr}</td>
-        <td>${l.local}</td>
-        <td>${l.tecnico}</td>
-        <td>${l.leitura} m³</td>
-        <td><strong>${consumo.toFixed(2)} m³</strong></td>
-        <td><span class="badge ${statusClass}">${l.status}</span></td>
-        <td>${l.variacao > 0 ? '+' : ''}${l.variacao.toFixed(1)}%</td>
+        <td>${l.local || '-'}</td>
+        <td>${l.tecnico || '-'}</td>
+        <td>${l.leitura || 0} m³</td>
+        <td><strong>${consumo ? consumo.toFixed(2) : '0.00'} m³</strong></td>
+        <td><span class="badge ${statusClass}">${l.status || 'NORMAL'}</span></td>
+        <td>${l.variacao > 0 ? '+' : ''}${(l.variacao || 0).toFixed(1)}%</td>
       </tr>`;
     }).join('');
   }
@@ -332,34 +329,43 @@ class SistemaHidrometros {
     const select = document.getElementById('filtroLocal');
     if (!select || !data.graficos?.porLocal) return;
     
+    const currentVal = select.value;
     const locais = data.graficos.porLocal.map(l => l[0]);
     select.innerHTML = '<option value="">Todos os locais</option>' + 
       locais.map(l => `<option value="${l}">${l}</option>`).join('');
+    if (currentVal) select.value = currentVal;
   }
 
-  // NOVO: Método para popular filtro de tipos
   popularFiltroTipos(data) {
     const select = document.getElementById('filtroTipo');
     if (!select || !data.ultimas) return;
     
+    const currentVal = select.value;
     const tipos = [...new Set(data.ultimas.map(l => l.tipo).filter(t => t))].sort();
     select.innerHTML = '<option value="">Todos os tipos</option>' + 
       tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+    if (currentVal) select.value = currentVal;
   }
 
-  // CORRIGIDO: Modificado para incluir filtro de tipo
   aplicarFiltros() {
-    if (!this.dashboardData) return;
+    if (!this.dashboardData || !this.dashboardData.ultimas) {
+      console.log('[Filtros] Sem dados para filtrar');
+      return;
+    }
+    
+    console.log('[Filtros] Aplicando filtros...');
     
     const filtroLocal = document.getElementById('filtroLocal')?.value || '';
-    const filtroTipo = document.getElementById('filtroTipo')?.value || ''; // NOVO
+    const filtroTipo = document.getElementById('filtroTipo')?.value || '';
     const filtroStatus = document.getElementById('filtroStatus')?.value || '';
     const filtroData = document.getElementById('filtroData')?.value || '';
+    
+    console.log('[Filtros]', { filtroLocal, filtroTipo, filtroStatus, filtroData });
     
     let filtradas = [...this.dashboardData.ultimas];
     
     if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
-    if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo); // NOVO
+    if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo);
     if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
     if (filtroData) {
       const dataFiltro = new Date(filtroData);
@@ -375,17 +381,31 @@ class SistemaHidrometros {
     const alertas = filtradas.filter(l => l.status !== 'NORMAL').length;
     this.atualizarElemento('kpiTotal', total);
     this.atualizarElemento('kpiAlertas', alertas);
+    
+    console.log(`[Filtros] ${total} leituras filtradas`);
   }
 
   limparFiltros() {
-    document.getElementById('filtroLocal').value = '';
-    document.getElementById('filtroTipo').value = ''; // NOVO
-    document.getElementById('filtroStatus').value = '';
-    document.getElementById('filtroData').value = '';
-    if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
+    console.log('[Filtros] Limpando...');
+    
+    const filtroLocal = document.getElementById('filtroLocal');
+    const filtroTipo = document.getElementById('filtroTipo');
+    const filtroStatus = document.getElementById('filtroStatus');
+    const filtroData = document.getElementById('filtroData');
+    
+    if (filtroLocal) filtroLocal.value = '';
+    if (filtroTipo) filtroTipo.value = '';
+    if (filtroStatus) filtroStatus.value = '';
+    if (filtroData) filtroData.value = '';
+    
+    if (this.dashboardData) {
+      this.renderizarDashboard(this.dashboardData);
+    }
+    
+    console.log('[Filtros] Filtros limpos');
   }
 
-  // ==================== ANÁLISE (CORRIGIDO COM ALTURA LIMITADA) ====================
+  // ==================== ANÁLISE ====================
 
   async carregarAnalise() {
     if (!this.online) {
@@ -396,7 +416,6 @@ class SistemaHidrometros {
     this.mostrarLoading(true, 'Gerando análise comparativa...');
     
     try {
-      // Buscar dados de 2 períodos para comparar
       const [atual, anterior] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
@@ -407,12 +426,14 @@ class SistemaHidrometros {
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 60 }) // 60 dias para pegar média anterior
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
         }).then(r => r.json())
       ]);
 
       if (atual.success && anterior.success) {
         this.renderizarAnalise(atual, anterior);
+      } else {
+        throw new Error('Erro ao carregar dados de análise');
       }
     } catch (error) {
       console.error('[Análise] Erro:', error);
@@ -423,7 +444,9 @@ class SistemaHidrometros {
   }
 
   renderizarAnalise(dadosAtual, dadosAnterior) {
-    // Comparativo de consumo
+    const container = document.getElementById('analiseContainer');
+    if (!container) return;
+
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (l.consumoDia || 0), 0);
     const consumoAnterior = dadosAnterior.ultimas
       .filter(l => {
@@ -434,12 +457,9 @@ class SistemaHidrometros {
       .reduce((acc, l) => acc + (l.consumoDia || 0), 0);
     
     const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
-    
-    // Eficiência (alertas vs total)
     const eficienciaAtual = dadosAtual.kpi.total > 0 ? 
       ((dadosAtual.kpi.total - dadosAtual.kpi.alertas) / dadosAtual.kpi.total) * 100 : 100;
-    
-    // Top locais com maiores variações
+
     const locaisVariacao = {};
     dadosAtual.ultimas.forEach(l => {
       if (!locaisVariacao[l.local]) {
@@ -459,85 +479,78 @@ class SistemaHidrometros {
       .sort((a, b) => b.mediaVariacao - a.mediaVariacao)
       .slice(0, 5);
 
-    // Renderizar cards de análise
-    const container = document.getElementById('analiseContainer');
-    if (container) {
-      container.innerHTML = `
-        <div class="analise-grid">
-          <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}">
-            <h4>Comparativo de Consumo</h4>
-            <div class="analise-valor">${variacaoConsumo > 0 ? '+' : ''}${variacaoConsumo.toFixed(1)}%</div>
-            <p>vs período anterior (30 dias)</p>
-            <small>Atual: ${consumoAtual.toFixed(2)} m³ | Anterior: ${consumoAnterior.toFixed(2)} m³</small>
-          </div>
-          
-          <div class="analise-card">
-            <h4>Eficiência das Leituras</h4>
-            <div class="analise-valor">${eficienciaAtual.toFixed(1)}%</div>
-            <p>Leituras normais sem alerta</p>
-            <small>${dadosAtual.kpi.alertas} alertas em ${dadosAtual.kpi.total} leituras</small>
-          </div>
-          
-          <div class="analise-card">
-            <h4>Média de Consumo por Leitura</h4>
-            <div class="analise-valor">${(consumoAtual / (dadosAtual.kpi.total || 1)).toFixed(2)} m³</div>
-            <p>Consumo médio diário</p>
-          </div>
+    container.innerHTML = `
+      <div class="analise-grid">
+        <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}">
+          <h4>Comparativo de Consumo</h4>
+          <div class="analise-valor">${variacaoConsumo > 0 ? '+' : ''}${variacaoConsumo.toFixed(1)}%</div>
+          <p>vs período anterior (30 dias)</p>
+          <small>Atual: ${consumoAtual.toFixed(2)} m³ | Anterior: ${consumoAnterior.toFixed(2)} m³</small>
         </div>
         
-        <div class="analise-section">
-          <h3>Locais com Maior Instabilidade</h3>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Local</th>
-                <th>Variação Média</th>
-                <th>Alertas</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${topVariacoes.map(item => `
-                <tr>
-                  <td>${item.local}</td>
-                  <td>${item.mediaVariacao.toFixed(1)}%</td>
-                  <td>${item.alertas}</td>
-                  <td><span class="badge ${item.alertas > 2 ? 'badge-danger' : item.alertas > 0 ? 'badge-warning' : 'badge-normal'}">
-                    ${item.alertas > 2 ? 'Crítico' : item.alertas > 0 ? 'Atenção' : 'Estável'}
-                  </span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+        <div class="analise-card">
+          <h4>Eficiência das Leituras</h4>
+          <div class="analise-valor">${eficienciaAtual.toFixed(1)}%</div>
+          <p>Leituras normais sem alerta</p>
+          <small>${dadosAtual.kpi.alertas} alertas em ${dadosAtual.kpi.total} leituras</small>
         </div>
         
-        <!-- CORREÇÃO: Container com altura limitada -->
-        <div class="analise-section">
-          <h3>Tendência por Tipo de Hidrômetro</h3>
-          <div style="height: 300px; position: relative;">
-            <canvas id="chartAnaliseTipo"></canvas>
-          </div>
+        <div class="analise-card">
+          <h4>Média de Consumo</h4>
+          <div class="analise-valor">${(consumoAtual / (dadosAtual.kpi.total || 1)).toFixed(2)} m³</div>
+          <p>Consumo médio por leitura</p>
         </div>
-      `;
+      </div>
       
-      // Gráfico de tendência por tipo
-      this.renderizarGraficoAnaliseTipo(dadosAtual.ultimas);
-    }
+      <div class="analise-section" style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <h3>Locais com Maior Instabilidade</h3>
+        <table class="data-table" style="width:100%;border-collapse:collapse;margin-top:15px;">
+          <thead>
+            <tr style="background:#f8f9fa;">
+              <th style="padding:12px;text-align:left;">Local</th>
+              <th style="padding:12px;text-align:left;">Variação Média</th>
+              <th style="padding:12px;text-align:left;">Alertas</th>
+              <th style="padding:12px;text-align:left;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${topVariacoes.map(item => `
+              <tr>
+                <td style="padding:12px;border-bottom:1px solid #dee2e6;">${item.local}</td>
+                <td style="padding:12px;border-bottom:1px solid #dee2e6;">${item.mediaVariacao.toFixed(1)}%</td>
+                <td style="padding:12px;border-bottom:1px solid #dee2e6;">${item.alertas}</td>
+                <td style="padding:12px;border-bottom:1px solid #dee2e6;"><span class="badge ${item.alertas > 2 ? 'badge-danger' : item.alertas > 0 ? 'badge-warning' : 'badge-normal'}">
+                  ${item.alertas > 2 ? 'Crítico' : item.alertas > 0 ? 'Atenção' : 'Estável'}
+                </span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="analise-section" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <h3>Tendência por Tipo de Hidrômetro</h3>
+        <div style="height: 300px; position: relative;">
+          <canvas id="chartAnaliseTipo"></canvas>
+        </div>
+      </div>
+    `;
+    
+    this.renderizarGraficoAnaliseTipo(dadosAtual.ultimas);
   }
 
-  // CORRIGIDO: Altura limitada para 300px
   renderizarGraficoAnaliseTipo(leituras) {
     const canvas = document.getElementById('chartAnaliseTipo');
     if (!canvas) return;
     
-    // CORREÇÃO: Limitar altura
-    canvas.style.maxHeight = '300px';
-    canvas.height = 300;
-    
     const ctx = canvas.getContext('2d');
     if (this.charts.analiseTipo) this.charts.analiseTipo.destroy();
     
-    // Agrupar por tipo
+    if (!leituras || leituras.length === 0) {
+      console.log('[Análise] Sem leituras para gráfico de tipo');
+      return;
+    }
+    
     const porTipo = {};
     leituras.forEach(l => {
       const tipo = l.tipo || 'Desconhecido';
@@ -548,7 +561,9 @@ class SistemaHidrometros {
     
     const labels = Object.keys(porTipo);
     const consumos = labels.map(t => porTipo[t].consumo);
-    const medias = labels.map(t => porTipo[t].consumo / porTipo[t].count);
+    const medias = labels.map(t => porTipo[t].count > 0 ? porTipo[t].consumo / porTipo[t].count : 0);
+    
+    console.log('[Análise] Gráfico por tipo:', { labels, consumos, medias });
     
     this.charts.analiseTipo = new Chart(ctx, {
       type: 'bar',
@@ -571,7 +586,7 @@ class SistemaHidrometros {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false, // IMPORTANTE
+        maintainAspectRatio: false,
         scales: {
           y: {
             type: 'linear',
@@ -611,11 +626,14 @@ class SistemaHidrometros {
       const data = await response.json();
       if (data.success && data.leituras) {
         this.leiturasCache = data.leituras;
-        this.renderizarTabelaLeituras(data.leituras.slice(-50)); // Últimas 50
+        this.renderizarTabelaLeituras(data.leituras.slice(-50));
         this.popularFiltrosLeituras(data.leituras);
+      } else {
+        throw new Error(data.message || 'Erro ao carregar leituras');
       }
     } catch (error) {
-      this.mostrarToast('Erro ao carregar histórico', 'error');
+      console.error('[Leituras] Erro:', error);
+      this.mostrarToast('Erro ao carregar histórico: ' + error.message, 'error');
     } finally {
       this.mostrarLoading(false);
     }
@@ -625,12 +643,12 @@ class SistemaHidrometros {
     const tbody = document.getElementById('tabelaLeituras');
     if (!tbody) return;
     
-    if (leituras.length === 0) {
+    if (!leituras || leituras.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Nenhuma leitura encontrada</td></tr>';
       return;
     }
     
-    const recentes = leituras.slice().reverse(); // Mais recentes primeiro
+    const recentes = leituras.slice().reverse();
     
     tbody.innerHTML = recentes.map(l => {
       const data = new Date(l.data);
@@ -642,11 +660,11 @@ class SistemaHidrometros {
       else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
       return `<tr>
-        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.rondaId?.substring(0, 20) || '--'}...</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.rondaId ? l.rondaId.substring(0, 20) : '--'}...</td>
         <td style="padding:12px;border-bottom:1px solid #dee2e6;">${dataStr}</td>
-        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.tecnico}</td>
-        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.local}</td>
-        <td style="padding:12px;border-bottom:1px solid #dee2e6;"><span class="badge ${statusClass}">${l.status}</span></td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.tecnico || '-'}</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;">${l.local || '-'}</td>
+        <td style="padding:12px;border-bottom:1px solid #dee2e6;"><span class="badge ${statusClass}">${l.status || 'NORMAL'}</span></td>
         <td style="padding:12px;border-bottom:1px solid #dee2e6;text-align:center;">
           <button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">
             Ver
@@ -657,16 +675,20 @@ class SistemaHidrometros {
   }
 
   popularFiltrosLeituras(leituras) {
-    const locais = [...new Set(leituras.map(l => l.local))].filter(l => l).sort();
+    if (!leituras) return;
+    
+    const locais = [...new Set(leituras.map(l => l.local).filter(l => l))].sort();
     const selectLocal = document.getElementById('filtroLocalLeituras');
     if (selectLocal) {
+      const currentVal = selectLocal.value;
       selectLocal.innerHTML = '<option value="">Todos</option>' + 
         locais.map(l => `<option value="${l}">${l}</option>`).join('');
+      if (currentVal) selectLocal.value = currentVal;
     }
   }
 
   aplicarFiltrosLeituras() {
-    if (!this.leiturasCache.length) return;
+    if (!this.leiturasCache || this.leiturasCache.length === 0) return;
     
     const filtroLocal = document.getElementById('filtroLocalLeituras')?.value || '';
     const filtroStatus = document.getElementById('filtroStatusLeituras')?.value || '';
@@ -693,11 +715,19 @@ class SistemaHidrometros {
   }
 
   limparFiltrosLeituras() {
-    document.getElementById('filtroLocalLeituras').value = '';
-    document.getElementById('filtroStatusLeituras').value = '';
-    document.getElementById('filtroDataInicio').value = '';
-    document.getElementById('filtroDataFim').value = '';
-    if (this.leiturasCache.length) this.renderizarTabelaLeituras(this.leiturasCache);
+    const filtroLocal = document.getElementById('filtroLocalLeituras');
+    const filtroStatus = document.getElementById('filtroStatusLeituras');
+    const dataInicio = document.getElementById('filtroDataInicio');
+    const dataFim = document.getElementById('filtroDataFim');
+    
+    if (filtroLocal) filtroLocal.value = '';
+    if (filtroStatus) filtroStatus.value = '';
+    if (dataInicio) dataInicio.value = '';
+    if (dataFim) dataFim.value = '';
+    
+    if (this.leiturasCache && this.leiturasCache.length > 0) {
+      this.renderizarTabelaLeituras(this.leiturasCache);
+    }
   }
 
   verDetalhesLeitura(id) {
@@ -708,29 +738,27 @@ class SistemaHidrometros {
     
     alert(`Detalhes da Leitura:
     
-📍 Local: ${leitura.local}
-🔧 Hidrômetro: ${leitura.hidrometroId} (${leitura.tipo})
-📊 Leitura Atual: ${leitura.leituraAtual} m³
-📊 Leitura Anterior: ${leitura.leituraAnterior} m³
-💧 Consumo: ${consumo.toFixed(2)} m³
-📈 Variação: ${leitura.variacao?.toFixed(2)}%
-⚠️ Status: ${leitura.status}
-👤 Técnico: ${leitura.tecnico}
+📍 Local: ${leitura.local || '-'}
+🔧 Hidrômetro: ${leitura.hidrometroId || '-'} (${leitura.tipo || '-'}
+📊 Leitura Atual: ${leitura.leituraAtual || 0} m³
+📊 Leitura Anterior: ${leitura.leituraAnterior || 0} m³
+💧 Consumo: ${consumo ? consumo.toFixed(2) : '0.00'} m³
+📈 Variação: ${(leitura.variacao || 0).toFixed(2)}%
+⚠️ Status: ${leitura.status || 'NORMAL'}
+👤 Técnico: ${leitura.tecnico || '-'}
 📝 Justificativa: ${leitura.justificativa || 'Nenhuma'}
 📅 Data: ${new Date(leitura.data).toLocaleString('pt-BR')}`);
   }
 
-  // ==================== EXPORTAR CSV (CORRIGIDO) ====================
+  // ==================== EXPORTAR CSV ====================
 
   exportarDados() {
-    // Determinar qual tela está ativa para exportar dados apropriados
     const telaAtiva = document.querySelector('.screen.active')?.id;
     
     let dados = [];
     let nomeArquivo = '';
     
     if (telaAtiva === 'leiturasAdminScreen' && this.leiturasCache.length > 0) {
-      // Exportar histórico de leituras
       dados = this.leiturasCache;
       nomeArquivo = `Historico_Leituras_${new Date().toISOString().slice(0,10)}`;
       
@@ -751,8 +779,7 @@ class SistemaHidrometros {
       this.baixarCSV(csv, nomeArquivo);
       
     } else if (telaAtiva === 'dashboardScreen' && this.dashboardData) {
-      // Exportar dados do dashboard (últimas leituras)
-      dados = this.dashboardData.ultimas;
+      dados = this.dashboardData.ultimas || [];
       nomeArquivo = `Dashboard_${new Date().toISOString().slice(0,10)}`;
       
       const csv = this.converterParaCSV(dados, [
@@ -767,7 +794,6 @@ class SistemaHidrometros {
       this.baixarCSV(csv, nomeArquivo);
       
     } else if (this.ronda.hidrometros.length > 0) {
-      // Exportar ronda atual
       dados = this.ronda.hidrometros;
       nomeArquivo = `Ronda_${this.ronda.id || 'Atual'}_${new Date().toISOString().slice(0,10)}`;
       
@@ -791,17 +817,14 @@ class SistemaHidrometros {
   }
 
   converterParaCSV(dados, colunas) {
-    // Header
     let csv = colunas.map(c => `"${c.label}"`).join(';') + '\n';
     
-    // Dados
     dados.forEach(row => {
       const linha = colunas.map(col => {
         let valor = row[col.key];
         if (col.format && valor !== undefined) {
           valor = col.format(valor);
         }
-        // Escapar aspas e envolver em aspas se necessário
         if (valor === null || valor === undefined) valor = '';
         valor = String(valor).replace(/"/g, '""');
         return `"${valor}"`;
@@ -809,7 +832,7 @@ class SistemaHidrometros {
       csv += linha + '\n';
     });
     
-    return '\ufeff' + csv; // BOM para Excel reconhecer UTF-8
+    return '\ufeff' + csv;
   }
 
   baixarCSV(conteudo, nomeArquivo) {
@@ -833,9 +856,23 @@ class SistemaHidrometros {
 
   async carregarUsuariosDoServidor() {
     const div = document.getElementById('listaUsuarios');
-    if (div) div.innerHTML = '<p style="color:#666;text-align:center;padding:20px;">Carregando...</p>';
+    if (!div) {
+      console.error('[Gestão] Elemento listaUsuarios não encontrado');
+      return;
+    }
+    
+    div.innerHTML = '<p style="color:#666;text-align:center;padding:20px;">Carregando...</p>';
+    
+    if (!this.online) {
+      const salvos = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+      this.usuariosCadastrados = salvos;
+      this.atualizarListaUsuarios();
+      this.mostrarToast('Modo offline - mostrando dados em cache', 'warning');
+      return;
+    }
     
     try {
+      console.log('[Gestão] Buscando usuários...');
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -843,15 +880,21 @@ class SistemaHidrometros {
       });
       
       const data = await response.json();
+      console.log('[Gestão] Resposta:', data);
+      
       if (data.success && data.usuarios) {
         this.usuariosCadastrados = data.usuarios;
         this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, data.usuarios);
         this.atualizarListaUsuarios();
+      } else {
+        throw new Error(data.message || 'Erro ao carregar usuários');
       }
     } catch (error) {
+      console.error('[Gestão] Erro:', error);
       const salvos = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
       this.usuariosCadastrados = salvos;
       this.atualizarListaUsuarios();
+      this.mostrarToast('Erro ao carregar usuários: ' + error.message, 'error');
     }
   }
 
@@ -877,11 +920,11 @@ class SistemaHidrometros {
       const corBotaoNivel = isAdmin ? '#6c757d' : '#dc3545';
       
       html += `<tr>
-        <td>${u.nome}</td>
-        <td>${u.usuario}</td>
+        <td>${u.nome || '-'}</td>
+        <td>${u.usuario || '-'}</td>
         <td><span class="level-badge ${nivelClass}">${nivelText}</span></td>
         <td style="display:flex;gap:8px;">
-          <button onclick="app.trocarSenha('${u.usuario}')" class="btn-sm btn-secondary-sm">🔑 Trocar Senha</button>
+          <button onclick="app.trocarSenha('${u.usuario}')" class="btn-sm" style="background:#007bff;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">🔑 Trocar Senha</button>
           <button onclick="app.alternarNivel('${u.usuario}', '${proximoNivel}')" class="btn-sm" style="background:${corBotaoNivel};color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
             ${textoBotaoNivel}
           </button>
@@ -1021,7 +1064,8 @@ class SistemaHidrometros {
       if (this.isAdmin(data.nivel)) {
         this.mostrarTela('dashboardScreen');
         this.carregarDashboard();
-        document.getElementById('adminNav').style.display = 'flex';
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav) adminNav.style.display = 'flex';
       } else {
         this.mostrarTela('startScreen');
         this.verificarRondaPendente();
@@ -1054,8 +1098,14 @@ class SistemaHidrometros {
   // ==================== RONDA DE LEITURA ====================
 
   async iniciarLeitura() {
-    if (!this.usuario) return;
-    this.mostrarLoading(true, 'Carregando...');
+    console.log('[Ronda] Iniciando leitura...');
+    
+    if (!this.usuario) {
+      this.mostrarToast('Usuário não autenticado', 'error');
+      return;
+    }
+    
+    this.mostrarLoading(true, 'Carregando hidrômetros...');
     
     try {
       const response = await fetch(CONFIG.API_URL, {
@@ -1088,13 +1138,13 @@ class SistemaHidrometros {
       
     } catch (error) {
       this.mostrarLoading(false);
-      this.mostrarToast('Erro: ' + error.message, 'error');
+      this.mostrarToast('Erro ao iniciar: ' + error.message, 'error');
+      console.error('[Ronda] Erro:', error);
     }
   }
 
   entrarModoLeitura() {
     this.mostrarTela('leituraScreen');
-    this.limparElementosFantasmas();
     document.getElementById('bottomBar').style.display = 'flex';
     this.popularSelectLocais();
     if (this.ronda.locais.length > 0) {
@@ -1121,7 +1171,6 @@ class SistemaHidrometros {
   carregarHidrometros(local) {
     if (!local) return;
     this.localAtual = local;
-    this.limparElementosFantasmas();
     const container = document.getElementById('hidrometrosContainer');
     if (!container) return;
     container.innerHTML = '';
@@ -1357,12 +1406,14 @@ class SistemaHidrometros {
     if (progressText) progressText.textContent = `${lidos}/${total} (${percentual}%)`;
     
     const progressBar = document.getElementById('progressBar');
-    if (progressBar) progressBar.querySelector('.barra-preenchida').style.width = `${percentual}%`;
+    if (progressBar && progressBar.querySelector('.barra-preenchida')) {
+      progressBar.querySelector('.barra-preenchida').style.width = `${percentual}%`;
+    }
     
     const btnFinalizar = document.getElementById('btnFinalizar');
     if (btnFinalizar) {
       btnFinalizar.disabled = percentual < 100;
-      btnFinalizar.textContent = percentual === 100 ? '✓ Finalizar Ronda' : `Finalizar (${percentual}%)`;
+      btnFinalizar.innerHTML = `<span>${percentual === 100 ? '✓' : ''}</span><span>${percentual === 100 ? 'Finalizar Ronda' : `Finalizar (${percentual}%)`}</span>`;
     }
   }
 
@@ -1398,6 +1449,7 @@ class SistemaHidrometros {
         this.mostrarLoading(false);
         this.mostrarToast('Ronda finalizada!', 'success');
         this.mostrarTela('startScreen');
+        document.getElementById('bottomBar').style.display = 'none';
       } else {
         throw new Error(data.message);
       }
@@ -1426,7 +1478,8 @@ class SistemaHidrometros {
       if (btn) {
         btn.style.display = 'flex';
         const lidos = ronda.hidrometros.filter(h => h.leituraAtual > 0).length;
-        btn.querySelector('span:last-child').textContent = `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`;
+        const span = btn.querySelector('span:last-child');
+        if (span) span.textContent = `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`;
       }
     }
   }
@@ -1434,7 +1487,6 @@ class SistemaHidrometros {
   // ==================== UTILITÁRIOS ====================
 
   mostrarTela(telaId) {
-    this.limparElementosFantasmas();
     document.querySelectorAll('.screen').forEach(s => {
       s.classList.remove('active');
       s.style.display = 'none';
@@ -1465,7 +1517,6 @@ class SistemaHidrometros {
     try { localStorage.setItem(chave, JSON.stringify(valor)); } catch {}
   }
 
-  // CORRIGIDO: Método logout garantido
   logout() {
     this.encerrarSessao();
   }
@@ -1484,11 +1535,13 @@ class SistemaHidrometros {
       overlay = document.createElement('div');
       overlay.id = 'loadingOverlay';
       overlay.className = 'loading-overlay';
-      overlay.innerHTML = `<div class="spinner"></div><div class="loading-text">${texto}</div>`;
+      overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;justify-content:center;align-items:center;flex-direction:column;';
+      overlay.innerHTML = `<div class="spinner" style="width:50px;height:50px;border:5px solid #f3f3f3;border-top:5px solid #007bff;border-radius:50%;animation:spin 1s linear infinite;"></div><div class="loading-text" style="color:white;margin-top:15px;font-size:1.1rem;">${texto}</div>`;
       document.body.appendChild(overlay);
     }
     overlay.style.display = mostrar ? 'flex' : 'none';
-    if (mostrar) overlay.querySelector('.loading-text').textContent = texto;
+    const txt = overlay.querySelector('.loading-text');
+    if (txt) txt.textContent = texto;
   }
 
   mostrarToast(mensagem, tipo = 'info') {
@@ -1501,12 +1554,20 @@ class SistemaHidrometros {
     }
     
     const toast = document.createElement('div');
-    toast.style.cssText = `background:${tipo === 'success' ? '#28a745' : tipo === 'error' ? '#dc3545' : tipo === 'warning' ? '#ffc107' : '#17a2b8'};color:${tipo === 'warning' ? '#000' : '#fff'};padding:12px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:10px;min-width:250px;animation:slideIn 0.3s ease;`;
-    toast.innerHTML = `<span>${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : tipo === 'warning' ? '⚠' : 'ℹ'}</span><span>${mensagem}</span>`;
+    const cores = {
+      success: '#28a745',
+      error: '#dc3545',
+      warning: '#ffc107',
+      info: '#17a2b8'
+    };
+    
+    toast.style.cssText = `background:${cores[tipo] || cores.info};color:${tipo === 'warning' ? '#000' : '#fff'};padding:12px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:10px;min-width:250px;animation:slideIn 0.3s ease;`;
+    toast.innerHTML = `<span style="font-size:1.2rem;">${tipo === 'success' ? '✓' : tipo === 'error' ? '✗' : tipo === 'warning' ? '⚠' : 'ℹ'}</span><span>${mensagem}</span>`;
     
     container.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
@@ -1522,16 +1583,17 @@ class SistemaHidrometros {
     }
   }
 
-  limparElementosFantasmas() {
-    document.querySelectorAll('#modalFotoAmpliada, .modal-overlay:not(.permantente), .detalhes-leitura, img.preview-foto:not([id])').forEach(el => el.remove());
-  }
-
   configurarEventos() {
-    document.getElementById('loginForm')?.addEventListener('submit', (e) => this.login(e));
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => this.login(e));
+    }
   }
 }
 
+// Inicialização global
 let app;
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[Sistema] DOM carregado, iniciando app...');
   app = new SistemaHidrometros();
 });
