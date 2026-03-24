@@ -893,8 +893,9 @@ class SistemaHidrometros {
     document.getElementById('bottomBar').style.display = 'flex';
     this.popularSelectLocais();
     if (this.ronda.locais.length > 0) {
-      document.getElementById('localSelect').value = this.ronda.locais[0];
-      this.carregarHidrometros(this.ronda.locais[0]);
+      this.localAtual = this.ronda.locais[0];
+    document.getElementById('localSelect').value = this.localAtual;
+    this.carregarHidrometros(this.localAtual);
     }
     this.atualizarProgresso();
   }
