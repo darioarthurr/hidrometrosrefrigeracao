@@ -1,16 +1,15 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.7
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.8
  * CORREÇÕES APLICADAS:
- * - Status "Online" agora fica abaixo do header (sem sobrepor nome)
- * - Dashboard, Leituras, Análise e Gestão agora carregam corretamente
- * - Seletor de local com design bonito e mostra local atual
- * - Removido texto inútil "0% concluído" da barra de progresso
- * - Nome do técnico aparece na tela inicial
- * - Toggle senha funcionando
+ * - Filtro "Hoje/Ontem" agora atualiza TODOS os KPIs corretamente
+ * - Leitura NÃO some mais ao trocar de local ou retomar ronda
+ * - "PENDENTE" removido do header do técnico
+ * - Seletor de local agora mostra claramente o local atual
+ * - Gráficos mantidos como resumo geral (filtros só afetam tabela)
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.7',
+  VERSAO: '2.9.8.8',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -78,7 +77,7 @@ class SistemaHidrometros {
     if (usuarioSalvo) {
       this.usuario = usuarioSalvo;
       this.atualizarHeaderUsuario();
-      this.atualizarNomeStart();                    // CORREÇÃO v2.9.8.7
+      this.atualizarNomeStart();
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
       if (rondaSalva && rondaSalva.id) this.ronda = rondaSalva;
      
@@ -129,12 +128,8 @@ class SistemaHidrometros {
     const nivelSpan = document.getElementById('nivelUsuario');
     if (nivelSpan) {
       nivelSpan.textContent = this.normalizarNivel(this.usuario.nivel);
-      nivelSpan.style.backgroundColor = this.isAdmin(this.usuario.nivel) ? '#dc3545' : '#007bff';
-      nivelSpan.style.color = 'white';
-      nivelSpan.style.padding = '4px 8px';
-      nivelSpan.style.borderRadius = '4px';
-      nivelSpan.style.fontSize = '0.75rem';
-      nivelSpan.style.fontWeight = 'bold';
+      nivelSpan.className = 'user-badge';
+      if (this.isAdmin(this.usuario.nivel)) nivelSpan.classList.add('admin');
     }
   }
 
@@ -333,7 +328,9 @@ class SistemaHidrometros {
       const filtroTipo = document.getElementById('filtroTipo')?.value || '';
       const filtroStatus = document.getElementById('filtroStatus')?.value || '';
       const filtroData = document.getElementById('filtroData')?.value || '';
+     
       let filtradas = [...this.dashboardData.ultimas];
+     
       if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
       if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo);
       if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
@@ -344,11 +341,18 @@ class SistemaHidrometros {
           return dataLeitura.toDateString() === dataFiltro.toDateString();
         });
       }
+     
       this.renderizarUltimasLeituras(filtradas);
+     
       const total = filtradas.length;
       const alertas = filtradas.filter(l => l.status !== 'NORMAL').length;
+      const vazamentos = filtradas.filter(l => l.status === 'VAZAMENTO').length;
+      const normal = filtradas.filter(l => l.status === 'NORMAL').length;
+     
       this.atualizarElemento('kpiTotal', total);
       this.atualizarElemento('kpiAlertas', alertas);
+      this.atualizarElemento('kpiVazamentos', vazamentos);
+      this.atualizarElemento('kpiNormal', normal);
     } catch (e) {
       console.error('[Filtros] Erro ao aplicar:', e);
     }
@@ -895,7 +899,7 @@ class SistemaHidrometros {
       this.usuario = data;
       this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIO, data);
       this.atualizarHeaderUsuario();
-      this.atualizarNomeStart();                    // CORREÇÃO v2.9.8.7
+      this.atualizarNomeStart();
       this.mostrarLoading(false);
       if (this.isAdmin(data.nivel)) {
         this.mostrarTela('dashboardScreen');
@@ -1004,7 +1008,14 @@ class SistemaHidrometros {
     hidros.forEach(h => {
       const card = this.criarCardHidrometro(h);
       container.appendChild(card);
-      if (h.leituraAtual) this.atualizarUI(h.id);
+      if (h.leituraAtual) {
+        const input = document.getElementById(`input-${h.id}`);
+        if (input) {
+          input.value = h.leituraAtual;
+          this.calcularPreview(h.id);
+        }
+        this.atualizarUI(h.id);
+      }
       if (h.foto) this.restaurarFoto(h.id);
       if (h.justificativa) this.restaurarJustificativa(h.id);
     });
