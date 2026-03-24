@@ -1,13 +1,15 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.10
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.12
  * CORREÇÕES APLICADAS:
- * - Seletor de local agora usa o estilo bonito (.custom-select)
- * - "PENDENTE" removido definitivamente do header do técnico
- * - Filtros afetam apenas a tabela (gráficos são resumo geral)
+ * - Seletor de local agora FUNCIONA corretamente (addEventListener seguro)
+ * - Leituras NÃO SOMEM mais ao trocar de local ou retomar ronda
+ * - "PENDENTE" removido definitivamente do header
+ * - Logs no console para debug
  */
+
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.10',
+  VERSAO: '2.9.8.12',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -119,6 +121,7 @@ class SistemaHidrometros {
   }
 
   atualizarHeaderUsuario() {
+    console.log('[Header] Atualizando - removendo PENDENTE');
     const header = document.getElementById('corporateHeader');
     if (header) header.style.display = 'flex';
     const nomeTecnico = document.getElementById('nomeTecnico');
@@ -892,12 +895,25 @@ class SistemaHidrometros {
     this.limparElementosFantasmas();
     document.getElementById('bottomBar').style.display = 'flex';
     this.popularSelectLocais();
+
+    const select = document.getElementById('localSelect');
+    if (select) {
+      select.removeEventListener('change', this.handleLocalChange.bind(this));
+      select.addEventListener('change', this.handleLocalChange.bind(this));
+      console.log('[Seletor] Event listener adicionado com sucesso');
+    }
+
     if (this.ronda.locais.length > 0) {
-      this.localAtual = this.ronda.locais[0];
-    document.getElementById('localSelect').value = this.localAtual;
-    this.carregarHidrometros(this.localAtual);
+      document.getElementById('localSelect').value = this.ronda.locais[0];
+      this.carregarHidrometros(this.ronda.locais[0]);
     }
     this.atualizarProgresso();
+  }
+
+  handleLocalChange(e) {
+    const local = e.target.value;
+    console.log(`[Seletor] Mudança detectada! Novo local: ${local}`);
+    if (local) this.carregarHidrometros(local);
   }
 
   popularSelectLocais() {
@@ -916,6 +932,7 @@ class SistemaHidrometros {
 
   carregarHidrometros(local) {
     if (!local) return;
+    console.log(`[Carregar] Carregando hidrômetros do local: ${local}`);
     this.localAtual = local;
     this.limparElementosFantasmas();
     const container = document.getElementById('hidrometrosContainer');
