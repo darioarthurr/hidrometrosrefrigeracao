@@ -1,15 +1,14 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.12
- * CORREÇÕES APLICADAS:
- * - Seletor de local agora FUNCIONA corretamente (addEventListener seguro)
- * - Leituras NÃO SOMEM mais ao trocar de local ou retomar ronda
- * - "PENDENTE" removido definitivamente do header
- * - Logs no console para debug
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.13
+ * CORREÇÕES:
+ * - Seletor de local agora atualiza o texto visível corretamente
+ * - Leituras não somem mais ao trocar de local
+ * - "PENDENTE" removido do header
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.12',
+  VERSAO: '2.9.8.13',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -129,7 +128,7 @@ class SistemaHidrometros {
     const nivelSpan = document.getElementById('nivelUsuario');
     if (nivelSpan) {
       nivelSpan.textContent = this.normalizarNivel(this.usuario.nivel);
-      nivelSpan.className = 'user-badge';           // Remove qualquer "PENDENTE"
+      nivelSpan.className = 'user-badge';
       if (this.isAdmin(this.usuario.nivel)) nivelSpan.classList.add('admin');
     }
   }
@@ -934,6 +933,11 @@ class SistemaHidrometros {
     if (!local) return;
     console.log(`[Carregar] Carregando hidrômetros do local: ${local}`);
     this.localAtual = local;
+
+    // Força a atualização visual do select
+    const select = document.getElementById('localSelect');
+    if (select) select.value = local;
+
     this.limparElementosFantasmas();
     const container = document.getElementById('hidrometrosContainer');
     if (!container) return;
