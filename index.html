@@ -11,17 +11,17 @@
     <meta name="application-name" content="Hidrômetros GPS">
     <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
    
-    <title>Leitura de Hidrômetros v2.9.8.6 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.8.7 | Grupo GPS • Multiplan</title>
    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.8.6">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.8.7">
    
     <style>
-        /* Estilos adicionais v2.9.8.6 */
+        /* Estilos adicionais v2.9.8.7 */
         .status-badge {
             position: fixed;
             top: 10px;
@@ -173,6 +173,7 @@
         </div>
         <!-- Toast Container -->
         <div id="toastContainer" class="toast-container"></div>
+
         <!-- TELA LOGIN -->
         <section id="loginScreen" class="screen active" role="main">
             <div class="login-container">
@@ -189,7 +190,7 @@
                     </div>
                   
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.8.6</p>
+                    <p class="login-version">v2.9.8.7</p>
                   
                     <div id="loginError" class="error-message"></div>
                   
@@ -203,7 +204,6 @@
                             <label for="password" class="form-label">Senha</label>
                             <div class="password-wrapper">
                                 <input type="password" id="password" class="form-input" placeholder="Digite sua senha" autocomplete="current-password" required>
-                                <!-- CORREÇÃO: botão agora chama app.togglePassword() que existe -->
                                 <button type="button" class="toggle-password" onclick="app.togglePassword()">👁️</button>
                             </div>
                         </div>
@@ -215,11 +215,11 @@
                   
                     <footer class="login-footer">
                         <p>Sistema exclusivo para equipe autorizada</p>
-                        <!-- CORREÇÃO v2.9.8.6: removido <p id="statusRede"> duplicado. O JS agora cria o fixed sempre visível -->
                     </footer>
                 </div>
             </div>
         </section>
+
         <!-- HEADER CORPORATIVO -->
         <header id="corporateHeader" class="corporate-header" style="display:none;">
             <div class="header-brand">
@@ -234,6 +234,7 @@
                 <button class="btn-icon" onclick="app.logout()" title="Sair">🚪</button>
             </div>
         </header>
+
         <!-- MENU ADMIN -->
         <nav id="adminNav" class="admin-nav" style="display:none;">
             <button class="nav-item active" data-page="dashboard" onclick="app.navigate('dashboard')">
@@ -249,6 +250,7 @@
                 <span>⚙️</span><span>Gestão</span>
             </button>
         </nav>
+
         <!-- TELA INICIAL (Técnico) -->
         <section id="startScreen" class="screen" role="main">
             <div class="welcome-container">
@@ -266,13 +268,13 @@
                     </button>
                   
                     <div class="system-info">
-                        <p>Versão 2.9.8.6</p>
+                        <p>Versão 2.9.8.7</p>
                     </div>
                 </div>
             </div>
         </section>
-        <!-- (o resto do HTML continua exatamente igual – não alterei nada além do statusRede) -->
-        <!-- TELA DE LEITURA -->
+
+        <!-- TELA DE LEITURA (CORRIGIDA) -->
         <section id="leituraScreen" class="screen" role="main">
             <div class="leitura-container">
                 <div class="progresso-container">
@@ -283,17 +285,22 @@
                     <div class="barra-progresso" id="progressBar">
                         <div class="barra-preenchida" style="width: 0%"></div>
                     </div>
-                    <div class="progresso-percentual">0% concluído</div>
                 </div>
+
                 <div class="local-selector-card">
-                    <label for="localSelect">Selecione o local</label>
-                    <select id="localSelect" onchange="app.carregarHidrometros(this.value)">
-                        <option value="">Escolha um local...</option>
-                    </select>
+                    <label for="localSelect" class="selector-label">Selecione o local</label>
+                    <div class="custom-select">
+                        <select id="localSelect" onchange="app.carregarHidrometros(this.value)">
+                            <option value="">Escolha um local...</option>
+                        </select>
+                        <span class="select-arrow">▼</span>
+                    </div>
                 </div>
+
                 <div id="hidrometrosContainer" class="hidrometros-list"></div>
                 <div class="bottom-spacer"></div>
             </div>
+
             <div id="bottomBar" class="bottom-bar" style="display: none;">
                 <div class="bottom-bar-actions">
                     <button id="btnPausar" class="btn-pausar" onclick="app.pausarRonda()">
@@ -305,15 +312,241 @@
                 </div>
             </div>
         </section>
-        <!-- ... (todas as outras seções permanecem iguais) ... -->
-        <!-- TELA DASHBOARD, LEITURAS, ANÁLISE, GESTÃO continuam exatamente como você mandou -->
+
+        <!-- TELA DASHBOARD -->
+        <section id="dashboardScreen" class="screen admin-screen" role="main">
+            <div class="admin-container">
+                <header class="page-header">
+                    <h1>Dashboard</h1>
+                    <div class="periodo-selector">
+                        <select id="periodoDashboard" onchange="app.atualizarDashboard()">
+                            <option value="hoje">Hoje</option>
+                            <option value="ontem">Ontem</option>
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="90">Últimos 3 meses</option>
+                        </select>
+                    </div>
+                </header>
+
+                <div class="kpi-grid">
+                    <article class="kpi-card">
+                        <div class="kpi-icon">💧</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiTotal">0</span>
+                            <span class="kpi-label">Total Leituras</span>
+                        </div>
+                    </article>
+                    <article class="kpi-card" style="border-left-color: #ffc107;">
+                        <div class="kpi-icon">⚠️</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiAlertas">0</span>
+                            <span class="kpi-label">Alertas</span>
+                        </div>
+                    </article>
+                    <article class="kpi-card" style="border-left-color: #dc3545;">
+                        <div class="kpi-icon">🚨</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiVazamentos">0</span>
+                            <span class="kpi-label">Vazamentos</span>
+                        </div>
+                    </article>
+                    <article class="kpi-card" style="border-left-color: #28a745;">
+                        <div class="kpi-icon">✓</div>
+                        <div class="kpi-content">
+                            <span class="kpi-value" id="kpiNormal">0</span>
+                            <span class="kpi-label">Normal</span>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="filtros-dashboard">
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Local</label>
+                        <select id="filtroLocal">
+                            <option value="">Todos os locais</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Tipo</label>
+                        <select id="filtroTipo">
+                            <option value="">Todos os tipos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Status</label>
+                        <select id="filtroStatus">
+                            <option value="">Todos</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="VAZAMENTO">Vazamento</option>
+                            <option value="ALERTA_VARIACAO">Alerta</option>
+                            <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size: 0.85rem; margin-bottom: 5px;">Data</label>
+                        <input type="date" id="filtroData">
+                    </div>
+                    <button onclick="app.aplicarFiltros()" style="padding:8px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">Aplicar</button>
+                    <button onclick="app.limparFiltros()" style="padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar</button>
+                </div>
+
+                <div class="charts-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div class="chart-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                        <h3>Consumo por Local (m³)</h3>
+                        <div class="chart-container">
+                            <canvas id="chartLocais"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                        <h3>Leituras por Dia</h3>
+                        <div class="chart-container">
+                            <canvas id="chartDias"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-card" style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <h3>Últimas Leituras</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f8f9fa;">
+                                    <th style="padding:12px;text-align:left;">Data</th>
+                                    <th style="padding:12px;text-align:left;">Local</th>
+                                    <th style="padding:12px;text-align:left;">Técnico</th>
+                                    <th style="padding:12px;text-align:left;">Leitura</th>
+                                    <th style="padding:12px;text-align:left;">Consumo</th>
+                                    <th style="padding:12px;text-align:left;">Status</th>
+                                    <th style="padding:12px;text-align:left;">Variação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ultimasLeituras">
+                                <tr><td colspan="7" style="text-align:center;padding:20px;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA LEITURAS (HISTÓRICO) -->
+        <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
+            <div class="admin-container" style="padding: 20px;">
+                <header class="page-header" style="margin-bottom: 20px;">
+                    <h1>Histórico de Leituras</h1>
+                    <button onclick="app.exportarDados()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        📥 Exportar CSV
+                    </button>
+                </header>
+               
+                <div style="background:white;padding:20px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px;">
+                        <div>
+                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
+                            <select id="filtroLocalLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Status</label>
+                            <select id="filtroStatusLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                                <option value="">Todos</option>
+                                <option value="NORMAL">Normal</option>
+                                <option value="VAZAMENTO">Vazamento</option>
+                                <option value="ALERTA_VARIACAO">Alerta</option>
+                                <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">De</label>
+                            <input type="date" id="filtroDataInicio" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Até</label>
+                            <input type="date" id="filtroDataFim" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                        </div>
+                    </div>
+                   
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button onclick="app.limparFiltrosLeituras()" style="padding:10px 20px;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;">Limpar</button>
+                        <button onclick="app.aplicarFiltrosLeituras()" style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;">🔍 Aplicar</button>
+                    </div>
+                </div>
+
+                <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead style="background:#f8f9fa;">
+                                <tr>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Ronda</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Data/Hora</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Técnico</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Local</th>
+                                    <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Status</th>
+                                    <th style="padding:12px;text-align:center;border-bottom:2px solid #dee2e6;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaLeituras">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar Filtros" para carregar</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA ANÁLISE -->
+        <section id="analiseScreen" class="screen admin-screen" role="main">
+            <div class="admin-container">
+                <header class="page-header">
+                    <h1>Análise Comparativa</h1>
+                    <p style="color:#666;margin-top:5px;">Comparativos inteligentes e tendências</p>
+                </header>
+                <div id="analiseContainer">
+                    <div style="text-align:center;padding:40px;color:#666;">Carregando análise...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA GESTÃO -->
+        <section id="gestaoScreen" class="screen admin-screen" role="main">
+            <div class="gestao-container">
+                <header class="page-header">
+                    <h1>Gestão de Usuários</h1>
+                </header>
+                <div class="gestao-card">
+                    <h3 style="margin-top:0;color:#003366;">👤 Criar Novo Usuário</h3>
+                    <div class="form-grid" style="max-width:600px;">
+                        <input type="text" id="novoNome" placeholder="Nome completo" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
+                        <input type="text" id="novoUsuario" placeholder="Usuário (login)" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
+                        <input type="password" id="novoSenha" placeholder="Senha" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
+                        <select id="novoNivel" style="padding:12px;border:1px solid #ddd;border-radius:6px;">
+                            <option value="tecnico">Técnico</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <button class="btn-success" onclick="app.criarUsuario()" style="justify-self:start;">Criar Usuário</button>
+                    </div>
+                </div>
+                <div class="gestao-card">
+                    <h3 style="margin-top:0;color:#003366;">👥 Usuários Cadastrados</h3>
+                    <div id="listaUsuarios">
+                        <p style="color:#666;text-align:center;padding:20px;">Carregando...</p>
+                    </div>
+                    <button onclick="app.carregarUsuariosDoServidor()" style="margin-top:15px;padding:8px 16px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">🔄 Atualizar Lista</button>
+                </div>
+            </div>
+        </section>
     </div>
-    <script src="assets/app.js?v=2.9.8.6"></script>
+
+    <script src="assets/app.js?v=2.9.8.7"></script>
   
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.8.6')
+                navigator.serviceWorker.register('sw.js?v=2.9.8.7')
                     .then(registration => console.log('[SW] Registrado'))
                     .catch(error => console.log('[SW] Falha:', error));
             });
