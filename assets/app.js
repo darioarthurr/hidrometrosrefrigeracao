@@ -899,7 +899,7 @@ class SistemaHidrometros {
     if (select) {
       select.removeEventListener('change', this.handleLocalChange.bind(this));
       select.addEventListener('change', this.handleLocalChange.bind(this));
-      console.log('[Seletor] Event listener adicionado com sucesso');
+      console.log('[Seletor] Event listener adicionado');
     }
 
     if (this.ronda.locais.length > 0) {
@@ -934,9 +934,11 @@ class SistemaHidrometros {
     console.log(`[Carregar] Carregando hidrômetros do local: ${local}`);
     this.localAtual = local;
 
-    // Força a atualização visual do select
+    // Força atualização visual do select
     const select = document.getElementById('localSelect');
-    if (select) select.value = local;
+    if (select) {
+      select.value = local;
+    }
 
     this.limparElementosFantasmas();
     const container = document.getElementById('hidrometrosContainer');
