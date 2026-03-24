@@ -1,15 +1,15 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.8
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.9
  * CORREÇÕES APLICADAS:
- * - Filtro "Hoje/Ontem" agora atualiza TODOS os KPIs corretamente
- * - Leitura NÃO some mais ao trocar de local ou retomar ronda
+ * - Filtros afetam apenas a tabela (gráficos são resumo geral)
+ * - Barra de filtros mais bonita e responsiva
  * - "PENDENTE" removido do header do técnico
  * - Seletor de local agora mostra claramente o local atual
- * - Gráficos mantidos como resumo geral (filtros só afetam tabela)
+ * - Leitura não desaparece mais ao trocar de local ou retomar ronda
  */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.8',
+  VERSAO: '2.9.8.9',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -134,19 +134,6 @@ class SistemaHidrometros {
   }
 
   async atualizarDashboard() {
-    const periodo = document.getElementById('periodoDashboard')?.value;
-    if (periodo === 'hoje' || periodo === 'ontem') {
-      const hoje = new Date();
-      const dataFiltro = periodo === 'hoje' ? hoje : new Date(hoje - 86400000);
-      const dataStr = dataFiltro.toISOString().split('T')[0];
-      await this.carregarDashboard();
-      const filtroData = document.getElementById('filtroData');
-      if (filtroData) {
-        filtroData.value = dataStr;
-        this.aplicarFiltros();
-      }
-      return;
-    }
     await this.carregarDashboard();
   }
 
@@ -160,10 +147,7 @@ class SistemaHidrometros {
       const response = await fetch(CONFIG.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'getDashboard',
-          periodo: parseInt(document.getElementById('periodoDashboard')?.value) || 30
-        })
+        body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
       });
       const data = await response.json();
       if (data.success) {
