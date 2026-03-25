@@ -6,18 +6,11 @@
  * CHANGELOG / LOG DE ATUALIZAÇÃO:
  * 
  * v2.9.9.1 (25/03/2026)
+ * - [CORREÇÃO] Erro "mostrarTela is not a function" - método restaurado
  * - [CORREÇÃO] Tratamento específico para erro de permissão do Google Drive ao finalizar ronda
- * - [CORREÇÃO] Mensagens amigáveis ao usuário quando Drive não está autorizado
  * - [MELHORIA] Compressão automática de fotos antes do upload (limite 1280px, qualidade 0.8)
- * - [MELHORIA] Validação de tamanho máximo de foto (5MB) para evitar timeouts
- * - [ADIÇÃO] Filtro por usuário/técnico na Dashboard
- * - [ADIÇÃO] Filtro por usuário/técnico no Histórico de Leituras  
- * - [ADIÇÃO] Filtro por usuário/técnico na Análise Comparativa
- * - [ADIÇÃO] Função popularFiltroUsuarios() para carregar dinamicamente lista de técnicos
- * - [MELHORIA] Header redesenhado com melhor espaçamento e organização visual
- * - [MELHORIA] Indicador de status online/offline mais discreto e profissional
- * - [CORREÇÃO] Remoção de badges fantasmas no header
- * - [MELHORIA] Suporte a resposta do backend com avisos (salvamento sem fotos quando Drive indisponível)
+ * - [ADIÇÃO] Filtro por usuário/técnico na Dashboard, Histórico e Análise
+ * - [MELHORIA] Header redesenhado com melhor espaçamento
  * 
  * v2.9.9.0 (Anterior)
  * - Versão base estável
@@ -48,23 +41,19 @@ class SistemaHidrometros {
     this.leiturasCache = [];
     this.analiseData = null;
     this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
-    this.filtrosAnalise = { usuario: '', periodo: 30, tipo: 'consumo' };
+    this.filtrosAnalise = { usuario: '' };
    
     console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
     this.injectStyles();
     this.inicializar();
   }
 
-  /**
-   * Estilos CSS injetados dinamicamente para garantir consistência
-   */
   injectStyles() {
     if (document.getElementById('app-styles-v2991')) return;
     
     const style = document.createElement('style');
     style.id = 'app-styles-v2991';
     style.textContent = `
-      /* HEADER MODERNO E ESPAÇOSO */
       .corporate-header {
         background: linear-gradient(135deg, #003366 0%, #004080 100%);
         color: white;
@@ -97,12 +86,7 @@ class SistemaHidrometros {
       
       .logo-gps { font-size: 1.25rem; letter-spacing: 1px; text-transform: uppercase; }
       .logo-separator { color: #ffc107; font-size: 1.1rem; }
-      .logo-multiplan { 
-        font-size: 1.1rem; 
-        letter-spacing: 2px; 
-        text-transform: uppercase; 
-        color: #e0f2fe; 
-      }
+      .logo-multiplan { font-size: 1.1rem; letter-spacing: 2px; text-transform: uppercase; color: #e0f2fe; }
       
       .system-subtitle {
         font-size: 0.75rem;
@@ -125,8 +109,6 @@ class SistemaHidrometros {
           border-radius: 9999px;
           border: 1px solid rgba(255,255,255,0.2);
         }
-        .header-icon { font-size: 1.25rem; }
-        .header-title-text { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.5px; }
       }
       
       .header-user {
@@ -226,14 +208,6 @@ class SistemaHidrometros {
         .status-text { display: none; }
       }
       
-      /* CARDS E ELEMENTOS */
-      .hidrometro-card { 
-        position: relative; 
-        overflow: visible; 
-        contain: layout style paint; 
-        transition: all 0.3s ease;
-      }
-      
       .hidrometro-card.sem-foto {
         border: 2px solid #f59e0b !important;
         background: linear-gradient(135deg, white, #fffbeb) !important;
@@ -268,7 +242,6 @@ class SistemaHidrometros {
         50% { opacity: 0.7; }
       }
       
-      /* FILTROS PREMIUM */
       .filters-bar {
         background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
         border: 1px solid #e2e8f0;
@@ -379,7 +352,6 @@ class SistemaHidrometros {
         .filter-actions { grid-column: 1; }
       }
       
-      /* TOASTS E ALERTAS */
       .toast-container {
         position: fixed;
         top: 20px;
@@ -430,7 +402,6 @@ class SistemaHidrometros {
         to { transform: translateX(0); opacity: 1; }
       }
       
-      /* REMOVE BADGES FANTASMAS */
       #corporateHeader .status-badge:not(.header-status),
       header .status-badge:not(.header-status) { 
         display: none !important; 
@@ -475,25 +446,53 @@ class SistemaHidrometros {
    
     this.configurarEventos();
     
-    // Auto-save a cada 2 segundos se houver alterações pendentes
     setInterval(() => {
       if (this.salvamentoPendente && this.ronda.id) this.salvarRonda();
     }, 2000);
   }
 
-  /**
-   * Configura o header com estrutura moderna e limpa
-   */
+  // ========== NAVEGAÇÃO E TELAS ==========
+
+  mostrarTela(telaId) {
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none';
+    });
+    const tela = document.getElementById(telaId);
+    if (tela) {
+      tela.style.display = 'block';
+      requestAnimationFrame(() => tela.classList.add('active'));
+    }
+  }
+
+  navigate(page) {
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    const btn = document.querySelector('[data-page="' + page + '"]');
+    if (btn) btn.classList.add('active');
+    
+    if (page === 'dashboard') {
+      this.mostrarTela('dashboardScreen');
+      this.carregarDashboard();
+    } else if (page === 'leituras') {
+      this.mostrarTela('leiturasAdminScreen');
+      this.carregarLeituras();
+    } else if (page === 'analise') {
+      this.mostrarTela('analiseScreen');
+      this.carregarAnalise();
+    } else if (page === 'gestao') {
+      this.mostrarTela('gestaoScreen');
+      this.carregarUsuariosDoServidor();
+    }
+  }
+
   configurarHeader() {
     const header = document.getElementById('corporateHeader');
     if (!header) return;
     
-    // Reestrutura o header se necessário (garante que está usando o novo layout)
     header.style.display = 'block';
     this.atualizarStatusUI();
     this.limparBadgesHeader();
     
-    // Atualiza informações do usuário
     const nomeEl = document.getElementById('nomeTecnico');
     const nivelEl = document.getElementById('nivelUsuario');
     
@@ -533,7 +532,6 @@ class SistemaHidrometros {
   }
 
   limparBadgesHeader() {
-    // Remove qualquer badge solto no header que não seja o status principal
     const header = document.getElementById('corporateHeader');
     if (!header) return;
     
@@ -541,14 +539,533 @@ class SistemaHidrometros {
     badgesSoltos.forEach(badge => badge.remove());
   }
 
-  /**
-   * FINALIZAR RONDA COM TRATAMENTO DE ERRO DO DRIVE
-   * Captura especificamente erro de permissão e orienta o usuário
-   */
+  // ========== AUTENTICAÇÃO ==========
+
+  async login(e) {
+    e.preventDefault();
+    const username = document.getElementById('username')?.value.trim() || '';
+    const password = document.getElementById('password')?.value.trim() || '';
+    
+    if (!username || !password) {
+      this.mostrarErro('Preencha usuário e senha');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Autenticando...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'login', usuario: username, senha: password })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) throw new Error(data.message);
+      
+      this.usuario = data;
+      this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIO, data);
+      this.configurarHeader();
+      this.atualizarNomeStart();
+      this.mostrarLoading(false);
+      
+      if (this.isAdmin(data.nivel)) {
+        this.mostrarTela('dashboardScreen');
+        this.carregarDashboard();
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav) adminNav.style.display = 'flex';
+      } else {
+        this.mostrarTela('startScreen');
+        this.verificarRondaPendente();
+      }
+    } catch (error) {
+      this.mostrarLoading(false);
+      this.mostrarErro(error.message);
+    }
+  }
+
+  logout() {
+    if (confirm('Deseja realmente sair?')) {
+      this.salvarRonda();
+      localStorage.removeItem(CONFIG.STORAGE_KEYS.USUARIO);
+      location.reload();
+    }
+  }
+
+  // ========== RONDA E LEITURAS ==========
+
+  async iniciarLeitura() {
+    if (!this.usuario) return;
+    this.mostrarLoading(true, 'Carregando hidrômetros...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'iniciar', usuario: this.usuario.usuario })
+      });
+      
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message);
+      
+      this.ronda = {
+        id: data.rondaId,
+        hidrometros: data.hidrometros.map(h => ({
+          ...h,
+          leituraAtual: null,
+          consumoDia: null,
+          variacao: null,
+          justificativa: '',
+          foto: null,
+          status: 'PENDENTE'
+        })),
+        locais: [...new Set(data.hidrometros.map(h => h.local))],
+        inicio: new Date().toISOString()
+      };
+      
+      this.salvarRonda();
+      this.mostrarLoading(false);
+      this.entrarModoLeitura();
+    } catch (error) {
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro: ' + error.message, 'error');
+    }
+  }
+
+  entrarModoLeitura() {
+    this.mostrarTela('leituraScreen');
+    this.limparElementosFantasmas();
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar) bottomBar.style.display = 'flex';
+    this.popularSelectLocais();
+    if (this.ronda.locais.length > 0) {
+      const localInicial = this.localAtual && this.ronda.locais.includes(this.localAtual) 
+        ? this.localAtual 
+        : this.ronda.locais[0];
+      const select = document.getElementById('localSelect');
+      if (select) select.value = localInicial;
+      this.carregarHidrometros(localInicial);
+    }
+    this.atualizarProgresso();
+  }
+
+  popularSelectLocais() {
+    const select = document.getElementById('localSelect');
+    if (!select) return;
+    
+    const localSelecionado = this.localAtual || select.value;
+    select.innerHTML = '<option value="">Selecione o local...</option>';
+    
+    this.ronda.locais.forEach(local => {
+      const hidros = this.ronda.hidrometros.filter(h => h.local === local);
+      const lidos = hidros.filter(h => h.leituraAtual > 0 && h.foto).length;
+      const option = document.createElement('option');
+      option.value = local;
+      option.textContent = local + ' (' + lidos + '/' + hidros.length + ')';
+      select.appendChild(option);
+    });
+    
+    if (localSelecionado && this.ronda.locais.includes(localSelecionado)) {
+      select.value = localSelecionado;
+    }
+  }
+
+  carregarHidrometros(local) {
+    if (!local) return;
+    this.localAtual = local;
+    
+    const select = document.getElementById('localSelect');
+    if (select) select.value = local;
+    
+    this.limparElementosFantasmas();
+    const container = document.getElementById('hidrometrosContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const hidros = this.ronda.hidrometros.filter(h => h.local === local);
+    
+    hidros.forEach(h => {
+      const card = this.criarCardHidrometro(h);
+      container.appendChild(card);
+      
+      if (h.leituraAtual) {
+        const input = document.getElementById('input-' + h.id);
+        if (input) {
+          input.value = h.leituraAtual;
+          this.calcularPreview(h.id);
+        }
+        this.atualizarUI(h.id);
+      }
+      
+      if (h.foto) this.restaurarFoto(h.id);
+      if (h.justificativa) this.restaurarJustificativa(h.id);
+      
+      if (h.leituraAtual && !h.foto) {
+        const cardEl = document.getElementById('card-' + h.id);
+        if (cardEl) cardEl.classList.add('sem-foto');
+      }
+    });
+    
+    this.atualizarProgresso();
+    this.popularSelectLocais();
+  }
+
+  criarCardHidrometro(h) {
+    const div = document.createElement('div');
+    div.className = 'hidrometro-card';
+    div.id = 'card-' + h.id;
+    
+    div.innerHTML = `
+      <div class="card-header">
+        <div class="info-principal">
+          <span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span>
+          <span class="id">#${h.id}</span>
+        </div>
+        <span class="status-badge pendente" id="badge-${h.id}">PENDENTE</span>
+      </div>
+      <div class="leitura-anterior">
+        <span>Leitura anterior</span>
+        <strong>${parseFloat(h.leituraAnterior || 0).toFixed(2)} m³</strong>
+      </div>
+      <div class="campo-leitura">
+        <input type="number" step="0.01" class="input-leitura" id="input-${h.id}" 
+               placeholder="Digite a leitura atual" 
+               oninput="app.calcularPreview('${h.id}')" 
+               onblur="app.salvarLeitura('${h.id}')">
+        <span class="unidade">m³</span>
+      </div>
+      <div class="info-consumo" id="info-${h.id}">
+        <span class="placeholder">Aguardando leitura...</span>
+      </div>
+      <div class="alertas" id="alertas-${h.id}"></div>
+      <div class="justificativa-container" id="just-container-${h.id}" style="display:none;">
+        <textarea class="input-justificativa" id="just-${h.id}" 
+                  placeholder="Descreva o motivo da divergência..." 
+                  onblur="app.salvarJustificativa('${h.id}')"></textarea>
+      </div>
+      <div class="foto-container">
+        <label class="btn-foto" id="btn-foto-${h.id}">
+          <input type="file" accept="image/*" capture="environment" 
+                 onchange="app.processarFoto('${h.id}', this.files[0])" style="display:none">
+          <span>📷 Adicionar foto</span>
+        </label>
+        <div class="foto-obrigatoria" id="foto-obg-${h.id}">
+          ⚠️ Foto obrigatória para concluir
+        </div>
+        <img id="preview-${h.id}" class="preview-foto" style="display:none;max-width:100%;margin-top:10px;border-radius:8px;">
+      </div>
+    `;
+    
+    return div;
+  }
+
+  calcularPreview(id) {
+    const input = document.getElementById('input-' + id);
+    if (!input) return;
+    
+    const valor = parseFloat(input.value);
+    if (isNaN(valor) || valor <= 0) return;
+    
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h) return;
+    
+    const leituraAnterior = parseFloat(h.leituraAnterior) || 0;
+    const consumoDia = valor - leituraAnterior;
+    const consumoAnterior = parseFloat(h.consumoAnterior) || 0;
+    let variacao = consumoAnterior > 0 ? ((consumoDia - consumoAnterior) / consumoAnterior) * 100 : (consumoDia > 0 ? 100 : 0);
+    
+    const info = document.getElementById('info-' + id);
+    if (info) {
+      info.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Consumo:</span><strong>${consumoDia.toFixed(2)} m³/dia</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;font-size:0.9rem;">
+          <span>Variação:</span><span>${(variacao >= 0 ? '+' : '') + Math.abs(variacao).toFixed(1)}%</span>
+        </div>
+      `;
+    }
+  }
+
+  salvarLeitura(id) {
+    const input = document.getElementById('input-' + id);
+    if (!input) return;
+    
+    const valor = parseFloat(input.value);
+    if (isNaN(valor) || valor <= 0) return;
+    
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h) return;
+    
+    const leituraAnterior = parseFloat(h.leituraAnterior) || 0;
+    const consumoDia = valor - leituraAnterior;
+    const consumoAnterior = parseFloat(h.consumoAnterior) || 0;
+    let variacao = consumoAnterior > 0 ? ((consumoDia - consumoAnterior) / consumoAnterior) * 100 : (consumoDia > 0 ? 100 : 0);
+    
+    let status = 'NORMAL';
+    if (consumoDia < 0) status = 'ANOMALIA_NEGATIVO';
+    else if (variacao > 100) status = 'VAZAMENTO';
+    else if (variacao > 20 || variacao < -20) status = 'ALERTA_VARIACAO';
+    else if (consumoDia <= 0.5) status = 'CONSUMO_BAIXO';
+    
+    h.leituraAtual = valor;
+    h.consumoDia = consumoDia;
+    h.variacao = variacao;
+    h.status = status;
+    
+    this.salvamentoPendente = true;
+    this.atualizarUI(id);
+    this.popularSelectLocais();
+    this.salvarRonda();
+    
+    if (!h.foto) {
+      const cardEl = document.getElementById('card-' + id);
+      if (cardEl) cardEl.classList.add('sem-foto');
+    }
+  }
+
+  atualizarUI(id) {
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h || !h.leituraAtual) return;
+    
+    const badge = document.getElementById('badge-' + id);
+    const card = document.getElementById('card-' + id);
+    const info = document.getElementById('info-' + id);
+    const alertas = document.getElementById('alertas-' + id);
+    const justContainer = document.getElementById('just-container-' + id);
+    
+    if (badge) {
+      let statusTexto = 'PENDENTE';
+      let statusClasse = 'pendente';
+      
+      if (h.foto) {
+        const textos = { 
+          'NORMAL': '✓ OK', 
+          'ALERTA_VARIACAO': '⚠️ ALERTA', 
+          'VAZAMENTO': '🚨 VAZAMENTO', 
+          'ANOMALIA_NEGATIVO': '❌ ERRO', 
+          'CONSUMO_BAIXO': 'ℹ️ BAIXO' 
+        };
+        statusTexto = textos[h.status] || h.status;
+        statusClasse = (h.status === 'NORMAL' || h.status === 'CONSUMO_BAIXO') ? 'completo' : 'pendente';
+      } else {
+        statusTexto = '⏳ AGUARDANDO FOTO';
+        statusClasse = 'pendente';
+      }
+      
+      badge.textContent = statusTexto;
+      badge.className = 'status-badge ' + statusClasse;
+    }
+    
+    if (card) {
+      if (h.foto && (h.status === 'NORMAL' || h.status === 'CONSUMO_BAIXO')) {
+        card.className = 'hidrometro-card completo';
+      } else if (h.foto) {
+        card.className = 'hidrometro-card anomalia';
+      } else {
+        card.className = 'hidrometro-card sem-foto';
+      }
+    }
+    
+    if (info) {
+      const varClass = Math.abs(h.variacao) > 20 ? 'alta' : 'normal';
+      info.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Consumo:</span><strong>${h.consumoDia.toFixed(2)} m³/dia</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;font-size:0.9rem;">
+          <span>Variação:</span><span class="variacao ${varClass}">${(h.variacao >= 0 ? '+' : '') + Math.abs(h.variacao).toFixed(1)}%</span>
+        </div>
+      `;
+    }
+    
+    if (alertas) {
+      let html = '';
+      if (h.status === 'ANOMALIA_NEGATIVO') html = '<div class="alerta danger"><span>⚠️</span><span>Leitura menor que anterior</span></div>';
+      else if (h.status === 'VAZAMENTO') html = '<div class="alerta critico"><span>🚨</span><span>POSSÍVEL VAZAMENTO!</span></div>';
+      else if (h.status === 'ALERTA_VARIACAO') html = '<div class="alerta warning"><span>⚠️</span><span>Variação de ' + Math.abs(h.variacao).toFixed(1) + '%</span></div>';
+      alertas.innerHTML = html;
+    }
+    
+    if (justContainer) {
+      justContainer.style.display = (h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO') ? 'block' : 'none';
+    }
+  }
+
+  salvarJustificativa(id) {
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (h) {
+      const textarea = document.getElementById('just-' + id);
+      h.justificativa = textarea ? textarea.value.trim() : '';
+      this.salvamentoPendente = true;
+      this.salvarRonda();
+    }
+  }
+
+  async processarFoto(id, arquivo) {
+    if (!arquivo) return;
+    
+    if (!arquivo.type.startsWith('image/')) {
+      this.mostrarToast('Arquivo deve ser uma imagem', 'error');
+      return;
+    }
+    
+    const tamanhoMB = arquivo.size / (1024 * 1024);
+    if (tamanhoMB > CONFIG.MAX_FOTO_SIZE_MB) {
+      this.mostrarToast(`Imagem muito grande (${tamanhoMB.toFixed(1)}MB). Máximo: ${CONFIG.MAX_FOTO_SIZE_MB}MB`, 'error');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Processando foto...');
+    
+    try {
+      const comprimida = await this.comprimirImagem(arquivo);
+      
+      if (!comprimida || comprimida.length < 100) {
+        throw new Error('Falha na compressão da imagem');
+      }
+
+      const h = this.ronda.hidrometros.find(h => h.id === id);
+      if (!h) throw new Error('Hidrômetro não encontrado');
+      
+      h.foto = comprimida;
+      this.salvamentoPendente = true;
+      
+      const preview = document.getElementById('preview-' + id);
+      const btn = document.getElementById('btn-foto-' + id);
+      
+      if (preview) { 
+        preview.src = comprimida; 
+        preview.style.display = 'block'; 
+      }
+      
+      if (btn) { 
+        btn.innerHTML = '<span>✓ Foto adicionada</span>'; 
+        btn.classList.add('tem-foto'); 
+      }
+      
+      const cardEl = document.getElementById('card-' + id);
+      if (cardEl) cardEl.classList.remove('sem-foto');
+      
+      const fotoObg = document.getElementById('foto-obg-' + id);
+      if (fotoObg) fotoObg.style.display = 'none';
+      
+      this.atualizarUI(id);
+      this.atualizarProgresso();
+      this.popularSelectLocais();
+      this.salvarRonda();
+      
+      this.mostrarLoading(false);
+      this.mostrarToast('✓ Foto adicionada com sucesso', 'success');
+      
+    } catch (error) {
+      this.mostrarLoading(false);
+      console.error('[Processar Foto] Erro:', error);
+      this.mostrarToast('Erro ao processar foto. Tente novamente.', 'error');
+    }
+  }
+
+  comprimirImagem(arquivo, maxWidth = 1280, qualidade = 0.8) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth) { 
+              height = Math.round((maxWidth / width) * height); 
+              width = maxWidth; 
+            }
+            
+            canvas.width = width; 
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas não suportado');
+            
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', qualidade);
+            resolve(dataUrl);
+            
+          } catch (err) {
+            reject(new Error('Erro na compressão: ' + err.message));
+          }
+        };
+        
+        img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+        img.src = e.target.result;
+      };
+      
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+      reader.readAsDataURL(arquivo);
+    });
+  }
+
+  restaurarFoto(id) {
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h || !h.foto) return;
+    
+    const preview = document.getElementById('preview-' + id);
+    const btn = document.getElementById('btn-foto-' + id);
+    
+    if (preview) { preview.src = h.foto; preview.style.display = 'block'; }
+    if (btn) { btn.innerHTML = '<span>✓ Foto adicionada</span>'; btn.classList.add('tem-foto'); }
+    
+    const fotoObg = document.getElementById('foto-obg-' + id);
+    if (fotoObg) fotoObg.style.display = 'none';
+  }
+
+  restaurarJustificativa(id) {
+    const h = this.ronda.hidrometros.find(h => h.id === id);
+    if (!h || !h.justificativa) return;
+    
+    const textarea = document.getElementById('just-' + id);
+    const container = document.getElementById('just-container-' + id);
+    
+    if (textarea) textarea.value = h.justificativa;
+    if (container) container.style.display = 'block';
+  }
+
+  atualizarProgresso() {
+    const total = this.ronda.hidrometros.length;
+    const completos = this.ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
+    const percentual = total > 0 ? Math.round((completos / total) * 100) : 0;
+    
+    const progressText = document.getElementById('progressText');
+    if (progressText) progressText.textContent = completos + '/' + total + ' (' + percentual + '%)';
+    
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+      const barra = progressBar.querySelector('.barra-preenchida');
+      if (barra) barra.style.width = percentual + '%';
+    }
+    
+    const btnFinalizar = document.getElementById('btnFinalizar');
+    if (btnFinalizar) {
+      btnFinalizar.disabled = percentual < 100;
+      btnFinalizar.textContent = percentual === 100 ? '✓ Finalizar Ronda' : 'Finalizar (' + percentual + '%)';
+      if (percentual === 100) {
+        btnFinalizar.classList.add('pronto');
+      } else {
+        btnFinalizar.classList.remove('pronto');
+      }
+    }
+  }
+
   async finalizarRonda() {
     const semFoto = this.ronda.hidrometros.filter(h => !h.foto);
     if (semFoto.length > 0) {
-      this.mostrarToast(`${semFoto.length} hidrômetro(s) sem foto. Foto é obrigatória!`, 'error');
+      this.mostrarToast(semFoto.length + ' hidrômetro(s) sem foto. Foto é obrigatória!', 'error');
       const primeiro = semFoto[0];
       if (primeiro.local !== this.localAtual) {
         this.carregarHidrometros(primeiro.local);
@@ -571,8 +1088,8 @@ class SistemaHidrometros {
       return;
     }
 
-    this.mostrarLoading(true, 'Enviando dados para o servidor...');
-    
+    this.mostrarLoading(true, 'Enviando dados...');
+
     const leituras = this.ronda.hidrometros.map(h => ({
       id: h.id, 
       local: h.local, 
@@ -599,25 +1116,12 @@ class SistemaHidrometros {
       const data = await response.json();
       
       if (data.success) {
-        // Verifica se houve aviso sobre fotos não salvas (Drive não autorizado)
         if (data.aviso && data.aviso.includes('Drive')) {
-          this.mostrarToast(`
-            <strong>Ronda salva, mas sem fotos!</strong>
-            <small>${data.aviso}. ${data.instrucoes ? data.instrucoes[0] : ''}</small>
-          `, 'error', 8000); // Toast maior para ler instruções
-          
-          // Opcional: mostrar modal com instruções detalhadas
-          if (data.instrucoes && data.instrucoes.length > 0) {
-            console.log('Instruções para autorizar Drive:', data.instrucoes);
-          }
+          this.mostrarToast('Atenção: Ronda salva, mas fotos não foram salvas (Drive não autorizado). Contate o administrador.', 'warning', 8000);
         } else {
-          this.mostrarToast(`
-            <strong>Ronda finalizada com sucesso!</strong>
-            <small>${data.estatisticas ? data.estatisticas.leiturasSalvas : ''} leituras salvas</small>
-          `, 'success');
+          this.mostrarToast('Ronda finalizada com sucesso!', 'success');
         }
         
-        // Limpa ronda local
         this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
         this.localAtual = null;
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
@@ -625,188 +1129,48 @@ class SistemaHidrometros {
         this.mostrarLoading(false);
         this.mostrarTela('startScreen');
       } else {
-        throw new Error(data.message || 'Erro desconhecido ao salvar');
+        throw new Error(data.message);
       }
     } catch (error) {
       this.mostrarLoading(false);
       
-      // Detecta especificamente erro de permissão do Drive
       const erroMsg = error.toString().toLowerCase();
-      if (erroMsg.includes('drive') || 
-          erroMsg.includes('permissão') || 
-          erroMsg.includes('permission') ||
-          erroMsg.includes('authorization')) {
-        
-        this.mostrarToast(`
-          <strong>Erro de permissão do Google Drive!</strong>
-          <small>As leituras não puderam ser salvas. Contate o administrador para autorizar o acesso ao Drive no Apps Script.</small>
-        `, 'error', 10000);
+      if (erroMsg.includes('drive') || erroMsg.includes('permissão') || erroMsg.includes('permission')) {
+        this.mostrarToast('Erro de permissão do Google Drive! Contate o administrador.', 'error', 10000);
       } else {
         this.mostrarToast('Erro ao finalizar: ' + error.message, 'error');
       }
-      
-      console.error('[Finalizar Ronda] Erro:', error);
     }
   }
 
-  /**
-   * PROCESSAR FOTO COM VALIDAÇÃO DE TAMANHO E COMPRESSÃO
-   */
-  async processarFoto(id, arquivo) {
-    if (!arquivo) return;
-    
-    // Validação de tipo
-    if (!arquivo.type.startsWith('image/')) {
-      this.mostrarToast('Arquivo deve ser uma imagem', 'error');
-      return;
-    }
-    
-    // Validação de tamanho (5MB)
-    const tamanhoMB = arquivo.size / (1024 * 1024);
-    if (tamanhoMB > CONFIG.MAX_FOTO_SIZE_MB) {
-      this.mostrarToast(`Imagem muito grande (${tamanhoMB.toFixed(1)}MB). Máximo: ${CONFIG.MAX_FOTO_SIZE_MB}MB`, 'error');
-      return;
-    }
+  pausarRonda() {
+    this.salvarRonda();
+    this.mostrarToast('Ronda pausada', 'info');
+    this.mostrarTela('startScreen');
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar) bottomBar.style.display = 'none';
+    this.verificarRondaPendente();
+  }
 
-    this.mostrarLoading(true, 'Processando foto...');
-    
-    try {
-      // Compressão automática
-      const comprimida = await this.comprimirImagem(arquivo);
-      
-      // Verifica se a compressão resultou em imagem válida
-      if (!comprimida || comprimida.length < 100) {
-        throw new Error('Falha na compressão da imagem');
-      }
+  continuarRonda() {
+    this.entrarModoLeitura();
+  }
 
-      const h = this.ronda.hidrometros.find(h => h.id === id);
-      if (!h) throw new Error('Hidrômetro não encontrado');
-      
-      h.foto = comprimida;
-      this.salvamentoPendente = true;
-      
-      // Atualiza UI
-      const preview = document.getElementById('preview-' + id);
-      const btn = document.getElementById('btn-foto-' + id);
-      
-      if (preview) { 
-        preview.src = comprimida; 
-        preview.style.display = 'block'; 
-        preview.onload = () => this.mostrarLoading(false);
-      } else {
-        this.mostrarLoading(false);
-      }
-      
-      if (btn) { 
-        btn.innerHTML = '<span>✓ Foto adicionada</span>'; 
-        btn.classList.add('tem-foto'); 
-      }
-      
-      const cardEl = document.getElementById('card-' + id);
-      if (cardEl) cardEl.classList.remove('sem-foto');
-      
-      const fotoObg = document.getElementById('foto-obg-' + id);
-      if (fotoObg) fotoObg.style.display = 'none';
-      
-      this.atualizarUI(id);
-      this.atualizarProgresso();
-      this.popularSelectLocais();
-      this.salvarRonda();
-      
-      this.mostrarToast('✓ Foto adicionada com sucesso', 'success');
-      
-    } catch (error) {
-      this.mostrarLoading(false);
-      console.error('[Processar Foto] Erro:', error);
-      
-      // Mensagens específicas para erros comuns
-      if (error.toString().includes('compressão')) {
-        this.mostrarToast('Erro ao comprimir foto. Tente uma imagem menor.', 'error');
-      } else if (error.toString().includes('tamanho')) {
-        this.mostrarToast('Foto muito grande. Limite: 5MB', 'error');
-      } else {
-        this.mostrarToast('Erro ao processar foto. Tente novamente.', 'error');
+  verificarRondaPendente() {
+    const ronda = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+    if (ronda && ronda.id && ronda.hidrometros.length > 0) {
+      const btn = document.getElementById('btnContinuarRonda');
+      if (btn) {
+        btn.style.display = 'flex';
+        const lidos = ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
+        const span = btn.querySelector('span:last-child');
+        if (span) span.textContent = 'Continuar Ronda (' + lidos + '/' + ronda.hidrometros.length + ')';
       }
     }
   }
 
-  /**
-   * Comprime imagem para reduzir tamanho do upload
-   */
-  comprimirImagem(arquivo, maxWidth = 1280, qualidade = 0.8) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const img = new Image();
-        
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            
-            // Redimensiona se necessário
-            if (width > maxWidth) { 
-              height = Math.round((maxWidth / width) * height); 
-              width = maxWidth; 
-            }
-            
-            canvas.width = width; 
-            canvas.height = height;
-            
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Canvas não suportado');
-            
-            // Desenha com suavização
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Converte para JPEG com qualidade reduzida
-            const dataUrl = canvas.toDataURL('image/jpeg', qualidade);
-            resolve(dataUrl);
-            
-          } catch (err) {
-            reject(new Error('Erro na compressão: ' + err.message));
-          }
-        };
-        
-        img.onerror = () => reject(new Error('Erro ao carregar imagem'));
-        img.src = e.target.result;
-      };
-      
-      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-      reader.readAsDataURL(arquivo);
-    });
-  }
+  // ========== DASHBOARD E ANÁLISE ==========
 
-  /**
-   * POPULAR FILTRO DE USUÁRIOS NOS SELECTS
-   */
-  popularFiltroUsuarios(dados, elementId) {
-    const select = document.getElementById(elementId);
-    if (!select || !dados) return;
-    
-    // Extrai usuários únicos dos dados
-    const usuarios = [...new Set(
-      dados.map(l => l.tecnico || l.usuario).filter(u => u)
-    )].sort();
-    
-    const currentValue = select.value;
-    
-    select.innerHTML = '<option value="">Todos os usuários</option>' +
-      usuarios.map(u => `<option value="${u}">${u}</option>`).join('');
-    
-    // Restaura seleção anterior se ainda válida
-    if (currentValue && usuarios.includes(currentValue)) {
-      select.value = currentValue;
-    }
-  }
-
-  /**
-   * CARREGAR DASHBOARD COM SUPORTE A FILTROS (incluindo usuário)
-   */
   async carregarDashboard() {
     if (!this.online) {
       this.mostrarToast('Sem conexão - Dashboard indisponível offline', 'warning');
@@ -847,12 +1211,11 @@ class SistemaHidrometros {
         this.popularFiltroTipos(data);
         this.popularFiltroUsuarios(leiturasCompletas, 'filtroUsuario');
         
-        // Aplica filtros ativos se existirem
         if (Object.values(this.filtrosAtuais).some(f => f !== '')) {
           this.aplicarFiltros(false);
         }
       } else {
-        throw new Error(data.message || 'Erro ao carregar dashboard');
+        throw new Error(data.message);
       }
     } catch (error) {
       console.error('[Dashboard] Erro:', error);
@@ -862,9 +1225,21 @@ class SistemaHidrometros {
     }
   }
 
-  /**
-   * APLICAR FILTROS NA DASHBOARD (incluindo usuário)
-   */
+  popularFiltroUsuarios(dados, elementId) {
+    const select = document.getElementById(elementId);
+    if (!select || !dados) return;
+    
+    const usuarios = [...new Set(dados.map(l => l.tecnico || l.usuario).filter(u => u))].sort();
+    const currentValue = select.value;
+    
+    select.innerHTML = '<option value="">Todos os usuários</option>' +
+      usuarios.map(u => `<option value="${u}">${u}</option>`).join('');
+    
+    if (currentValue && usuarios.includes(currentValue)) {
+      select.value = currentValue;
+    }
+  }
+
   aplicarFiltros(mostrarToastMsg = true) {
     if (!this.dashboardData || !this.dashboardData.ultimas) {
       this.mostrarToast('Dados não carregados', 'error');
@@ -906,7 +1281,7 @@ class SistemaHidrometros {
       this.renderizarDashboard(this.dashboardData, filtradas);
       
       if (mostrarToastMsg) {
-        this.mostrarToast(`${filtradas.length} leituras filtradas`, 'success');
+        this.mostrarToast(filtradas.length + ' leituras filtradas', 'success');
       }
     } catch (e) {
       console.error('[Filtros] Erro:', e);
@@ -914,213 +1289,41 @@ class SistemaHidrometros {
     }
   }
 
-  /**
-   * CARREGAR LEITURAS (HISTÓRICO) COM FILTRO DE USUÁRIO
-   */
-  async carregarLeituras() {
-    if (!this.online) {
-      this.mostrarToast('Modo offline - Histórico indisponível', 'warning');
-      return;
-    }
-    
-    this.mostrarLoading(true, 'Carregando histórico...');
-    
-    try {
-      const response = await fetch(CONFIG.API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'getLeituras', limite: 1000 })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.leituras) {
-        this.leiturasCache = data.leituras;
-        this.renderizarTabelaLeituras(data.leituras.slice(-50));
-        this.popularFiltrosLeituras(data.leituras);
-        this.popularFiltroUsuarios(data.leituras, 'filtroUsuarioLeituras');
-      } else {
-        throw new Error(data.message || 'Erro ao carregar histórico');
-      }
-    } catch (error) {
-      console.error('[Histórico] Erro:', error);
-      this.mostrarToast('Erro ao carregar histórico: ' + error.message, 'error');
-    } finally {
-      this.mostrarLoading(false);
-    }
-  }
-
-  /**
-   * APLICAR FILTROS NO HISTÓRICO (incluindo usuário)
-   */
-  aplicarFiltrosLeituras() {
-    if (!this.leiturasCache.length) return;
-    
-    const filtroLocal = document.getElementById('filtroLocalLeituras')?.value || '';
-    const filtroStatus = document.getElementById('filtroStatusLeituras')?.value || '';
-    const filtroUsuario = document.getElementById('filtroUsuarioLeituras')?.value || '';
-    const dataInicio = document.getElementById('filtroDataInicio')?.value || '';
-    const dataFim = document.getElementById('filtroDataFim')?.value || '';
-    
-    let filtradas = [...this.leiturasCache];
-    
-    if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
-    if (filtroStatus) filtradas = filtradas.filter(l => l.status?.toLowerCase() === filtroStatus.toLowerCase());
-    if (filtroUsuario) filtradas = filtradas.filter(l => l.tecnico === filtroUsuario);
-    
-    if (dataInicio) {
-      const inicio = new Date(dataInicio);
-      filtradas = filtradas.filter(l => new Date(l.data) >= inicio);
-    }
-    if (dataFim) {
-      const fim = new Date(dataFim);
-      filtradas = filtradas.filter(l => new Date(l.data) <= fim);
-    }
-    
-    this.renderizarTabelaLeituras(filtradas);
-    this.mostrarToast(`${filtradas.length} leituras encontradas`, 'success');
-  }
-
-  /**
-   * LIMPAR FILTROS DO HISTÓRICO (incluindo usuário)
-   */
-  limparFiltrosLeituras() {
-    const selects = [
-      'filtroLocalLeituras',
-      'filtroStatusLeituras', 
-      'filtroUsuarioLeituras'
-    ];
-    
-    selects.forEach(id => {
+  limparFiltros() {
+    ['filtroLocal', 'filtroTipo', 'filtroStatus', 'filtroData', 'filtroUsuario'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
     
-    const dataInicio = document.getElementById('filtroDataInicio');
-    const dataFim = document.getElementById('filtroDataFim');
-    if (dataInicio) dataInicio.value = '';
-    if (dataFim) dataFim.value = '';
-    
-    if (this.leiturasCache.length) this.renderizarTabelaLeituras(this.leiturasCache);
+    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
+    if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
+    this.mostrarToast('Filtros limpos', 'info');
   }
 
-  /**
-   * CARREGAR ANÁLISE COM FILTRO DE USUÁRIO
-   */
-  async carregarAnalise() {
-    if (!this.online) {
-      this.mostrarToast('Sem conexão - Análise indisponível offline', 'warning');
-      return;
-    }
+  renderizarDashboard(data, dadosFiltrados) {
+    const dadosParaKPI = dadosFiltrados || data.ultimas || [];
+    const kpi = this.calcularKPI(dadosParaKPI);
     
-    this.mostrarLoading(true, 'Gerando análise comparativa...');
+    this.animarNumero('kpiTotal', kpi.total);
+    this.animarNumero('kpiAlertas', kpi.alertas);
+    this.animarNumero('kpiVazamentos', kpi.vazamentos);
+    this.animarNumero('kpiNormal', kpi.normal);
     
-    try {
-      // Busca dados dos últimos 60 dias para comparativo
-      const [resAtual, resAnterior] = await Promise.all([
-        fetch(CONFIG.API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
-        }).then(r => r.json()),
-        fetch(CONFIG.API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
-        }).then(r => r.json())
-      ]);
-
-      if (resAtual.success && resAnterior.success) {
-        this.analiseData = { 
-          atual: resAtual, 
-          anterior: resAnterior,
-          ultimas: [...(resAtual.ultimas || []), ...(resAnterior.ultimas || [])]
-        };
-        
-        // Popula filtro de usuários com todos os dados disponíveis
-        this.popularFiltroUsuarios(this.analiseData.ultimas, 'filtroUsuarioAnalise');
-        
-        this.renderizarAnalise(resAtual, resAnterior);
-      } else {
-        throw new Error('Erro ao carregar dados da análise');
-      }
-    } catch (error) {
-      console.error('[Análise] Erro:', error);
-      this.mostrarToast('Erro ao carregar análise: ' + error.message, 'error');
-    } finally {
-      this.mostrarLoading(false);
-    }
-  }
-
-  /**
-   * APLICAR FILTROS NA ANÁLISE
-   */
-  aplicarFiltrosAnalise() {
-    if (!this.analiseData) return;
+    const dadosLocais = dadosFiltrados 
+      ? this.agruparPorLocal(dadosFiltrados)
+      : (data.graficos?.porLocal || this.agruparPorLocal(dadosParaKPI));
+    this.renderizarGraficoLocais(dadosLocais);
     
-    const filtroUsuario = document.getElementById('filtroUsuarioAnalise')?.value || '';
-    this.filtrosAnalise.usuario = filtroUsuario;
+    const dadosDias = dadosFiltrados
+      ? this.agruparPorDia(dadosFiltrados)
+      : (data.graficos?.porDia || this.agruparPorDia(dadosParaKPI));
+    this.renderizarGraficoDias(dadosDias);
     
-    let dadosAtual = [...this.analiseData.atual.ultimas];
-    let dadosAnterior = [...this.analiseData.anterior.ultimas];
+    const dadosOrdenados = [...dadosParaKPI].sort((a, b) => 
+      new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0)
+    );
     
-    if (filtroUsuario) {
-      dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario);
-      dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario);
-    }
-    
-    const resAtualFiltrado = { ...this.analiseData.atual, ultimas: dadosAtual };
-    const resAnteriorFiltrado = { ...this.analiseData.anterior, ultimas: dadosAnterior };
-    
-    this.renderizarAnalise(resAtualFiltrado, resAnteriorFiltrado);
-    this.mostrarToast(`Análise filtrada: ${filtroUsuario || 'Todos'}`, 'success');
-  }
-
-  // ========== MÉTODOS AUXILIARES (mantidos da versão anterior) ==========
-
-  atualizarNomeStart() {
-    const span = document.getElementById('nomeTecnicoStart');
-    if (span && this.usuario) {
-      span.textContent = this.usuario.nome || 'Técnico';
-    }
-  }
-
-  isAdmin(nivel) {
-    if (!nivel) return false;
-    const n = nivel.toString().toLowerCase().trim();
-    return n === 'admin' || n === 'op' || n === 'adm' || n === 'administrador';
-  }
-
-  normalizarNivel(nivel) {
-    if (!nivel) return 'TECNICO';
-    return this.isAdmin(nivel) ? 'ADMIN' : 'TECNICO';
-  }
-
-  popularFiltroLocais(data) {
-    const select = document.getElementById('filtroLocal');
-    if (!select || !data.ultimas) return;
-    
-    const locais = [...new Set(data.ultimas.map(l => l.local).filter(l => l))].sort();
-    select.innerHTML = '<option value="">Todos os locais</option>' +
-      locais.map(l => `<option value="${l}">${l}</option>`).join('');
-  }
-
-  popularFiltroTipos(data) {
-    const select = document.getElementById('filtroTipo');
-    if (!select || !data.ultimas) return;
-    
-    const tipos = [...new Set(data.ultimas.map(l => l.tipo).filter(t => t))].sort();
-    select.innerHTML = '<option value="">Todos os tipos</option>' +
-      tipos.map(t => `<option value="${t}">${t}</option>`).join('');
-  }
-
-  popularFiltrosLeituras(leituras) {
-    const selectLocal = document.getElementById('filtroLocalLeituras');
-    if (!selectLocal) return;
-    
-    const locais = [...new Set(leituras.map(l => l.local))].filter(l => l).sort();
-    selectLocal.innerHTML = '<option value="">Todos</option>' +
-      locais.map(l => `<option value="${l}">${l}</option>`).join('');
+    this.renderizarUltimasLeituras(dadosOrdenados.slice(0, 50));
   }
 
   calcularKPI(leituras) {
@@ -1149,32 +1352,6 @@ class SistemaHidrometros {
       dias[dia] = (dias[dia] || 0) + 1;
     });
     return Object.entries(dias).sort((a, b) => a[0].localeCompare(b[0]));
-  }
-
-  renderizarDashboard(data, dadosFiltrados) {
-    const dadosParaKPI = dadosFiltrados || data.ultimas || [];
-    const kpi = this.calcularKPI(dadosParaKPI);
-    
-    this.animarNumero('kpiTotal', kpi.total);
-    this.animarNumero('kpiAlertas', kpi.alertas);
-    this.animarNumero('kpiVazamentos', kpi.vazamentos);
-    this.animarNumero('kpiNormal', kpi.normal);
-    
-    const dadosLocais = dadosFiltrados 
-      ? this.agruparPorLocal(dadosFiltrados)
-      : (data.graficos?.porLocal || this.agruparPorLocal(dadosParaKPI));
-    this.renderizarGraficoLocais(dadosLocais);
-    
-    const dadosDias = dadosFiltrados
-      ? this.agruparPorDia(dadosFiltrados)
-      : (data.graficos?.porDia || this.agruparPorDia(dadosParaKPI));
-    this.renderizarGraficoDias(dadosDias);
-    
-    const dadosOrdenados = [...dadosParaKPI].sort((a, b) => 
-      new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0)
-    );
-    
-    this.renderizarUltimasLeituras(dadosOrdenados.slice(0, 50));
   }
 
   animarNumero(elementId, valorFinal) {
@@ -1218,12 +1395,7 @@ class SistemaHidrometros {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => ctx.parsed.y.toFixed(2) + ' m³'
-            }
-          }
+          legend: { display: false }
         },
         scales: {
           y: {
@@ -1297,21 +1469,50 @@ class SistemaHidrometros {
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
       else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
-      const consumo = parseFloat(l.consumoDia) || 0;
-      const variacao = parseFloat(l.variacao) || 0;
-      
       return `
         <tr>
           <td>${dataStr}</td>
           <td>${l.local || '-'}</td>
           <td>${l.tecnico || '-'}</td>
           <td>${parseFloat(l.leitura || l.leituraAtual || 0).toFixed(2)} m³</td>
-          <td><strong>${consumo.toFixed(2)} m³</strong></td>
+          <td><strong>${(parseFloat(l.consumoDia) || 0).toFixed(2)} m³</strong></td>
           <td><span class="badge ${statusClass}">${l.status}</span></td>
-          <td>${(variacao > 0 ? '+' : '') + variacao.toFixed(1)}%</td>
+          <td>${(parseFloat(l.variacao) || 0).toFixed(1)}%</td>
         </tr>
       `;
     }).join('');
+  }
+
+  async carregarLeituras() {
+    if (!this.online) {
+      this.mostrarToast('Modo offline - Histórico indisponível', 'warning');
+      return;
+    }
+    
+    this.mostrarLoading(true, 'Carregando histórico...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'getLeituras', limite: 1000 })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.leituras) {
+        this.leiturasCache = data.leituras;
+        this.renderizarTabelaLeituras(data.leituras.slice(-50));
+        this.popularFiltrosLeituras(data.leituras);
+        this.popularFiltroUsuarios(data.leituras, 'filtroUsuarioLeituras');
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      this.mostrarToast('Erro ao carregar histórico: ' + error.message, 'error');
+    } finally {
+      this.mostrarLoading(false);
+    }
   }
 
   renderizarTabelaLeituras(leituras) {
@@ -1350,6 +1551,137 @@ class SistemaHidrometros {
     }).join('');
   }
 
+  popularFiltrosLeituras(leituras) {
+    const selectLocal = document.getElementById('filtroLocalLeituras');
+    if (!selectLocal) return;
+    
+    const locais = [...new Set(leituras.map(l => l.local))].filter(l => l).sort();
+    selectLocal.innerHTML = '<option value="">Todos</option>' +
+      locais.map(l => `<option value="${l}">${l}</option>`).join('');
+  }
+
+  aplicarFiltrosLeituras() {
+    if (!this.leiturasCache.length) return;
+    
+    const filtroLocal = document.getElementById('filtroLocalLeituras')?.value || '';
+    const filtroStatus = document.getElementById('filtroStatusLeituras')?.value || '';
+    const filtroUsuario = document.getElementById('filtroUsuarioLeituras')?.value || '';
+    const dataInicio = document.getElementById('filtroDataInicio')?.value || '';
+    const dataFim = document.getElementById('filtroDataFim')?.value || '';
+    
+    let filtradas = [...this.leiturasCache];
+    
+    if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
+    if (filtroStatus) filtradas = filtradas.filter(l => l.status?.toLowerCase() === filtroStatus.toLowerCase());
+    if (filtroUsuario) filtradas = filtradas.filter(l => l.tecnico === filtroUsuario);
+    
+    if (dataInicio) {
+      const inicio = new Date(dataInicio);
+      filtradas = filtradas.filter(l => new Date(l.data) >= inicio);
+    }
+    if (dataFim) {
+      const fim = new Date(dataFim);
+      filtradas = filtradas.filter(l => new Date(l.data) <= fim);
+    }
+    
+    this.renderizarTabelaLeituras(filtradas);
+    this.mostrarToast(filtradas.length + ' leituras encontradas', 'success');
+  }
+
+  limparFiltrosLeituras() {
+    ['filtroLocalLeituras', 'filtroStatusLeituras', 'filtroUsuarioLeituras'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    
+    const dataInicio = document.getElementById('filtroDataInicio');
+    const dataFim = document.getElementById('filtroDataFim');
+    if (dataInicio) dataInicio.value = '';
+    if (dataFim) dataFim.value = '';
+    
+    if (this.leiturasCache.length) this.renderizarTabelaLeituras(this.leiturasCache);
+  }
+
+  verDetalhesLeitura(id) {
+    const leitura = this.leiturasCache.find(l => l.id === id);
+    if (!leitura) return;
+    
+    const consumo = parseFloat(leitura.consumoDia) || (leitura.leituraAtual - leitura.leituraAnterior);
+    alert(`Detalhes da Leitura:
+📍 Local: ${leitura.local}
+🔧 Hidrômetro: ${leitura.hidrometroId} (${leitura.tipo})
+📊 Leitura Atual: ${leitura.leituraAtual} m³
+📊 Leitura Anterior: ${leitura.leituraAnterior} m³
+💧 Consumo: ${consumo.toFixed(2)} m³
+📈 Variação: ${(leitura.variacao ? leitura.variacao.toFixed(2) : '0')}%
+⚠️ Status: ${leitura.status}
+👤 Técnico: ${leitura.tecnico}
+📝 Justificativa: ${leitura.justificativa || 'Nenhuma'}
+📅 Data: ${new Date(leitura.data).toLocaleString('pt-BR')}`);
+  }
+
+  async carregarAnalise() {
+    if (!this.online) {
+      this.mostrarToast('Sem conexão - Análise indisponível offline', 'warning');
+      return;
+    }
+    
+    this.mostrarLoading(true, 'Gerando análise comparativa...');
+    
+    try {
+      const [resAtual, resAnterior] = await Promise.all([
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
+        }).then(r => r.json())
+      ]);
+
+      if (resAtual.success && resAnterior.success) {
+        this.analiseData = { 
+          atual: resAtual, 
+          anterior: resAnterior,
+          ultimas: [...(resAtual.ultimas || []), ...(resAnterior.ultimas || [])]
+        };
+        
+        this.popularFiltroUsuarios(this.analiseData.ultimas, 'filtroUsuarioAnalise');
+        this.renderizarAnalise(resAtual, resAnterior);
+      } else {
+        throw new Error('Erro ao carregar dados');
+      }
+    } catch (error) {
+      this.mostrarToast('Erro ao carregar análise: ' + error.message, 'error');
+    } finally {
+      this.mostrarLoading(false);
+    }
+  }
+
+  aplicarFiltrosAnalise() {
+    if (!this.analiseData) return;
+    
+    const filtroUsuario = document.getElementById('filtroUsuarioAnalise')?.value || '';
+    this.filtrosAnalise.usuario = filtroUsuario;
+    
+    let dadosAtual = [...this.analiseData.atual.ultimas];
+    let dadosAnterior = [...this.analiseData.anterior.ultimas];
+    
+    if (filtroUsuario) {
+      dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario);
+      dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario);
+    }
+    
+    const resAtualFiltrado = { ...this.analiseData.atual, ultimas: dadosAtual };
+    const resAnteriorFiltrado = { ...this.analiseData.anterior, ultimas: dadosAnterior };
+    
+    this.renderizarAnalise(resAtualFiltrado, resAnteriorFiltrado);
+    this.mostrarToast(`Análise filtrada: ${filtroUsuario || 'Todos'}`, 'success');
+  }
+
   renderizarAnalise(dadosAtual, dadosAnterior) {
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
     const consumoAnterior = dadosAnterior.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
@@ -1358,24 +1690,215 @@ class SistemaHidrometros {
     const container = document.getElementById('analiseContainer');
     if (!container) return;
     
-    // HTML da análise (simplificado para exemplo)
     container.innerHTML = `
       <div class="analise-grid">
         <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}">
           <h4>Variação de Consumo</h4>
           <div class="analise-valor">${(variacaoConsumo > 0 ? '+' : '') + variacaoConsumo.toFixed(1)}%</div>
           <p>Comparativo período anterior</p>
+          <small>Atual: ${consumoAtual.toFixed(2)} m³ | Anterior: ${consumoAnterior.toFixed(2)} m³</small>
         </div>
         <div class="analise-card">
           <h4>Total de Leituras</h4>
           <div class="analise-valor">${dadosAtual.ultimas.length}</div>
           <p>Últimos 30 dias</p>
         </div>
+        <div class="analise-card">
+          <h4>Média por Leitura</h4>
+          <div class="analise-valor">${(consumoAtual / (dadosAtual.ultimas.length || 1)).toFixed(2)} m³</div>
+          <p>Consumo médio diário</p>
+        </div>
+      </div>
+      
+      <div class="analise-section" style="background:white;padding:20px;border-radius:12px;margin-top:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <h3>Detalhamento por Local</h3>
+        <div id="detalhesAnaliseLocais"></div>
       </div>
     `;
   }
 
+  // ========== GESTÃO DE USUÁRIOS ==========
+
+  async carregarUsuariosDoServidor() {
+    const div = document.getElementById('listaUsuarios');
+    if (!div) return;
+    
+    div.innerHTML = '<p style="color:#666;text-align:center;padding:20px;">Carregando...</p>';
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'listarUsuarios' })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.usuarios) {
+        this.usuariosCadastrados = data.usuarios;
+        this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, data.usuarios);
+        this.atualizarListaUsuarios();
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      const salvos = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
+      this.usuariosCadastrados = salvos;
+      this.atualizarListaUsuarios();
+      this.mostrarToast('Erro ao carregar usuários', 'error');
+    }
+  }
+
+  atualizarListaUsuarios() {
+    const div = document.getElementById('listaUsuarios');
+    if (!div) return;
+    
+    if (this.usuariosCadastrados.length === 0) {
+      div.innerHTML = '<p style="color:#666;text-align:center;padding:20px;">Nenhum usuário cadastrado</p>';
+      return;
+    }
+    
+    let html = '<table class="users-table"><thead><tr>';
+    html += '<th>Nome</th><th>Login</th><th>Nível</th><th>Ações</th></tr></thead><tbody>';
+    
+    this.usuariosCadastrados.forEach(u => {
+      const isAdmin = this.isAdmin(u.nivel);
+      const nivelClass = isAdmin ? 'level-admin' : 'level-tecnico';
+      const nivelText = this.normalizarNivel(u.nivel);
+      const proximoNivel = isAdmin ? 'tecnico' : 'admin';
+      const textoBotaoNivel = isAdmin ? '↓ Tornar Técnico' : '↑ Tornar Admin';
+      const corBotaoNivel = isAdmin ? '#6c757d' : '#dc3545';
+      
+      html += `<tr>
+        <td>${u.nome}</td>
+        <td>${u.usuario}</td>
+        <td><span class="level-badge ${nivelClass}">${nivelText}</span></td>
+        <td style="display:flex;gap:8px;">
+          <button onclick="app.trocarSenha('${u.usuario}')" class="btn-sm btn-secondary-sm">🔑 Trocar Senha</button>
+          <button onclick="app.alternarNivel('${u.usuario}', '${proximoNivel}')" 
+                  style="background:${corBotaoNivel};color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
+            ${textoBotaoNivel}
+          </button>
+        </td>
+      </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    div.innerHTML = html;
+  }
+
+  async alternarNivel(usuario, novoNivel) {
+    const nivelTexto = novoNivel === 'admin' ? 'ADMINISTRADOR' : 'TÉCNICO';
+    if (!confirm(`Deseja alterar ${usuario} para ${nivelTexto}?`)) return;
+    
+    this.mostrarLoading(true, 'Atualizando nível...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'alterarNivel', usuario: usuario, novoNivel: novoNivel })
+      });
+      
+      const data = await response.json();
+      this.mostrarLoading(false);
+      
+      if (data.success) {
+        this.mostrarToast(`Nível de ${usuario} alterado!`, 'success');
+        await this.carregarUsuariosDoServidor();
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro: ' + error.message, 'error');
+    }
+  }
+
+  async criarUsuario() {
+    const nome = document.getElementById('novoNome')?.value.trim() || '';
+    const usuario = document.getElementById('novoUsuario')?.value.trim() || '';
+    const senha = document.getElementById('novoSenha')?.value.trim() || '';
+    const nivel = document.getElementById('novoNivel')?.value || 'tecnico';
+    
+    if (!nome || !usuario || !senha) {
+      this.mostrarToast('Preencha todos os campos', 'error');
+      return;
+    }
+
+    this.mostrarLoading(true, 'Criando usuário...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'criarUsuario', nome: nome, usuario: usuario, senha: senha, nivel: nivel })
+      });
+      
+      const data = await response.json();
+      this.mostrarLoading(false);
+      
+      if (data.success) {
+        this.mostrarToast('Usuário criado com sucesso!', 'success');
+        document.getElementById('novoNome').value = '';
+        document.getElementById('novoUsuario').value = '';
+        document.getElementById('novoSenha').value = '';
+        await this.carregarUsuariosDoServidor();
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro: ' + error.message, 'error');
+    }
+  }
+
+  async trocarSenha(usuario) {
+    const novaSenha = prompt(`Nova senha para ${usuario}:`);
+    if (!novaSenha || !novaSenha.trim()) return;
+    
+    this.mostrarLoading(true, 'Atualizando senha...');
+    
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'trocarSenha', usuario: usuario, novaSenha: novaSenha.trim() })
+      });
+      
+      const data = await response.json();
+      this.mostrarLoading(false);
+      
+      if (data.success) {
+        this.mostrarToast('Senha alterada!', 'success');
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      this.mostrarLoading(false);
+      this.mostrarToast('Erro: ' + error.message, 'error');
+    }
+  }
+
   // ========== UTILITÁRIOS ==========
+
+  isAdmin(nivel) {
+    if (!nivel) return false;
+    const n = nivel.toString().toLowerCase().trim();
+    return n === 'admin' || n === 'op' || n === 'adm' || n === 'administrador';
+  }
+
+  normalizarNivel(nivel) {
+    if (!nivel) return 'TECNICO';
+    return this.isAdmin(nivel) ? 'ADMIN' : 'TECNICO';
+  }
+
+  atualizarNomeStart() {
+    const span = document.getElementById('nomeTecnicoStart');
+    if (span && this.usuario) {
+      span.textContent = this.usuario.nome || 'Técnico';
+    }
+  }
 
   mostrarLoading(mostrar, texto) {
     let overlay = document.getElementById('loadingOverlay');
@@ -1410,8 +1933,6 @@ class SistemaHidrometros {
     
     const toast = document.createElement('div');
     toast.className = `toast toast-${tipo}`;
-    
-    // Suporta HTML na mensagem
     toast.innerHTML = mensagem;
     
     container.appendChild(toast);
@@ -1420,6 +1941,17 @@ class SistemaHidrometros {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, duracao);
+  }
+
+  mostrarErro(mensagem) {
+    const erroDiv = document.getElementById('loginError');
+    if (erroDiv) {
+      erroDiv.textContent = mensagem;
+      erroDiv.style.display = 'block';
+      setTimeout(() => erroDiv.style.display = 'none', 5000);
+    } else {
+      this.mostrarToast(mensagem, 'error');
+    }
   }
 
   lerStorage(chave) {
@@ -1442,16 +1974,60 @@ class SistemaHidrometros {
     this.salvamentoPendente = false;
   }
 
-  // ... (mantém outros métodos existentes como login, navegação, etc.)
-
   limparElementosFantasmas() {
     document.querySelectorAll('.status-badge:not(#headerStatus):not(.header-status)').forEach(el => {
       if (!el.closest('.hidrometro-card')) el.remove();
     });
   }
+
+  configurarEventos() {
+    const form = document.getElementById('loginForm');
+    if (form) form.addEventListener('submit', (e) => this.login(e));
+  }
+
+  togglePassword() {
+    const input = document.getElementById('password');
+    if (input) {
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+  }
+
+  exportarDados() {
+    // Implementação básica de exportação
+    if (this.leiturasCache.length === 0 && (!this.dashboardData || !this.dashboardData.ultimas)) {
+      this.mostrarToast('Nenhum dado disponível para exportar', 'error');
+      return;
+    }
+    
+    const dados = this.leiturasCache.length > 0 ? this.leiturasCache : this.dashboardData.ultimas;
+    const csv = this.converterParaCSV(dados);
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `leituras_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.mostrarToast('Arquivo CSV baixado!', 'success');
+  }
+
+  converterParaCSV(dados) {
+    if (!dados || dados.length === 0) return '';
+    
+    const headers = Object.keys(dados[0]).join(';');
+    const rows = dados.map(row => {
+      return Object.values(row).map(val => {
+        if (val === null || val === undefined) return '""';
+        return '"' + String(val).replace(/"/g, '""') + '"';
+      }).join(';');
+    }).join('\n');
+    
+    return '\ufeff' + headers + '\n' + rows;
+  }
 }
 
-// Inicialização global
 let app;
 document.addEventListener('DOMContentLoaded', () => {
   app = new SistemaHidrometros();
