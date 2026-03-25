@@ -11,17 +11,226 @@
     <meta name="application-name" content="Hidrômetros GPS">
     <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
    
-    <title>Leitura de Hidrômetros v2.9.9.0 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.9.1 | Grupo GPS • Multiplan</title>
    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.9.0">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.9.1">
    
     <style>
-        /* ESTILOS ADICIONAIS v2.9.9.0 - CORREÇÕES E MELHORIAS */
+        /* HEADER REDESIGN - Moderno e Organizado */
+        .corporate-header {
+            background: linear-gradient(135deg, #003366 0%, #004080 50%, #003366 100%);
+            color: white;
+            padding: 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 3px solid #ffc107;
+        }
+        
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1.5rem;
+            gap: 1rem;
+        }
+        
+        /* Brand Section */
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+        
+        .brand-top {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+        }
+        
+        .logo-gps {
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .logo-separator {
+            color: #ffc107;
+            font-size: 1.1rem;
+        }
+        
+        .logo-multiplan {
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #e0f2fe;
+        }
+        
+        .system-subtitle {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        /* Center Title - Desktop only */
+        .header-center {
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .header-center {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: rgba(255,255,255,0.1);
+                padding: 0.5rem 1rem;
+                border-radius: 9999px;
+                border: 1px solid rgba(255,255,255,0.2);
+            }
+            
+            .header-icon {
+                font-size: 1.25rem;
+            }
+            
+            .header-title-text {
+                font-size: 0.95rem;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+            }
+        }
+        
+        /* User Section */
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .status-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.1);
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3);
+            animation: pulse-status 2s infinite;
+        }
+        
+        .status-indicator.offline {
+            background: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+            animation: none;
+        }
+        
+        @keyframes pulse-status {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        
+        .status-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.125rem;
+        }
+        
+        .user-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: white;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .user-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            background: #ffc107;
+            color: #003366;
+        }
+        
+        .btn-logout {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 640px) {
+            .header-container {
+                padding: 0.5rem 1rem;
+            }
+            
+            .logo-gps {
+                font-size: 1rem;
+            }
+            
+            .logo-multiplan {
+                font-size: 0.9rem;
+            }
+            
+            .system-subtitle {
+                display: none;
+            }
+            
+            .user-name {
+                max-width: 80px;
+                font-size: 0.8rem;
+            }
+            
+            .status-text {
+                display: none;
+            }
+        }
+
+        /* ESTILOS ADICIONAIS v2.9.9.1 - CORREÇÕES E MELHORIAS */
         
         /* Status de rede discreto no header */
         .header-status {
@@ -314,6 +523,27 @@
                 grid-column: 1;
             }
         }
+        
+        /* Toast de erro melhorado */
+        .toast-error {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+            border-left: 4px solid #ffc107;
+        }
+        
+        .toast-error strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .toast-error small {
+            opacity: 0.9;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
@@ -343,7 +573,7 @@
                     </div>
                   
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.9.0</p>
+                    <p class="login-version">v2.9.9.1</p>
                   
                     <div id="loginError" class="error-message"></div>
                   
@@ -373,19 +603,36 @@
             </div>
         </section>
 
-        <!-- HEADER CORPORATIVO COM STATUS DISCRETO -->
+        <!-- HEADER CORPORATIVO REDESIGN -->
         <header id="corporateHeader" class="corporate-header" style="display:none;">
-            <div class="header-brand">
-                <span class="header-gps">Grupo GPS</span>
-                <span class="header-separator">|</span>
-                <span class="header-multiplan">MULTIPLAN</span>
-            </div>
-            <div class="header-title">Leitura de Hidrômetros</div>
-            <div class="header-user">
-                <span id="headerStatus" class="header-status online">Online</span>
-                <span id="nomeTecnico" class="user-name"></span>
-                <span id="nivelUsuario" class="user-badge">OP</span>
-                <button class="btn-icon" onclick="app.logout()" title="Sair">🚪</button>
+            <div class="header-container">
+                <div class="header-brand">
+                    <div class="brand-top">
+                        <span class="logo-gps">Grupo GPS</span>
+                        <span class="logo-separator">•</span>
+                        <span class="logo-multiplan">MULTIPLAN</span>
+                    </div>
+                    <span class="system-subtitle">Sistema de Leitura de Hidrômetros</span>
+                </div>
+                
+                <div class="header-center">
+                    <span class="header-icon">💧</span>
+                    <span class="header-title-text">Leitura de Hidrômetros</span>
+                </div>
+                
+                <div class="header-user">
+                    <div class="status-wrapper" id="statusWrapper">
+                        <span class="status-indicator online" id="statusIndicator"></span>
+                        <span class="status-text" id="statusText">Online</span>
+                    </div>
+                    
+                    <div class="user-info">
+                        <span id="nomeTecnico" class="user-name"></span>
+                        <span id="nivelUsuario" class="user-badge">OP</span>
+                    </div>
+                    
+                    <button class="btn-logout" onclick="app.logout()" title="Sair">🚪</button>
+                </div>
             </div>
         </header>
 
@@ -422,7 +669,7 @@
                     </button>
                   
                     <div class="system-info">
-                        <p>Versão 2.9.9.0</p>
+                        <p>Versão 2.9.9.1</p>
                     </div>
                 </div>
             </div>
@@ -467,7 +714,7 @@
             </div>
         </section>
 
-        <!-- TELA DASHBOARD COM NOVA BARRA DE FILTROS -->
+        <!-- TELA DASHBOARD COM FILTRO DE USUÁRIO -->
         <section id="dashboardScreen" class="screen admin-screen" role="main">
             <div class="admin-container">
                 <header class="page-header">
@@ -514,7 +761,7 @@
                     </article>
                 </div>
 
-                <!-- NOVA BARRA DE FILTROS PREMIUM -->
+                <!-- BARRA DE FILTROS PREMIUM COM USUÁRIO -->
                 <div class="filters-bar">
                     <div class="filters-header">
                         <span class="filters-title">🔍 Filtros</span>
@@ -524,6 +771,12 @@
                             <label>Local</label>
                             <select id="filtroLocal">
                                 <option value="">Todos os locais</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>Usuário</label>
+                            <select id="filtroUsuario">
+                                <option value="">Todos os usuários</option>
                             </select>
                         </div>
                         <div class="filter-item">
@@ -592,7 +845,7 @@
             </div>
         </section>
 
-        <!-- TELA LEITURAS (HISTÓRICO) -->
+        <!-- TELA LEITURAS (HISTÓRICO) COM FILTRO DE USUÁRIO -->
         <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
             <div class="admin-container" style="padding: 20px;">
                 <header class="page-header" style="margin-bottom: 20px;">
@@ -608,6 +861,12 @@
                             <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Local</label>
                             <select id="filtroLocalLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
                                 <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.85rem;margin-bottom:5px;">Usuário</label>
+                            <select id="filtroUsuarioLeituras" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                                <option value="">Todos os usuários</option>
                             </select>
                         </div>
                         <div>
@@ -660,13 +919,46 @@
             </div>
         </section>
 
-        <!-- TELA ANÁLISE -->
+        <!-- TELA ANÁLISE COM FILTRO DE USUÁRIO -->
         <section id="analiseScreen" class="screen admin-screen" role="main">
             <div class="admin-container">
                 <header class="page-header">
                     <h1>Análise Comparativa</h1>
                     <p style="color:#666;margin-top:5px;">Comparativos inteligentes e tendências</p>
                 </header>
+                
+                <!-- FILTROS DA ANÁLISE -->
+                <div class="filters-bar" style="margin-bottom: 2rem;">
+                    <div class="filters-header">
+                        <span class="filters-title">🔍 Filtros da Análise</span>
+                    </div>
+                    <div class="filters-grid">
+                        <div class="filter-item">
+                            <label>Usuário</label>
+                            <select id="filtroUsuarioAnalise" onchange="app.aplicarFiltrosAnalise()">
+                                <option value="">Todos os usuários</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>Período</label>
+                            <select id="filtroPeriodoAnalise" onchange="app.aplicarFiltrosAnalise()">
+                                <option value="30" selected>Últimos 30 dias</option>
+                                <option value="60">Últimos 60 dias</option>
+                                <option value="90">Últimos 3 meses</option>
+                                <option value="180">Últimos 6 meses</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>Tipo de Análise</label>
+                            <select id="filtroTipoAnalise" onchange="app.aplicarFiltrosAnalise()">
+                                <option value="consumo">Consumo</option>
+                                <option value="variacao">Variações</option>
+                                <option value="vazamentos">Vazamentos</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="analiseContainer">
                     <div style="text-align:center;padding:40px;color:#666;">Carregando análise...</div>
                 </div>
@@ -703,12 +995,12 @@
         </section>
     </div>
 
-    <script src="assets/app.js?v=2.9.9.0"></script>
+    <script src="assets/app.js?v=2.9.9.1"></script>
   
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.9.0')
+                navigator.serviceWorker.register('sw.js?v=2.9.9.1')
                     .then(registration => console.log('[SW] Registrado'))
                     .catch(error => console.log('[SW] Falha:', error));
             });
