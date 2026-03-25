@@ -360,7 +360,7 @@ class SistemaHidrometros {
     }
     
     if (data.graficos && data.graficos.porDia && data.graficos.porDia.length > 0) {
-      const dadosDias = dadosFiltradas
+      const dadosDias = dadosFiltrados
         ? this.agruparPorDia(dadosFiltrados)
         : data.graficos.porDia;
       this.renderizarGraficoDias(dadosDias);
