@@ -1,17 +1,18 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4 (FINAL FIX - DADOS COMPLETOS)
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.5 (FILTRO POR USUÁRIO)
  * DATA: 25/03/2026
  * 
- * LOG DE ATUALIZAÇÃO v2.9.9.4:
- * 1. CORREÇÃO CRÍTICA: Agora busca dados completos via getLeituras para tabela e KPI
- * 2. CORREÇÃO: Cards de KPI agora mostram totais reais (60 leituras)
- * 3. CORREÇÃO: Tabela "Últimas Leituras" agora mostra todas as leituras ou as 50 mais recentes
- * 4. MELHORIA: Mantém os gráficos corretos (que já vinham agregados corretos da API)
+ * LOG DE ATUALIZAÇÃO v2.9.9.5:
+ * 1. ADIÇÃO: Filtro por usuário/técnico na aba Dashboard
+ * 2. ADIÇÃO: Filtro por usuário/técnico na aba Leituras  
+ * 3. ADIÇÃO: Filtro por usuário/técnico na aba Análise
+ * 4. ADIÇÃO: Função popularFiltroUsuarios() para popular dropdowns de usuários
+ * 5. CORREÇÃO: Limpar filtros agora também limpa o filtro de usuário
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.9.4',
+  VERSAO: '2.9.9.5',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -32,7 +33,8 @@ class SistemaHidrometros {
     this.dashboardData = null;
     this.leiturasCache = [];
     this.analiseData = null;
-    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '' };
+    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
+    this.filtrosAnalise = { usuario: '' };
    
     console.log(`[v${CONFIG.VERSAO}] Inicializando...`);
     this.criarStatusRede();
@@ -318,7 +320,6 @@ class SistemaHidrometros {
     await this.carregarDashboard();
   }
 
-  // CORREÇÃO v2.9.9.4: Busca dados completos via getLeituras para tabela e KPI
   async carregarDashboard() {
     if (!this.online) {
       this.mostrarToast('Sem conexão - Dashboard indisponível offline', 'warning');
@@ -328,9 +329,6 @@ class SistemaHidrometros {
     try {
       console.log('[Dashboard] Buscando dados completos...');
       
-      // Faz DUAS chamadas em paralelo:
-      // 1. getDashboard - para os gráficos (que já vêm agregados corretos)
-      // 2. getLeituras - para os dados detalhados completos (tabela e KPI)
       const [resDashboard, resLeituras] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
@@ -340,32 +338,22 @@ class SistemaHidrometros {
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getLeituras', limite: 1000 }) // Busca TODAS
+          body: JSON.stringify({ action: 'getLeituras', limite: 1000 })
         }).then(r => r.json())
       ]);
       
-      console.log('[Dashboard] Resposta Dashboard:', resDashboard);
-      console.log('[Dashboard] Resposta Leituras:', resLeituras);
-      
-      // Processa dados dos gráficos (vêm corretos da API)
       let data = resDashboard;
-      
-      // Se getLeituras retornou dados, USA ESSES para tabela e KPI (são completos)
       let leiturasCompletas = [];
+      
       if (resLeituras.success && resLeituras.leituras && resLeituras.leituras.length > 0) {
         leiturasCompletas = resLeituras.leituras;
-        console.log(`[Dashboard] Usando ${leiturasCompletas.length} leituras de getLeituras`);
       } else if (data.ultimas && data.ultimas.length > 0) {
-        // Fallback: usa ultimas se getLeituras falhar
         leiturasCompletas = data.ultimas;
-        console.log(`[Dashboard] Fallback: usando ${leiturasCompletas.length} de ultimas`);
       }
       
       if (data.success) {
-        // Substitui ultimas pelos dados completos
         data.ultimas = leiturasCompletas;
         
-        // Mantém os gráficos que já vieram corretos da API
         if (!data.graficos) {
           data.graficos = {
             porLocal: this.agruparPorLocal(leiturasCompletas),
@@ -375,18 +363,13 @@ class SistemaHidrometros {
         
         this.dashboardData = data;
         
-        console.log(`[Dashboard] Renderizando com ${leiturasCompletas.length} leituras totais`);
         this.renderizarDashboard(data);
         this.popularFiltroLocais(data);
         this.popularFiltroTipos(data);
+        this.popularFiltroUsuarios(data.ultimas, 'filtroUsuario'); // NOVO: Popula filtro de usuários
         
         if (Object.values(this.filtrosAtuais).some(f => f !== '')) {
           this.aplicarFiltros(false);
-        }
-        
-        // Alerta se ainda não conseguiu todas
-        if (leiturasCompletas.length < 60 && leiturasCompletas.length > 0) {
-          console.warn(`[Dashboard] ATENÇÃO: Apenas ${leiturasCompletas.length} leituras encontradas. Esperado: 60`);
         }
       } else {
         throw new Error(data.message || 'Erro desconhecido');
@@ -396,6 +379,23 @@ class SistemaHidrometros {
       this.mostrarToast('Erro ao carregar dashboard: ' + error.message, 'error');
     } finally {
       this.mostrarLoading(false);
+    }
+  }
+
+  // NOVO: Função para popular filtros de usuários
+  popularFiltroUsuarios(dados, elementId) {
+    const select = document.getElementById(elementId);
+    if (!select || !dados) return;
+    
+    const usuarios = [...new Set(dados.map(l => l.tecnico || l.usuario).filter(u => u))].sort();
+    
+    const currentValue = select.value;
+    
+    select.innerHTML = '<option value="">Todos os usuários</option>' +
+      usuarios.map(u => `<option value="${u}">${u}</option>`).join('');
+    
+    if (currentValue && usuarios.includes(currentValue)) {
+      select.value = currentValue;
     }
   }
 
@@ -421,19 +421,15 @@ class SistemaHidrometros {
   }
 
   renderizarDashboard(data, dadosFiltrados) {
-    // Usa dados filtrados se disponíveis, senão usa os dados brutos
     const dadosParaKPI = dadosFiltrados || data.ultimas || [];
     
-    // Calcula KPI com segurança
     const kpi = this.calcularKPI(dadosParaKPI);
     
-    // Atualiza cards com animação
     this.animarNumero('kpiTotal', kpi.total);
     this.animarNumero('kpiAlertas', kpi.alertas);
     this.animarNumero('kpiVazamentos', kpi.vazamentos);
     this.animarNumero('kpiNormal', kpi.normal);
     
-    // Gráfico de Locais - usa dados filtrados se existirem, senão usa os da API
     if (dadosParaKPI.length > 0) {
       const dadosLocais = dadosFiltrados 
         ? this.agruparPorLocal(dadosFiltrados)
@@ -443,7 +439,6 @@ class SistemaHidrometros {
       this.renderizarGraficoLocais([]);
     }
     
-    // Gráfico de Dias - sempre usa todos os dados ou filtrados por data
     if (dadosParaKPI.length > 0) {
       const dadosDias = dadosFiltrados
         ? this.agruparPorDia(dadosFiltrados)
@@ -453,7 +448,6 @@ class SistemaHidrometros {
       this.renderizarGraficoDias([]);
     }
     
-    // Tabela Últimas Leituras - ordena por data decrescente e pega as 50 mais recentes
     const dadosOrdenados = [...dadosParaKPI].sort((a, b) => {
       return new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0);
     });
@@ -703,6 +697,7 @@ class SistemaHidrometros {
       tipos.map(t => `<option value="${t}">${t}</option>`).join('');
   }
 
+  // ATUALIZADO: Incluído filtro por usuário
   aplicarFiltros(mostrarToastMsg = true) {
     if (!this.dashboardData || !this.dashboardData.ultimas) {
       this.mostrarToast('Dados não carregados', 'error');
@@ -714,8 +709,15 @@ class SistemaHidrometros {
       const filtroTipo = document.getElementById('filtroTipo')?.value || '';
       const filtroStatus = document.getElementById('filtroStatus')?.value || '';
       const filtroData = document.getElementById('filtroData')?.value || '';
+      const filtroUsuario = document.getElementById('filtroUsuario')?.value || ''; // NOVO
       
-      this.filtrosAtuais = { local: filtroLocal, tipo: filtroTipo, status: filtroStatus, data: filtroData };
+      this.filtrosAtuais = { 
+        local: filtroLocal, 
+        tipo: filtroTipo, 
+        status: filtroStatus, 
+        data: filtroData,
+        usuario: filtroUsuario // NOVO
+      };
       
       let filtradas = [...this.dashboardData.ultimas];
       
@@ -741,6 +743,13 @@ class SistemaHidrometros {
         });
       }
       
+      // NOVO: Filtro por usuário
+      if (filtroUsuario) {
+        filtradas = filtradas.filter(l => 
+          (l.tecnico === filtroUsuario) || (l.usuario === filtroUsuario)
+        );
+      }
+      
       this.renderizarDashboard(this.dashboardData, filtradas);
       
       if (mostrarToastMsg) {
@@ -752,22 +761,26 @@ class SistemaHidrometros {
     }
   }
 
+  // ATUALIZADO: Incluído limpeza do filtro de usuário
   limparFiltros() {
     const filtroLocal = document.getElementById('filtroLocal');
     const filtroTipo = document.getElementById('filtroTipo');
     const filtroStatus = document.getElementById('filtroStatus');
     const filtroData = document.getElementById('filtroData');
+    const filtroUsuario = document.getElementById('filtroUsuario'); // NOVO
     
     if (filtroLocal) filtroLocal.value = '';
     if (filtroTipo) filtroTipo.value = '';
     if (filtroStatus) filtroStatus.value = '';
     if (filtroData) filtroData.value = '';
+    if (filtroUsuario) filtroUsuario.value = ''; // NOVO
     
-    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '' };
+    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' }; // ATUALIZADO
     if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
     this.mostrarToast('Filtros limpos', 'info');
   }
 
+  // ATUALIZADO: Busca dados completos e popula filtro de usuário para análise
   async carregarAnalise() {
     if (!this.online) {
       this.mostrarToast('Sem conexão - Análise indisponível offline', 'warning');
@@ -788,7 +801,6 @@ class SistemaHidrometros {
         }).then(r => r.json())
       ]);
 
-      // Busca dados completos para análise
       const [leiturasAtual, leiturasAnterior] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
@@ -803,7 +815,6 @@ class SistemaHidrometros {
       ]);
 
       if (resAtual.success && resAnterior.success) {
-        // Substitui pelos dados completos se disponíveis
         if (leiturasAtual.success && leiturasAtual.leituras) {
           resAtual.ultimas = leiturasAtual.leituras;
         }
@@ -814,6 +825,14 @@ class SistemaHidrometros {
             return diasAtras > 30 && diasAtras <= 60;
           });
         }
+        
+        // Guarda dados completos para filtrar depois
+        this.analiseData = { atual: resAtual, anterior: resAnterior };
+        
+        // NOVO: Popula filtro de usuários para análise
+        const todosDados = [...resAtual.ultimas, ...resAnterior.ultimas];
+        this.popularFiltroUsuarios(todosDados, 'filtroUsuarioAnalise');
+        
         this.renderizarAnalise(resAtual, resAnterior);
       }
     } catch (error) {
@@ -824,6 +843,29 @@ class SistemaHidrometros {
     }
   }
 
+  // NOVO: Função para aplicar filtros na análise (incluindo usuário)
+  aplicarFiltrosAnalise() {
+    if (!this.analiseData) return;
+    
+    const filtroUsuario = document.getElementById('filtroUsuarioAnalise')?.value || '';
+    this.filtrosAnalise.usuario = filtroUsuario;
+    
+    let dadosAtual = [...this.analiseData.atual.ultimas];
+    let dadosAnterior = [...this.analiseData.anterior.ultimas];
+    
+    if (filtroUsuario) {
+      dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario || l.usuario === filtroUsuario);
+      dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario || l.usuario === filtroUsuario);
+    }
+    
+    const resAtualFiltrado = { ...this.analiseData.atual, ultimas: dadosAtual };
+    const resAnteriorFiltrado = { ...this.analiseData.anterior, ultimas: dadosAnterior };
+    
+    this.renderizarAnalise(resAtualFiltrado, resAnteriorFiltrado);
+    this.mostrarToast(`Análise filtrada para: ${filtroUsuario || 'Todos'}`, 'success');
+  }
+
+  // ATUALIZADO: Agora recebe dados já filtrados
   renderizarAnalise(dadosAtual, dadosAnterior) {
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
     const consumoAnterior = dadosAnterior.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
@@ -849,9 +891,30 @@ class SistemaHidrometros {
       }))
       .sort((a, b) => b.mediaVariacao - a.mediaVariacao)
       .slice(0, 5);
+      
     const container = document.getElementById('analiseContainer');
     if (container) {
-      let html = '<div class="analise-grid">';
+      // Verifica se já existe o filtro de usuário na análise, se não, cria
+      let filterHtml = '';
+      if (!document.getElementById('filtroUsuarioAnalise')) {
+        filterHtml = `
+          <div class="filters-bar" style="margin-bottom: 20px;">
+            <div class="filters-header">
+              <div class="filters-title">👤 Filtrar por Usuário</div>
+            </div>
+            <div class="filters-grid">
+              <div class="filter-item">
+                <label>Usuário/Técnico</label>
+                <select id="filtroUsuarioAnalise" onchange="app.aplicarFiltrosAnalise()">
+                  <option value="">Todos os usuários</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      let html = filterHtml + '<div class="analise-grid">';
       
       html += '<div class="analise-card ' + (variacaoConsumo > 20 ? 'alerta' : 'normal') + '">';
       html += '<h4>Comparativo de Consumo</h4>';
@@ -905,6 +968,18 @@ class SistemaHidrometros {
       html += '</div></div>';
       
       container.innerHTML = html;
+      
+      // Se temos dados de usuário, repopula o select mantendo a seleção
+      if (this.analiseData) {
+        const todosDados = [...this.analiseData.atual.ultimas, ...this.analiseData.anterior.ultimas];
+        this.popularFiltroUsuarios(todosDados, 'filtroUsuarioAnalise');
+        // Restaura seleção atual se existir
+        const select = document.getElementById('filtroUsuarioAnalise');
+        if (select && this.filtrosAnalise.usuario) {
+          select.value = this.filtrosAnalise.usuario;
+        }
+      }
+      
       this.renderizarGraficoAnaliseTipo(dadosAtual.ultimas);
     }
   }
@@ -967,6 +1042,7 @@ class SistemaHidrometros {
     });
   }
 
+  // ATUALIZADO: Popula filtro de usuários também
   async carregarLeituras() {
     if (!this.online) {
       this.mostrarToast('Modo offline - Histórico indisponível', 'warning');
@@ -984,6 +1060,7 @@ class SistemaHidrometros {
         this.leiturasCache = data.leituras;
         this.renderizarTabelaLeituras(data.leituras.slice(-50));
         this.popularFiltrosLeituras(data.leituras);
+        this.popularFiltroUsuarios(data.leituras, 'filtroUsuarioLeituras'); // NOVO
       }
     } catch (error) {
       this.mostrarToast('Erro ao carregar histórico', 'error');
@@ -1029,15 +1106,28 @@ class SistemaHidrometros {
     }
   }
 
+  // ATUALIZADO: Incluído filtro por usuário
   aplicarFiltrosLeituras() {
     if (!this.leiturasCache.length) return;
+    
     const filtroLocal = document.getElementById('filtroLocalLeituras') ? document.getElementById('filtroLocalLeituras').value : '';
     const filtroStatus = document.getElementById('filtroStatusLeituras') ? document.getElementById('filtroStatusLeituras').value : '';
+    const filtroUsuario = document.getElementById('filtroUsuarioLeituras') ? document.getElementById('filtroUsuarioLeituras').value : ''; // NOVO
     const dataInicio = document.getElementById('filtroDataInicio') ? document.getElementById('filtroDataInicio').value : '';
     const dataFim = document.getElementById('filtroDataFim') ? document.getElementById('filtroDataFim').value : '';
+    
     let filtradas = [...this.leiturasCache];
+    
     if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
     if (filtroStatus) filtradas = filtradas.filter(l => l.status && l.status.toLowerCase() === filtroStatus.toLowerCase());
+    
+    // NOVO: Filtro por usuário
+    if (filtroUsuario) {
+      filtradas = filtradas.filter(l => 
+        (l.tecnico === filtroUsuario) || (l.usuario === filtroUsuario)
+      );
+    }
+    
     if (dataInicio) {
       const inicio = new Date(dataInicio);
       filtradas = filtradas.filter(l => new Date(l.data) >= inicio);
@@ -1046,18 +1136,22 @@ class SistemaHidrometros {
       const fim = new Date(dataFim);
       filtradas = filtradas.filter(l => new Date(l.data) <= fim);
     }
+    
     this.renderizarTabelaLeituras(filtradas);
     this.mostrarToast(filtradas.length + ' leituras encontradas', 'success');
   }
 
+  // ATUALIZADO: Incluído limpeza do filtro de usuário
   limparFiltrosLeituras() {
     const filtroLocalLeituras = document.getElementById('filtroLocalLeituras');
     const filtroStatusLeituras = document.getElementById('filtroStatusLeituras');
+    const filtroUsuarioLeituras = document.getElementById('filtroUsuarioLeituras'); // NOVO
     const filtroDataInicio = document.getElementById('filtroDataInicio');
     const filtroDataFim = document.getElementById('filtroDataFim');
     
     if (filtroLocalLeituras) filtroLocalLeituras.value = '';
     if (filtroStatusLeituras) filtroStatusLeituras.value = '';
+    if (filtroUsuarioLeituras) filtroUsuarioLeituras.value = ''; // NOVO
     if (filtroDataInicio) filtroDataInicio.value = '';
     if (filtroDataFim) filtroDataFim.value = '';
     
