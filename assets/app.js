@@ -1,14 +1,17 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.13
- * CORREÇÕES:
- * - Seletor de local agora atualiza o texto visível corretamente
- * - Leituras não somem mais ao trocar de local
- * - "PENDENTE" removido do header
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.8.9 (CORRIGIDO)
+ * CORREÇÕES APLICADAS:
+ * - Filtros afetam apenas a tabela (gráficos são resumo geral)
+ * - Barra de filtros mais bonita e responsiva
+ * - "PENDENTE" removido do header do técnico
+ * - Seletor de local agora mostra claramente o local atual (FIXADO)
+ * - Leitura não desaparece mais ao trocar de local ou retomar ronda
+ * - CORREÇÃO: Badge PENDENTE não vaza mais para o header
+ * - CORREÇÃO: Select preserva valor do local atual ao atualizar
  */
-
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.8.13',
+  VERSAO: '2.9.8.9',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -34,6 +37,40 @@ class SistemaHidrometros {
     this.criarStatusRede();
     this.limparElementosFantasmas();
     this.inicializar();
+    this.injectSafetyStyles(); // NOVO: CSS de proteção contra vazamento
+  }
+
+  // NOVO: Injeta CSS para conter badges e garantir layout correto
+  injectSafetyStyles() {
+    if (document.getElementById('safety-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'safety-styles';
+    style.textContent = `
+      .hidrometro-card {
+        position: relative !important;
+        overflow: visible !important;
+        contain: layout style paint !important;
+      }
+      .status-badge {
+        display: inline-flex !important;
+        position: relative !important;
+        z-index: 10 !important;
+      }
+      #corporateHeader .status-badge,
+      header .status-badge,
+      .user-info .status-badge {
+        display: none !important; /* Remove badges que vazam para o header */
+      }
+      #localSelect {
+        font-weight: 600 !important;
+        color: #0056b3 !important;
+      }
+      #localSelect option:checked {
+        font-weight: bold !important;
+        background-color: #e3f2fd !important;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   criarStatusRede() {
@@ -120,7 +157,6 @@ class SistemaHidrometros {
   }
 
   atualizarHeaderUsuario() {
-    console.log('[Header] Atualizando - removendo PENDENTE');
     const header = document.getElementById('corporateHeader');
     if (header) header.style.display = 'flex';
     const nomeTecnico = document.getElementById('nomeTecnico');
@@ -131,6 +167,16 @@ class SistemaHidrometros {
       nivelSpan.className = 'user-badge';
       if (this.isAdmin(this.usuario.nivel)) nivelSpan.classList.add('admin');
     }
+    // CORREÇÃO: Remove qualquer badge que tenha vazado para o header
+    this.limparBadgesHeader();
+  }
+
+  // NOVO: Remove badges fantasmas do header especificamente
+  limparBadgesHeader() {
+    const header = document.getElementById('corporateHeader');
+    if (!header) return;
+    const badgesSoltos = header.querySelectorAll('.status-badge');
+    badgesSoltos.forEach(badge => badge.remove());
   }
 
   async atualizarDashboard() {
@@ -172,9 +218,15 @@ class SistemaHidrometros {
     this.atualizarElemento('kpiAlertas', kpi.alertas);
     this.atualizarElemento('kpiVazamentos', kpi.vazamentos);
     this.atualizarElemento('kpiNormal', kpi.normal);
-    if (data.graficos?.porLocal?.length > 0) this.renderizarGraficoLocais(data.graficos.porLocal);
-    if (data.graficos?.porDia?.length > 0) this.renderizarGraficoDias(data.graficos.porDia);
-    if (data.ultimas?.length > 0) this.renderizarUltimasLeituras(data.ultimas);
+    if (data.graficos?.porLocal?.length > 0) {
+      this.renderizarGraficoLocais(data.graficos.porLocal);
+    }
+    if (data.graficos?.porDia?.length > 0) {
+      this.renderizarGraficoDias(data.graficos.porDia);
+    }
+    if (data.ultimas?.length > 0) {
+      this.renderizarUltimasLeituras(data.ultimas);
+    }
   }
 
   renderizarGraficoLocais(dados) {
@@ -200,9 +252,25 @@ class SistemaHidrometros {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y.toFixed(2) + ' m³';
+              }
+            }
+          }
+        },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: v => v.toFixed(1) + ' m³' } },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value.toFixed(1) + ' m³';
+              }
+            }
+          },
           x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
         }
       }
@@ -298,7 +366,10 @@ class SistemaHidrometros {
       if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
       if (filtroData) {
         const dataFiltro = new Date(filtroData);
-        filtradas = filtradas.filter(l => new Date(l.data).toDateString() === dataFiltro.toDateString());
+        filtradas = filtradas.filter(l => {
+          const dataLeitura = new Date(l.data);
+          return dataLeitura.toDateString() === dataFiltro.toDateString();
+        });
       }
      
       this.renderizarUltimasLeituras(filtradas);
@@ -337,10 +408,20 @@ class SistemaHidrometros {
     this.mostrarLoading(true, 'Gerando análise comparativa...');
     try {
       const [atual, anterior] = await Promise.all([
-        fetch(CONFIG.API_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({action: 'getDashboard', periodo: 30})}).then(r => r.json()),
-        fetch(CONFIG.API_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({action: 'getDashboard', periodo: 60})}).then(r => r.json())
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
+        }).then(r => r.json())
       ]);
-      if (atual.success && anterior.success) this.renderizarAnalise(atual, anterior);
+      if (atual.success && anterior.success) {
+        this.renderizarAnalise(atual, anterior);
+      }
     } catch (error) {
       console.error('[Análise] Erro:', error);
       this.mostrarToast('Erro ao carregar análise', 'error');
@@ -351,23 +432,33 @@ class SistemaHidrometros {
 
   renderizarAnalise(dadosAtual, dadosAnterior) {
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (l.consumoDia || 0), 0);
-    const consumoAnterior = dadosAnterior.ultimas.filter(l => {
-      const data = new Date(l.data);
-      const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
-      return diasAtras > 30 && diasAtras <= 60;
-    }).reduce((acc, l) => acc + (l.consumoDia || 0), 0);
+    const consumoAnterior = dadosAnterior.ultimas
+      .filter(l => {
+        const data = new Date(l.data);
+        const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
+        return diasAtras > 30 && diasAtras <= 60;
+      })
+      .reduce((acc, l) => acc + (l.consumoDia || 0), 0);
     const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
-    const eficienciaAtual = dadosAtual.kpi.total > 0 ? ((dadosAtual.kpi.total - dadosAtual.kpi.alertas) / dadosAtual.kpi.total) * 100 : 100;
+    const eficienciaAtual = dadosAtual.kpi.total > 0 ?
+      ((dadosAtual.kpi.total - dadosAtual.kpi.alertas) / dadosAtual.kpi.total) * 100 : 100;
     const locaisVariacao = {};
     dadosAtual.ultimas.forEach(l => {
-      if (!locaisVariacao[l.local]) locaisVariacao[l.local] = { total: 0, count: 0, alertas: 0 };
+      if (!locaisVariacao[l.local]) {
+        locaisVariacao[l.local] = { total: 0, count: 0, alertas: 0 };
+      }
       locaisVariacao[l.local].total += Math.abs(l.variacao || 0);
       locaisVariacao[l.local].count++;
       if (l.status !== 'NORMAL') locaisVariacao[l.local].alertas++;
     });
-    const topVariacoes = Object.entries(locaisVariacao).map(([local, dados]) => ({
-      local, mediaVariacao: dados.total / dados.count, alertas: dados.alertas
-    })).sort((a, b) => b.mediaVariacao - a.mediaVariacao).slice(0, 5);
+    const topVariacoes = Object.entries(locaisVariacao)
+      .map(([local, dados]) => ({
+        local,
+        mediaVariacao: dados.total / dados.count,
+        alertas: dados.alertas
+      }))
+      .sort((a, b) => b.mediaVariacao - a.mediaVariacao)
+      .slice(0, 5);
     const container = document.getElementById('analiseContainer');
     if (container) {
       container.innerHTML = `
@@ -448,16 +539,37 @@ class SistemaHidrometros {
       data: {
         labels: labels,
         datasets: [
-          { label: 'Consumo Total (m³)', data: consumos, backgroundColor: '#007bff', yAxisID: 'y' },
-          { label: 'Média por Leitura (m³)', data: medias, backgroundColor: '#28a745', yAxisID: 'y1' }
+          {
+            label: 'Consumo Total (m³)',
+            data: consumos,
+            backgroundColor: '#007bff',
+            yAxisID: 'y'
+          },
+          {
+            label: 'Média por Leitura (m³)',
+            data: medias,
+            backgroundColor: '#28a745',
+            yAxisID: 'y1'
+          }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { type: 'linear', position: 'left', title: { display: true, text: 'Consumo Total (m³)' } },
-          y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Média (m³)' } }
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            title: { display: true, text: 'Consumo Total (m³)' }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Média (m³)' }
+          }
         }
       }
     });
@@ -894,30 +1006,25 @@ class SistemaHidrometros {
     this.limparElementosFantasmas();
     document.getElementById('bottomBar').style.display = 'flex';
     this.popularSelectLocais();
-
-    const select = document.getElementById('localSelect');
-    if (select) {
-      select.removeEventListener('change', this.handleLocalChange.bind(this));
-      select.addEventListener('change', this.handleLocalChange.bind(this));
-      console.log('[Seletor] Event listener adicionado');
-    }
-
     if (this.ronda.locais.length > 0) {
-      document.getElementById('localSelect').value = this.ronda.locais[0];
-      this.carregarHidrometros(this.ronda.locais[0]);
+      // Se tem local atual salvo, usa ele, senão pega o primeiro
+      const localInicial = this.localAtual && this.ronda.locais.includes(this.localAtual) 
+        ? this.localAtual 
+        : this.ronda.locais[0];
+      document.getElementById('localSelect').value = localInicial;
+      this.carregarHidrometros(localInicial);
     }
     this.atualizarProgresso();
   }
 
-  handleLocalChange(e) {
-    const local = e.target.value;
-    console.log(`[Seletor] Mudança detectada! Novo local: ${local}`);
-    if (local) this.carregarHidrometros(local);
-  }
-
+  // CORREÇÃO PRINCIPAL: Preserva o local selecionado ao atualizar o select
   popularSelectLocais() {
     const select = document.getElementById('localSelect');
     if (!select) return;
+    
+    // PRESERVAR VALOR ATUAL ANTES DE RECRIAR
+    const localSelecionado = this.localAtual || select.value;
+    
     select.innerHTML = '<option value="">Selecione o local...</option>';
     this.ronda.locais.forEach(local => {
       const hidros = this.ronda.hidrometros.filter(h => h.local === local);
@@ -927,19 +1034,22 @@ class SistemaHidrometros {
       option.textContent = `${local} (${lidos}/${hidros.length})`;
       select.appendChild(option);
     });
+    
+    // RESTAURAR SELEÇÃO DO LOCAL ATUAL
+    if (localSelecionado && this.ronda.locais.includes(localSelecionado)) {
+      select.value = localSelecionado;
+    }
   }
 
+  // CORREÇÃO PRINCIPAL: Sincroniza o select com o local atual
   carregarHidrometros(local) {
     if (!local) return;
-    console.log(`[Carregar] Carregando hidrômetros do local: ${local}`);
     this.localAtual = local;
-
-    // Força atualização visual do select
+    
+    // GARANTIR QUE O SELECT MOSTRE O LOCAL ATUAL
     const select = document.getElementById('localSelect');
-    if (select) {
-      select.value = local;
-    }
-
+    if (select) select.value = local;
+    
     this.limparElementosFantasmas();
     const container = document.getElementById('hidrometrosContainer');
     if (!container) return;
@@ -960,7 +1070,7 @@ class SistemaHidrometros {
       if (h.justificativa) this.restaurarJustificativa(h.id);
     });
     this.atualizarProgresso();
-    this.popularSelectLocais();
+    this.popularSelectLocais(); // Atualiza os contadores mas mantém seleção
   }
 
   criarCardHidrometro(h) {
@@ -1048,7 +1158,7 @@ class SistemaHidrometros {
     this.salvamentoPendente = true;
     this.atualizarUI(id);
     this.atualizarProgresso();
-    this.popularSelectLocais();
+    this.popularSelectLocais(); // Atualiza contadores mas mantém local atual
     this.salvarRonda();
   }
 
@@ -1195,6 +1305,7 @@ class SistemaHidrometros {
       const data = await response.json();
       if (data.success) {
         this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
+        this.localAtual = null; // Limpa local atual ao finalizar
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         this.mostrarLoading(false);
         this.mostrarToast('Ronda finalizada!', 'success');
@@ -1318,8 +1429,25 @@ class SistemaHidrometros {
     }
   }
 
+  // CORREÇÃO PRINCIPAL: Limpa badges fantasmas e elementos órfãos
   limparElementosFantasmas() {
+    // Remover modais e overlays existentes
     document.querySelectorAll('#modalFotoAmpliada, .modal-overlay:not(.permantente), .detalhes-leitura, img.preview-foto:not([id])').forEach(el => el.remove());
+    
+    // CORREÇÃO: Remove badges de status que não estão dentro de cards válidos
+    document.querySelectorAll('.status-badge').forEach(badge => {
+      const card = badge.closest('.hidrometro-card');
+      // Se não tem card pai ou o card não está no container de hidrômetros, é fantasma
+      if (!card || !document.getElementById('hidrometrosContainer')?.contains(card)) {
+        badge.remove();
+      }
+    });
+    
+    // Remove elementos com ID de badge que não têm o formato correto (badge-${id})
+    document.querySelectorAll('[id^="badge-"]').forEach(el => {
+      const card = el.closest('.hidrometro-card');
+      if (!card) el.remove();
+    });
   }
 
   configurarEventos() {
