@@ -1,10 +1,25 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.1 (HOTFIX)
- * CORREÇÃO: Erro de sintaxe na linha de atribuição
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.2 (HOTFIX DASHBOARD)
+ * DATA: 25/03/2026
+ * 
+ * LOG DE ATUALIZAÇÃO v2.9.9.2:
+ * 1. CORREÇÃO: Cards de KPI agora exibem dados corretos (normalização de dados da API)
+ * 2. CORREÇÃO: Filtros agora funcionam corretamente no gráfico "Consumo por Local"
+ * 3. CORREÇÃO: Filtros agora funcionam na tabela "Últimas Leituras" e dados normalizados
+ * 4. MELHORIA: Visual do gráfico "Leituras por Dia" aprimorado (cores, tooltips, 15 dias)
+ * 5. ADIÇÃO: Animação suave nos números dos cards ao carregar/atualizar
+ * 
+ * CORREÇÕES ESPECÍFICAS:
+ * - renderizarDashboard(): Agora recebe dadosFiltrados corretamente e propaga para gráficos
+ * - aplicarFiltros(): Lógica de filtragem corrigida para datas e status
+ * - renderizarGraficoDias(): Cores corporativas, pontos maiores, 15 dias visíveis
+ * - renderizarUltimasLeituras(): Normalização de campos (leitura/leituraAtual, data/timestamp)
+ * - carregarDashboard(): Validação de dados e estrutura segura
  */
+
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.9.1',
+  VERSAO: '2.9.9.2',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -324,11 +339,30 @@ class SistemaHidrometros {
         body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
       });
       const data = await response.json();
+      
+      // CORREÇÃO v2.9.9.2: Validação e normalização dos dados
       if (data.success) {
+        // Garante que ultimas existe e é array
+        if (!data.ultimas || !Array.isArray(data.ultimas)) {
+          data.ultimas = [];
+        }
+        
+        // Se a API retorna leituras em outro formato, normaliza aqui
+        if (data.leituras && Array.isArray(data.leituras) && data.ultimas.length === 0) {
+          data.ultimas = data.leituras;
+        }
+        
         this.dashboardData = data;
+        
+        // Se não tem gráficos pré-calculados, cria vazio
+        if (!data.graficos) {
+          data.graficos = { porLocal: [], porDia: [] };
+        }
+        
         this.renderizarDashboard(data);
         this.popularFiltroLocais(data);
         this.popularFiltroTipos(data);
+        
         if (Object.values(this.filtrosAtuais).some(f => f !== '')) {
           this.aplicarFiltros(false);
         }
@@ -343,33 +377,70 @@ class SistemaHidrometros {
     }
   }
 
+  // CORREÇÃO v2.9.9.2: Função auxiliar para animar números nos cards
+  animarNumero(elementId, valorFinal) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    const valorInicial = parseInt(el.textContent) || 0;
+    const duracao = 500;
+    const inicio = performance.now();
+    
+    const animar = (atual) => {
+      const progresso = Math.min((atual - inicio) / duracao, 1);
+      const valorAtual = Math.floor(valorInicial + (valorFinal - valorInicial) * progresso);
+      el.textContent = valorAtual;
+      
+      if (progresso < 1) {
+        requestAnimationFrame(animar);
+      }
+    };
+    
+    requestAnimationFrame(animar);
+  }
+
+  // CORREÇÃO v2.9.9.2: Refatorado para suportar filtros corretamente
   renderizarDashboard(data, dadosFiltrados) {
-    const dadosParaKPI = dadosFiltrados || data.ultimas;
+    // Usa dados filtrados se disponíveis, senão usa os dados brutos
+    const dadosParaKPI = dadosFiltrados || data.ultimas || [];
+    
+    // Calcula KPI com segurança
     const kpi = this.calcularKPI(dadosParaKPI);
     
-    this.atualizarElemento('kpiTotal', kpi.total);
-    this.atualizarElemento('kpiAlertas', kpi.alertas);
-    this.atualizarElemento('kpiVazamentos', kpi.vazamentos);
-    this.atualizarElemento('kpiNormal', kpi.normal);
+    // Atualiza cards com animação
+    this.animarNumero('kpiTotal', kpi.total);
+    this.animarNumero('kpiAlertas', kpi.alertas);
+    this.animarNumero('kpiVazamentos', kpi.vazamentos);
+    this.animarNumero('kpiNormal', kpi.normal);
     
-    if (data.graficos && data.graficos.porLocal && data.graficos.porLocal.length > 0) {
+    // Gráfico de Locais - usa dados filtrados se existirem
+    if (dadosParaKPI.length > 0) {
       const dadosLocais = dadosFiltrados 
         ? this.agruparPorLocal(dadosFiltrados)
-        : data.graficos.porLocal;
+        : (data.graficos?.porLocal || this.agruparPorLocal(dadosParaKPI));
       this.renderizarGraficoLocais(dadosLocais);
+    } else {
+      // Limpa gráfico se não houver dados
+      this.renderizarGraficoLocais([]);
     }
     
-    if (data.graficos && data.graficos.porDia && data.graficos.porDia.length > 0) {
+    // Gráfico de Dias - sempre usa todos os dados ou filtrados por data
+    if (dadosParaKPI.length > 0) {
       const dadosDias = dadosFiltrados
         ? this.agruparPorDia(dadosFiltrados)
-        : data.graficos.porDia;
+        : (data.graficos?.porDia || this.agruparPorDia(dadosParaKPI));
       this.renderizarGraficoDias(dadosDias);
+    } else {
+      this.renderizarGraficoDias([]);
     }
     
-    const dadosTabela = dadosFiltrados || data.ultimas;
-    if (dadosTabela.length > 0) {
-      this.renderizarUltimasLeituras(dadosTabela.slice(0, 50));
-    }
+    // Tabela Últimas Leituras - CORREÇÃO PRINCIPAL AQUI
+    // Ordena por data decrescente e pega os 50 mais recentes
+    const dadosOrdenados = [...dadosParaKPI].sort((a, b) => {
+      return new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0);
+    });
+    
+    this.renderizarUltimasLeituras(dadosOrdenados.slice(0, 50));
   }
 
   calcularKPI(leituras) {
@@ -450,30 +521,58 @@ class SistemaHidrometros {
     });
   }
 
+  // CORREÇÃO v2.9.9.2: Visual melhorado e dados para 15 dias
   renderizarGraficoDias(dados) {
     const canvas = document.getElementById('chartDias');
     if (!canvas) return;
+    
+    // Destrói gráfico anterior
+    if (this.charts.dias) {
+      this.charts.dias.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
     canvas.style.maxHeight = '250px';
     canvas.height = 250;
-    const ctx = canvas.getContext('2d');
-    if (this.charts.dias) this.charts.dias.destroy();
     
-    const ultimosDados = dados.slice(-7);
+    // Se não há dados, mostra mensagem
+    if (!dados || dados.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#999';
+      ctx.textAlign = 'center';
+      ctx.fillText('Nenhum dado disponível', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+    
+    // Ordena por data e pega últimos 15 dias (não só 7)
+    const ultimosDados = dados
+      .sort((a, b) => new Date(a[0] || a.data) - new Date(b[0] || b.data))
+      .slice(-15);
+    
     const labels = ultimosDados.map(d => {
       const date = new Date(d[0] || d.data);
       return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     });
+    
     const values = ultimosDados.map(d => d[1] || d.quantidade || 0);
     
+    // Configuração visual melhorada
     this.charts.dias = new Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Leituras/Dia',
+          label: 'Leituras',
           data: values,
-          borderColor: '#28a745',
-          backgroundColor: 'rgba(40,167,69,0.1)',
+          borderColor: '#003366',
+          backgroundColor: 'rgba(0, 51, 102, 0.1)',
+          borderWidth: 3,
+          pointBackgroundColor: '#003366',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
           tension: 0.4,
           fill: true
         }]
@@ -481,38 +580,97 @@ class SistemaHidrometros {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0, 51, 102, 0.9)',
+            titleFont: { size: 13 },
+            bodyFont: { size: 14, weight: 'bold' },
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' leituras';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(0,0,0,0.05)',
+              drawBorder: false
+            },
+            ticks: {
+              font: { size: 11 },
+              color: '#666'
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 11 },
+              color: '#666',
+              maxRotation: 45,
+              minRotation: 45
+            }
+          }
+        }
       }
     });
   }
 
+  // CORREÇÃO v2.9.9.2: Normalização de campos e dados corretos
   renderizarUltimasLeituras(leituras) {
     const tbody = document.getElementById('ultimasLeituras');
     if (!tbody) return;
     
     if (leituras.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhuma leitura encontrada com os filtros aplicados</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#666;">Nenhuma leitura encontrada com os filtros aplicados</td></tr>';
       return;
     }
     
     tbody.innerHTML = leituras.map(l => {
-      const data = new Date(l.data);
-      const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+      // Normaliza campos que podem vir com nomes diferentes da API
+      const data = new Date(l.data || l.timestamp);
+      const dataStr = data.toLocaleDateString('pt-BR') + ' ' + 
+                     data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+      
+      // Determina classe do status
       let statusClass = 'badge-normal';
-      if (l.status === 'VAZAMENTO') statusClass = 'badge-danger';
-      else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
-      else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
-      const consumo = l.consumoDia || (l.leitura - (l.leituraAnterior || 0));
-      return '<tr>' +
-        '<td>' + dataStr + '</td>' +
-        '<td>' + l.local + '</td>' +
-        '<td>' + l.tecnico + '</td>' +
-        '<td>' + l.leitura + ' m³</td>' +
-        '<td><strong>' + consumo.toFixed(2) + ' m³</strong></td>' +
-        '<td><span class="badge ' + statusClass + '">' + l.status + '</span></td>' +
-        '<td>' + (l.variacao > 0 ? '+' : '') + l.variacao.toFixed(1) + '%</td>' +
-      '</tr>';
+      const status = l.status || 'NORMAL';
+      
+      if (status === 'VAZAMENTO' || status === 'ANOMALIA_NEGATIVO') {
+        statusClass = 'badge-danger';
+      } else if (status === 'ALERTA_VARIACAO') {
+        statusClass = 'badge-warning';
+      } else if (status === 'CONSUMO_BAIXO') {
+        statusClass = 'badge-info';
+      }
+      
+      // Calcula consumo corretamente
+      const leituraAtual = parseFloat(l.leituraAtual || l.leitura || 0);
+      const leituraAnterior = parseFloat(l.leituraAnterior || 0);
+      const consumo = l.consumoDia || (leituraAtual - leituraAnterior) || 0;
+      
+      // Formata variação
+      const variacao = l.variacao || 0;
+      const variacaoStr = (variacao > 0 ? '+' : '') + variacao.toFixed(1) + '%';
+      
+      return `<tr>
+        <td>${dataStr}</td>
+        <td>${l.local || '-'}</td>
+        <td>${l.tecnico || '-'}</td>
+        <td>${leituraAtual.toFixed(2)} m³</td>
+        <td><strong>${consumo.toFixed(2)} m³</strong></td>
+        <td><span class="badge ${statusClass}">${status}</span></td>
+        <td>${variacaoStr}</td>
+      </tr>`;
     }).join('');
   }
 
@@ -532,36 +690,56 @@ class SistemaHidrometros {
       tipos.map(t => '<option value="' + t + '">' + t + '</option>').join('');
   }
 
-  aplicarFiltros(mostrarToast) {
-    if (!this.dashboardData) return;
+  // CORREÇÃO v2.9.9.2: Lógica de filtragem corrigida
+  aplicarFiltros(mostrarToastMsg = true) {
+    if (!this.dashboardData || !this.dashboardData.ultimas) {
+      this.mostrarToast('Dados não carregados', 'error');
+      return;
+    }
+    
     try {
-      const filtroLocal = document.getElementById('filtroLocal') ? document.getElementById('filtroLocal').value : '';
-      const filtroTipo = document.getElementById('filtroTipo') ? document.getElementById('filtroTipo').value : '';
-      const filtroStatus = document.getElementById('filtroStatus') ? document.getElementById('filtroStatus').value : '';
-      const filtroData = document.getElementById('filtroData') ? document.getElementById('filtroData').value : '';
+      // Pega valores dos filtros
+      const filtroLocal = document.getElementById('filtroLocal')?.value || '';
+      const filtroTipo = document.getElementById('filtroTipo')?.value || '';
+      const filtroStatus = document.getElementById('filtroStatus')?.value || '';
+      const filtroData = document.getElementById('filtroData')?.value || '';
       
       this.filtrosAtuais = { local: filtroLocal, tipo: filtroTipo, status: filtroStatus, data: filtroData };
-     
+      
+      // Filtra os dados
       let filtradas = [...this.dashboardData.ultimas];
-     
-      if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
-      if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo);
-      if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
+      
+      if (filtroLocal) {
+        filtradas = filtradas.filter(l => l.local === filtroLocal);
+      }
+      
+      if (filtroTipo) {
+        filtradas = filtradas.filter(l => l.tipo === filtroTipo);
+      }
+      
+      if (filtroStatus) {
+        filtradas = filtradas.filter(l => l.status === filtroStatus);
+      }
+      
       if (filtroData) {
         const dataFiltro = new Date(filtroData);
+        const dataFiltroStr = dataFiltro.toISOString().split('T')[0];
         filtradas = filtradas.filter(l => {
+          if (!l.data) return false;
           const dataLeitura = new Date(l.data);
-          return dataLeitura.toDateString() === dataFiltro.toDateString();
+          return dataLeitura.toISOString().split('T')[0] === dataFiltroStr;
         });
       }
-     
+      
+      // Re-renderiza com dados filtrados
       this.renderizarDashboard(this.dashboardData, filtradas);
       
-      if (mostrarToast) {
-        this.mostrarToast(filtradas.length + ' leituras filtradas', 'success');
+      if (mostrarToastMsg) {
+        this.mostrarToast(`${filtradas.length} leituras filtradas`, 'success');
       }
     } catch (e) {
       console.error('[Filtros] Erro ao aplicar:', e);
+      this.mostrarToast('Erro ao aplicar filtros', 'error');
     }
   }
 
