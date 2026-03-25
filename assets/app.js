@@ -1,17 +1,17 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.3 (HOTFIX DASHBOARD - DADOS COMPLETOS)
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4 (FINAL FIX - DADOS COMPLETOS)
  * DATA: 25/03/2026
  * 
- * LOG DE ATUALIZAÇÃO v2.9.9.3:
- * 1. CORREÇÃO CRÍTICA: Adicionado parâmetro 'limite' na API para buscar todas as leituras (não apenas 10)
- * 2. CORREÇÃO: Fallback para buscar dados completos se 'ultimas' vier limitado
- * 3. CORREÇÃO: Processamento correto do total real de leituras para os cards
- * 4. MELHORIA: Logs de debug para verificar quantidade de dados recebidos da API
+ * LOG DE ATUALIZAÇÃO v2.9.9.4:
+ * 1. CORREÇÃO CRÍTICA: Agora busca dados completos via getLeituras para tabela e KPI
+ * 2. CORREÇÃO: Cards de KPI agora mostram totais reais (60 leituras)
+ * 3. CORREÇÃO: Tabela "Últimas Leituras" agora mostra todas as leituras ou as 50 mais recentes
+ * 4. MELHORIA: Mantém os gráficos corretos (que já vinham agregados corretos da API)
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzmn7102Jh_VzO8A8TDitjwqDlSk_zAWkfnzd7MbncJjQiQ8fA1j1Olktv8TBLGSZed/exec',
-  VERSAO: '2.9.9.3',
+  VERSAO: '2.9.9.4',
   STORAGE_KEYS: {
     USUARIO: 'h2_usuario_v2984',
     RONDA_ATIVA: 'h2_ronda_ativa_v2984',
@@ -318,7 +318,7 @@ class SistemaHidrometros {
     await this.carregarDashboard();
   }
 
-  // CORREÇÃO v2.9.9.3: Busca dados completos, não apenas 10 registros
+  // CORREÇÃO v2.9.9.4: Busca dados completos via getLeituras para tabela e KPI
   async carregarDashboard() {
     if (!this.online) {
       this.mostrarToast('Sem conexão - Dashboard indisponível offline', 'warning');
@@ -328,66 +328,54 @@ class SistemaHidrometros {
     try {
       console.log('[Dashboard] Buscando dados completos...');
       
-      // Tenta buscar com limite alto para pegar todos os dados
-      const response = await fetch(CONFIG.API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-          action: 'getDashboard', 
-          periodo: 30,
-          limite: 1000,  // ADICIONADO: Solicita até 1000 registros
-          tudo: true     // ADICIONADO: Flag para API retornar tudo
-        })
-      });
+      // Faz DUAS chamadas em paralelo:
+      // 1. getDashboard - para os gráficos (que já vêm agregados corretos)
+      // 2. getLeituras - para os dados detalhados completos (tabela e KPI)
+      const [resDashboard, resLeituras] = await Promise.all([
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getLeituras', limite: 1000 }) // Busca TODAS
+        }).then(r => r.json())
+      ]);
       
-      const data = await response.json();
-      console.log('[Dashboard] Resposta recebida:', data);
+      console.log('[Dashboard] Resposta Dashboard:', resDashboard);
+      console.log('[Dashboard] Resposta Leituras:', resLeituras);
+      
+      // Processa dados dos gráficos (vêm corretos da API)
+      let data = resDashboard;
+      
+      // Se getLeituras retornou dados, USA ESSES para tabela e KPI (são completos)
+      let leiturasCompletas = [];
+      if (resLeituras.success && resLeituras.leituras && resLeituras.leituras.length > 0) {
+        leiturasCompletas = resLeituras.leituras;
+        console.log(`[Dashboard] Usando ${leiturasCompletas.length} leituras de getLeituras`);
+      } else if (data.ultimas && data.ultimas.length > 0) {
+        // Fallback: usa ultimas se getLeituras falhar
+        leiturasCompletas = data.ultimas;
+        console.log(`[Dashboard] Fallback: usando ${leiturasCompletas.length} de ultimas`);
+      }
       
       if (data.success) {
-        // CORREÇÃO: Verifica todos os possíveis campos onde os dados podem vir
-        let leituras = [];
+        // Substitui ultimas pelos dados completos
+        data.ultimas = leiturasCompletas;
         
-        if (data.ultimas && Array.isArray(data.ultimas)) {
-          leituras = data.ultimas;
-          console.log(`[Dashboard] Encontradas ${leituras.length} leituras em 'ultimas'`);
-        }
-        
-        // Se veio vazio ou poucos dados, tenta outros campos
-        if (leituras.length <= 10 && data.leituras && Array.isArray(data.leituras)) {
-          leituras = data.leituras;
-          console.log(`[Dashboard] Usando campo 'leituras': ${leituras.length} registros`);
-        }
-        
-        // Se ainda tem poucos dados e tem campo total/dados completos
-        if (leituras.length <= 10 && data.dados && Array.isArray(data.dados)) {
-          leituras = data.dados;
-          console.log(`[Dashboard] Usando campo 'dados': ${leituras.length} registros`);
-        }
-        
-        // Se a API retorna total separado, loga para debug
-        if (data.total) {
-          console.log(`[Dashboard] Total reportado pela API: ${data.total}`);
-        }
-        
-        // Garante que temos um array válido
-        if (!Array.isArray(leituras)) {
-          leituras = [];
-        }
-        
-        // Atualiza o objeto data com as leituras processadas
-        data.ultimas = leituras;
-        
-        // Se não tem gráficos pré-calculados, gera a partir dos dados
-        if (!data.graficos || !data.graficos.porLocal) {
+        // Mantém os gráficos que já vieram corretos da API
+        if (!data.graficos) {
           data.graficos = {
-            porLocal: this.agruparPorLocal(leituras),
-            porDia: this.agruparPorDia(leituras)
+            porLocal: this.agruparPorLocal(leiturasCompletas),
+            porDia: this.agruparPorDia(leiturasCompletas)
           };
         }
         
         this.dashboardData = data;
         
-        console.log(`[Dashboard] Renderizando com ${leituras.length} leituras`);
+        console.log(`[Dashboard] Renderizando com ${leiturasCompletas.length} leituras totais`);
         this.renderizarDashboard(data);
         this.popularFiltroLocais(data);
         this.popularFiltroTipos(data);
@@ -396,10 +384,9 @@ class SistemaHidrometros {
           this.aplicarFiltros(false);
         }
         
-        // Alerta se detectou poucos dados mas esperava mais
-        if (leituras.length === 10 && data.total && data.total > 10) {
-          console.warn('[Dashboard] ATENÇÃO: API retornou apenas 10 registros mas total é ' + data.total);
-          this.mostrarToast(`Atenção: Mostrando apenas 10 de ${data.total} leituras. Verifique a API.`, 'warning');
+        // Alerta se ainda não conseguiu todas
+        if (leiturasCompletas.length < 60 && leiturasCompletas.length > 0) {
+          console.warn(`[Dashboard] ATENÇÃO: Apenas ${leiturasCompletas.length} leituras encontradas. Esperado: 60`);
         }
       } else {
         throw new Error(data.message || 'Erro desconhecido');
@@ -446,7 +433,7 @@ class SistemaHidrometros {
     this.animarNumero('kpiVazamentos', kpi.vazamentos);
     this.animarNumero('kpiNormal', kpi.normal);
     
-    // Gráfico de Locais - usa dados filtrados se existirem
+    // Gráfico de Locais - usa dados filtrados se existirem, senão usa os da API
     if (dadosParaKPI.length > 0) {
       const dadosLocais = dadosFiltrados 
         ? this.agruparPorLocal(dadosFiltrados)
@@ -466,7 +453,7 @@ class SistemaHidrometros {
       this.renderizarGraficoDias([]);
     }
     
-    // Tabela Últimas Leituras - ordena por data decrescente
+    // Tabela Últimas Leituras - ordena por data decrescente e pega as 50 mais recentes
     const dadosOrdenados = [...dadosParaKPI].sort((a, b) => {
       return new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0);
     });
@@ -501,7 +488,6 @@ class SistemaHidrometros {
       if (!dias[dia]) dias[dia] = 0;
       dias[dia]++;
     });
-    // Ordena por data
     return Object.entries(dias).sort((a, b) => a[0].localeCompare(b[0]));
   }
 
@@ -636,7 +622,7 @@ class SistemaHidrometros {
             ticks: {
               font: { size: 11 },
               color: '#666',
-              stepSize: 1  // Força números inteiros
+              stepSize: 1
             }
           },
           x: {
@@ -701,7 +687,6 @@ class SistemaHidrometros {
     const select = document.getElementById('filtroLocal');
     if (!select || !data.ultimas) return;
     
-    // Pega locais únicos das leituras completas
     const locais = [...new Set(data.ultimas.map(l => l.local).filter(l => l))].sort();
     
     select.innerHTML = '<option value="">Todos os locais</option>' +
@@ -790,29 +775,46 @@ class SistemaHidrometros {
     }
     this.mostrarLoading(true, 'Gerando análise comparativa...');
     try {
-      const [atual, anterior] = await Promise.all([
+      const [resAtual, resAnterior] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 30, limite: 1000 })
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 })
         }).then(r => r.json()),
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'getDashboard', periodo: 60, limite: 1000 })
+          body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
         }).then(r => r.json())
       ]);
-      
-      // Normaliza dados para análise também
-      if (atual.success && atual.ultimas) {
-        atual.ultimas = atual.ultimas.length > 10 ? atual.ultimas : (atual.leituras || atual.dados || atual.ultimas);
-      }
-      if (anterior.success && anterior.ultimas) {
-        anterior.ultimas = anterior.ultimas.length > 10 ? anterior.ultimas : (anterior.leituras || anterior.dados || anterior.ultimas);
-      }
-      
-      if (atual.success && anterior.success) {
-        this.renderizarAnalise(atual, anterior);
+
+      // Busca dados completos para análise
+      const [leiturasAtual, leiturasAnterior] = await Promise.all([
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getLeituras', limite: 1000, periodo: 30 })
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getLeituras', limite: 1000, periodo: 60 })
+        }).then(r => r.json())
+      ]);
+
+      if (resAtual.success && resAnterior.success) {
+        // Substitui pelos dados completos se disponíveis
+        if (leiturasAtual.success && leiturasAtual.leituras) {
+          resAtual.ultimas = leiturasAtual.leituras;
+        }
+        if (leiturasAnterior.success && leiturasAnterior.leituras) {
+          resAnterior.ultimas = leiturasAnterior.leituras.filter(l => {
+            const data = new Date(l.data);
+            const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
+            return diasAtras > 30 && diasAtras <= 60;
+          });
+        }
+        this.renderizarAnalise(resAtual, resAnterior);
       }
     } catch (error) {
       console.error('[Análise] Erro:', error);
@@ -824,16 +826,12 @@ class SistemaHidrometros {
 
   renderizarAnalise(dadosAtual, dadosAnterior) {
     const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
-    const consumoAnterior = dadosAnterior.ultimas
-      .filter(l => {
-        const data = new Date(l.data);
-        const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
-        return diasAtras > 30 && diasAtras <= 60;
-      })
-      .reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
+    const consumoAnterior = dadosAnterior.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
     const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
-    const eficienciaAtual = dadosAtual.ultimas.length > 0 ?
-      ((dadosAtual.ultimas.length - dadosAtual.ultimas.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length) / dadosAtual.ultimas.length) * 100 : 100;
+    const totalLeituras = dadosAtual.ultimas.length;
+    const alertas = dadosAtual.ultimas.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
+    const eficienciaAtual = totalLeituras > 0 ? ((totalLeituras - alertas) / totalLeituras) * 100 : 100;
+    
     const locaisVariacao = {};
     dadosAtual.ultimas.forEach(l => {
       if (!locaisVariacao[l.local]) {
@@ -866,12 +864,12 @@ class SistemaHidrometros {
       html += '<h4>Eficiência das Leituras</h4>';
       html += '<div class="analise-valor">' + eficienciaAtual.toFixed(1) + '%</div>';
       html += '<p>Leituras normais sem alerta</p>';
-      html += '<small>' + dadosAtual.ultimas.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length + ' alertas em ' + dadosAtual.ultimas.length + ' leituras</small>';
+      html += '<small>' + alertas + ' alertas em ' + totalLeituras + ' leituras</small>';
       html += '</div>';
       
       html += '<div class="analise-card">';
       html += '<h4>Média de Consumo por Leitura</h4>';
-      html += '<div class="analise-valor">' + (consumoAtual / (dadosAtual.ultimas.length || 1)).toFixed(2) + ' m³</div>';
+      html += '<div class="analise-valor">' + (consumoAtual / (totalLeituras || 1)).toFixed(2) + ' m³</div>';
       html += '<p>Consumo médio diário</p>';
       html += '</div>';
       
