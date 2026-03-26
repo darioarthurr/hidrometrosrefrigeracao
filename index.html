@@ -11,37 +11,64 @@
     <meta name="application-name" content="Hidrômetros GPS">
     <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
    
-    <title>Leitura de Hidrômetros v2.9.9.3 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.9.4 | Grupo GPS • Multiplan</title>
    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.9.3">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.9.4">
    
     <style>
-        /* CORREÇÕES ESPECÍFICAS v2.9.9.3 */
-        
-        /* Garante visibilidade do Grupo GPS */
-        .logo-gps, .header-gps {
+        /* CORREÇÕES v2.9.9.4 - Logo visível no login */
+        .login-card .brand-header {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            margin-bottom: 2rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+        }
+
+        .login-card .logo-gps {
+            color: #003366 !important;
+            font-weight: 800 !important;
             display: inline-block !important;
             visibility: visible !important;
             opacity: 1 !important;
+        }
+
+        .login-card .logo-separator {
+            color: #94a3b8 !important;
+            display: inline-block !important;
+        }
+
+        .login-card .logo-multiplan {
+            color: #00A651 !important;
+            font-weight: 800 !important;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Header corporativo mantém branco */
+        .corporate-header .logo-gps,
+        .corporate-header .header-gps {
             color: #ffffff !important;
-            font-weight: 700 !important;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
-        /* Badge ADMIN corrigido */
+        /* Correção badge admin */
         .user-badge {
             display: inline-block !important;
-            background: #ffc107 !important;
-            color: #003366 !important;
-            padding: 0.25rem 0.5rem !important;
-            border-radius: 4px !important;
-            font-size: 0.65rem !important;
-            font-weight: 700 !important;
-            text-transform: uppercase !important;
+            visibility: visible !important;
         }
         
         .user-badge.admin {
@@ -49,37 +76,36 @@
             color: #ffffff !important;
         }
         
-        /* Seletor de período removido visualmente (mantém compatibilidade) */
-        .periodo-selector {
-            display: none !important;
+        /* Status badge garantido */
+        .status-badge {
+            display: inline-flex !important;
+            visibility: visible !important;
         }
         
-        /* Filtros posicionados corretamente */
-        .filters-bar {
-            order: -1;
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Animação para cards de hidrômetro */
+        /* Animação cards */
         @keyframes slideInCard {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* Correção status badge */
-        .status-badge {
-            display: inline-flex !important;
-            visibility: visible !important;
+        .hidrometro-card {
+            animation: slideInCard 0.3s ease;
         }
     </style>
 </head>
 <body>
     <!-- 
     ============================================
-    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.3
+    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4
     ============================================
     
     CHANGELOG:
+    v2.9.9.4 (26/03/2026) - Correções de Interface
+    - [CORREÇÃO] Logo Grupo GPS visível na tela de login (cor azul)
+    - [MELHORIA] Resumo Executivo enriquecido com KPIs detalhados
+    - [CORREÇÃO] Badge ADMIN/TÉCNICO sem conflitos de cor
+    - [CORREÇÃO] Status badges garantidos visíveis
+    
     v2.9.9.3 (26/03/2026) - Correções Críticas
     - [CORREÇÃO] Erro "dadosFiltradas is not defined" corrigido
     - [CORREÇÃO] Análise gerencial carregando corretamente
@@ -88,14 +114,6 @@
     - [CORREÇÃO] Filtros reposicionados acima dos cards KPI
     - [CORREÇÃO] Removido seletor de período que causava erros
     - [CORREÇÃO] Exportação CSV/Excel funcional na aba Leituras
-    - [MELHORIA] Layout da análise com KPIs gerenciais reorganizados
-    - [MELHORIA] Estabilidade geral do sistema restaurada
-    
-    v2.9.9.2 (26/03/2026) - Tentativa de melhorias
-    - [REVERSÃO] Código instável, retornado para correções
-    
-    v2.9.9.1 (26/03/2026) - Versão Estável Base
-    - Sistema funcional com filtros e dashboard operacional
     ============================================
     -->
 
@@ -126,7 +144,7 @@
                     </div>
                   
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.9.3</p>
+                    <p class="login-version">v2.9.9.4</p>
                   
                     <div id="loginError" class="error-message"></div>
                   
@@ -222,7 +240,7 @@
                     </button>
                   
                     <div class="system-info">
-                        <p>Versão 2.9.9.3</p>
+                        <p>Versão 2.9.9.4</p>
                     </div>
                 </div>
             </div>
@@ -533,13 +551,13 @@
         </section>
     </div>
 
-    <script src="assets/app.js?v=2.9.9.3"></script>
+    <script src="assets/app.js?v=2.9.9.4"></script>
   
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.9.3')
-                    .then(registration => console.log('[SW] Registrado v2.9.9.3'))
+                navigator.serviceWorker.register('sw.js?v=2.9.9.4')
+                    .then(registration => console.log('[SW] Registrado v2.9.9.4'))
                     .catch(error => console.log('[SW] Falha:', error));
             });
         }
