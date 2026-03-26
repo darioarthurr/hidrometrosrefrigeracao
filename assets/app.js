@@ -1,16 +1,16 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.3
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4
  * CORREÇÃO DE BUGS CRÍTICOS
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzIN1dI0LDY0SIGeTIg8V3s_2dyYuryYjp9GD_q_j_2gEMf25L0Q2b6CaQbk2W0I2bz/exec',
-  VERSAO: '2.9.9.3',
+  VERSAO: '2.9.9.4',
   MAX_FOTO_SIZE_MB: 5,
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2993',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2993',
-    USUARIOS: 'h2_usuarios_v2993'
+    USUARIO: 'h2_usuario_v2994',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2994',
+    USUARIOS: 'h2_usuarios_v2994'
   }
 };
 
@@ -88,9 +88,12 @@ class SistemaHidrometros {
       const brandHeader = header.querySelector('.header-brand');
       if (brandHeader) {
         brandHeader.innerHTML = `
-          <span class="header-gps">GRUPO GPS</span>
-          <span class="header-separator">•</span>
-          <span class="header-multiplan">MULTIPLAN</span>
+          <div class="brand-top">
+            <span class="logo-gps">GRUPO GPS</span>
+            <span class="logo-separator">•</span>
+            <span class="logo-multiplan">MULTIPLAN</span>
+          </div>
+          <span class="system-subtitle">Sistema de Leitura de Hidrômetros</span>
         `;
       }
     }
@@ -463,7 +466,7 @@ class SistemaHidrometros {
     alert(`Detalhes:\n📍 Local: ${l.local}\n🔧 Hidrômetro: ${l.hidrometroId} (${l.tipo})\n📊 Leitura: ${l.leituraAtual} m³\n💧 Consumo: ${consumo.toFixed(2)} m³\n⚠️ Status: ${l.status}\n👤 Técnico: ${l.tecnico}\n📝 Justificativa: ${l.justificativa || 'Nenhuma'}\n📅 Data: ${new Date(l.data).toLocaleString('pt-BR')}`);
   }
 
-  // ========== ANÁLISE GERENCIAL CORRIGIDA ==========
+  // ========== ANÁLISE GERENCIAL MELHORADA v2.9.9.4 ==========
 
   async carregarAnalise() {
     if (!this.online) { this.mostrarToast('Sem conexão', 'warning'); return; }
@@ -516,6 +519,7 @@ class SistemaHidrometros {
     this.mostrarToast(`Análise filtrada`, 'success');
   }
 
+  // ========== RESUMO EXECUTIVO MELHORADO v2.9.9.4 ==========
   renderizarAnaliseGerencial(dadosAtual, dadosAnterior, todosDados) {
     const container = document.getElementById('analiseContainer');
     if (!container) return;
@@ -527,6 +531,7 @@ class SistemaHidrometros {
     const alertas = dadosAtual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
     const taxaAlertas = totalLeituras > 0 ? (alertas / totalLeituras) * 100 : 0;
     const vazamentos = dadosAtual.filter(l => l.status === 'VAZAMENTO').length;
+    const kpi = this.calcularKPI(dadosAtual);
     const leiturasPorDia = this.calcularLeiturasPorDia(dadosAtual);
     const mediaLeiturasDia = leiturasPorDia.length > 0 ? leiturasPorDia.reduce((a, b) => a + b, 0) / leiturasPorDia.length : 0;
     const consumoPorLocal = this.calcularConsumoPorLocal(dadosAtual);
@@ -583,11 +588,94 @@ class SistemaHidrometros {
         </div>
       </div>
 
-      <div style="background: linear-gradient(135deg, #003366 0%, #004080 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
-        <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">📋 Resumo Executivo</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-          <div><div style="font-size: 0.875rem; opacity: 0.9;">Status</div><div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">${vazamentos > 0 ? '🔴 Crítico' : alertas > (totalLeituras * 0.1) ? '🟡 Atenção' : '🟢 Normal'}</div></div>
-          <div><div style="font-size: 0.875rem; opacity: 0.9;">Recomendação</div><div style="font-size: 1rem; margin-top: 0.25rem;">${vazamentos > 0 ? 'Priorizar inspeção nos locais com vazamentos.' : variacaoConsumo > 30 ? 'Investigar aumento súbito de consumo.' : 'Manter monitoramento.'}</div></div>
+      <!-- RESUMO EXECUTIVO MELHORADO v2.9.9.4 -->
+      <div style="background: linear-gradient(135deg, #003366 0%, #004080 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; box-shadow: 0 10px 25px rgba(0,51,102,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 0.75rem;">
+          <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+            📊 Resumo Executivo - Período: ${new Date().toLocaleDateString('pt-BR', {month: 'short', year: 'numeric'})}
+          </h3>
+          <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+            ${totalLeituras} leituras
+          </span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+          <!-- Status Geral -->
+          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid ${
+            vazamentos > 0 ? '#ef4444' : alertas > (totalLeituras * 0.1) ? '#f59e0b' : '#22c55e'
+          };">
+            <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Status do Sistema</div>
+            <div style="font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem;">
+              ${vazamentos > 0 ? '🔴 Crítico' : alertas > (totalLeituras * 0.1) ? '🟡 Atenção' : '🟢 Normal'}
+            </div>
+            <div style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem; line-height: 1.4;">
+              ${vazamentos > 0 
+                ? `${vazamentos} vazamento(s) detectado(s) exigem ação imediata.` 
+                : alertas > 0 
+                  ? `${alertas} anomalia(s) detectada(s). Monitoramento recomendado.` 
+                  : 'Sistema operando dentro dos parâmetros normais.'}
+            </div>
+          </div>
+
+          <!-- Consumo -->
+          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+            <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Consumo Total (30 dias)</div>
+            <div style="font-size: 1.75rem; font-weight: 800;">${consumoAtual.toFixed(2)} <span style="font-size: 1rem; font-weight: 600;">m³</span></div>
+            <div style="font-size: 0.875rem; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem;">
+              <span style="color: ${variacaoConsumo > 20 ? '#fca5a5' : variacaoConsumo < -20 ? '#86efac' : '#fff'};">
+                ${variacaoConsumo > 0 ? '↑' : '↓'} ${Math.abs(variacaoConsumo).toFixed(1)}%
+              </span>
+              <span style="opacity: 0.8;">vs período anterior</span>
+            </div>
+          </div>
+
+          <!-- Eficiência -->
+          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+            <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Taxa de Conformidade</div>
+            <div style="font-size: 1.75rem; font-weight: 800;">${((kpi.normal / (kpi.total || 1)) * 100).toFixed(1)}%</div>
+            <div style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.25rem;">
+              ${kpi.normal} leituras normais de ${kpi.total} total
+            </div>
+          </div>
+
+          <!-- Produtividade -->
+          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
+            <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Média Diária</div>
+            <div style="font-size: 1.75rem; font-weight: 800;">${(consumoAtual / 30).toFixed(2)} <span style="font-size: 1rem; font-weight: 600;">m³/dia</span></div>
+            <div style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.25rem;">
+              ${mediaLeiturasDia.toFixed(0)} leituras/dia em média
+            </div>
+          </div>
+        </div>
+
+        <!-- Recomendações Detalhadas -->
+        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+          <div style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            💡 Recomendações Estratégicas
+          </div>
+          <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem; line-height: 1.6; opacity: 0.95;">
+            ${vazamentos > 0 
+              ? `<li style="margin-bottom: 0.5rem;"><strong style="color: #fca5a5;">Ação Imediata:</strong> Priorizar vistoria técnica nos ${vazamentos} ponto(s) com suspeita de vazamento para minimizar perdas.</li>` 
+              : ''}
+            ${variacaoConsumo > 30 
+              ? `<li style="margin-bottom: 0.5rem;"><strong style="color: #fca5a5;">Investigação Necessária:</strong> Aumento de ${variacaoConsumo.toFixed(1)}% no consumo requer auditoria das atividades recentes.</li>` 
+              : variacaoConsumo < -30 
+                ? `<li style="margin-bottom: 0.5rem;"><strong>Observação:</strong> Redução súbita de ${Math.abs(variacaoConsumo).toFixed(1)}% - verificar se há restrições ou medições incorretas.</li>`
+                : `<li style="margin-bottom: 0.5rem;">Consumo estável em relação ao período anterior.</li>`}
+            ${taxaAlertas > 10 
+              ? `<li style="margin-bottom: 0.5rem;">Taxa de alertas (${taxaAlertas.toFixed(1)}%) acima do ideal. Revisar calibração dos hidrômetros.</li>` 
+              : `<li style="margin-bottom: 0.5rem;">Taxa de alertas dentro do parâmetro aceitável.</li>`}
+            <li>Tendência: ${tendencia && tendencia.length > 1 
+              ? (tendencia[tendencia.length-1].consumo > tendencia[tendencia.length-2].consumo 
+                ? 'Crescente ↗️' 
+                : 'Decrescente ↘️')
+              : 'Estável ➡️'} nos últimos 7 dias</li>
+          </ul>
+        </div>
+
+        <!-- Rodapé com timestamp -->
+        <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.75rem; opacity: 0.6; text-align: right;">
+          Gerado em: ${new Date().toLocaleString('pt-BR')}
         </div>
       </div>
     `;
