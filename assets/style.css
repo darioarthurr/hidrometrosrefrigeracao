@@ -269,6 +269,11 @@ body {
 .logo-separator { color: var(--gray-400); }
 .logo-multiplan { color: var(--multiplan-green); }
 
+/* Adicione/isso no seu style.css para garantir a cor verde no login */
+.login-card .logo-multiplan {
+  color: #28a745 !important; /* verde */
+}
+
 .login-icon {
     width: 100px;
     height: 100px;
