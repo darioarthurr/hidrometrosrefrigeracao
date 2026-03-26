@@ -1,5 +1,5 @@
 /* ============================================
-   SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.3
+   SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4
    Design System - Grupo GPS • Multiplan
    ============================================ */
 
@@ -104,7 +104,7 @@ body { font-family: var(--font-sans); background: linear-gradient(135deg, var(--
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 51, 102, 0.3); }
 .login-footer { margin-top: 2rem; text-align: center; font-size: 0.8rem; color: var(--gray-400); }
 
-/* HEADER v2.9.9.3 - Correções visibilidade */
+/* HEADER v2.9.9.4 - Correções visibilidade */
 .corporate-header { background: linear-gradient(135deg, #003366 0%, #004080 50%, #003366 100%); color: white; padding: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 1000; border-bottom: 3px solid #ffc107; display: none; }
 .header-container { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.5rem; gap: 1rem; }
 .header-brand { display: flex !important; flex-direction: column; align-items: flex-start; gap: 0.25rem; visibility: visible !important; opacity: 1 !important; }
@@ -244,7 +244,7 @@ body { font-family: var(--font-sans); background: linear-gradient(135deg, var(--
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h1 { color: var(--gray-800); font-size: 1.75rem; }
 
-/* FILTROS v2.9.9.3 - Agora acima dos cards */
+/* FILTROS v2.9.9.4 - Agora acima dos cards */
 .filters-bar { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); order: -1; }
 .filters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0; }
 .filters-title { font-size: 0.875rem; font-weight: 700; color: #003366; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem; }
