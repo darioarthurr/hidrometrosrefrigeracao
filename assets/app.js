@@ -4,7 +4,7 @@
  */
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzIN1dI0LDY0SIGeTIg8V3s_2dyYuryYjp9GD_q_j_2gEMf25L0Q2b6CaQbk2W0I2bz/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzVkoBYznaZMIUsIxz-UDG47n83Bjao3BCBF-CTqy-UN7NMxOe2YGRBjCSsUCpFulXu/exec',
   VERSAO: '2.9.9.4',
   MAX_FOTO_SIZE_MB: 5,
   STORAGE_KEYS: {
