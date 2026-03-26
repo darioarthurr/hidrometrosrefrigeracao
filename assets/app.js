@@ -1,25 +1,25 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.1
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.2
  * FRONTEND - JavaScript Puro
  * DATA: 26/03/2026
  * 
  * CHANGELOG:
- * v2.9.9.1 - Correção de bugs críticos
- * - [CORREÇÃO] Adicionados métodos faltantes popularFiltroLocais e popularFiltroTipos
- * - [CORREÇÃO] Restaurada cor verde do logo Multiplan na tela de login
- * - [CORREÇÃO] Header corrigido para exibir Grupo GPS corretamente
- * - [CORREÇÃO] Aba Análise restaurada para carregar dados corretamente
- * - [CORREÇÃO] Filtros de usuário funcionando em todas as telas
+ * v2.9.9.2 - Correções e melhorias solicitadas
+ * - [CORREÇÃO] Removido seletor de período não funcional
+ * - [MELHORIA] Barra de filtros movida para acima dos cards KPI
+ * - [REFATORAÇÃO] Aba Análise reformulada com KPIs gerenciais e indicadores
+ * - [CORREÇÃO] Exportação para Excel implementada na aba leituras
+ * - [CORREÇÃO] Header corrigido para exibir Grupo GPS • Multiplan corretamente
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzIN1dI0LDY0SIGeTIg8V3s_2dyYuryYjp9GD_q_j_2gEMf25L0Q2b6CaQbk2W0I2bz/exec',
-  VERSAO: '2.9.9.1',
+  VERSAO: '2.9.9.2',
   MAX_FOTO_SIZE_MB: 5,
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2991',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2991',
-    USUARIOS: 'h2_usuarios_v2991'
+    USUARIO: 'h2_usuario_v2992',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2992',
+    USUARIOS: 'h2_usuarios_v2992'
   }
 };
 
@@ -36,7 +36,7 @@ class SistemaHidrometros {
     this.leiturasCache = [];
     this.analiseData = null;
     this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
-    this.filtrosAnalise = { usuario: '', periodo: 30, tipo: 'consumo' };
+    this.filtrosAnalise = { usuario: '', periodo: 30, local: '' };
    
     console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
     this.inicializar();
@@ -117,7 +117,17 @@ class SistemaHidrometros {
 
   configurarHeader() {
     const header = document.getElementById('corporateHeader');
-    if (header) header.style.display = 'block';
+    if (header) header.style.display = 'flex'; // Alterado para flex
+    
+    // CORREÇÃO: Garante que o brand header mostre Grupo GPS • Multiplan
+    const brandHeader = header?.querySelector('.header-brand');
+    if (brandHeader) {
+      brandHeader.innerHTML = `
+        <span class="header-gps">GRUPO GPS</span>
+        <span class="header-separator">•</span>
+        <span class="header-multiplan">MULTIPLAN</span>
+      `;
+    }
     
     const nomeEl = document.getElementById('nomeTecnico');
     const nivelEl = document.getElementById('nivelUsuario');
@@ -125,7 +135,7 @@ class SistemaHidrometros {
     if (nomeEl) nomeEl.textContent = this.usuario.nome || this.usuario.usuario;
     if (nivelEl) {
       nivelEl.textContent = this.normalizarNivel(this.usuario.nivel);
-      nivelEl.className = 'user-badge';
+      nivelEl.className = 'user-badge' + (this.isAdmin(this.usuario.nivel) ? ' admin' : '');
     }
   }
 
@@ -370,7 +380,7 @@ class SistemaHidrometros {
     this.renderizarGraficoLocais(dadosLocais);
     
     const dadosDias = dadosFiltrados
-      ? this.agruparPorDia(dadosFiltrados)
+      ? this.agruparPorDia(dadosFiltradas)
       : this.agruparPorDia(dadosParaKPI);
     this.renderizarGraficoDias(dadosDias);
     
@@ -657,6 +667,63 @@ class SistemaHidrometros {
     if (this.leiturasCache.length) this.renderizarTabelaLeituras(this.leiturasCache);
   }
 
+  // ========== EXPORTAÇÃO PARA EXCEL ==========
+  
+  exportarDados() {
+    if (!this.leiturasCache || this.leiturasCache.length === 0) {
+      this.mostrarToast('Nenhum dado para exportar', 'error');
+      return;
+    }
+    
+    try {
+      // Prepara os dados para CSV
+      const headers = ['Data', 'Ronda ID', 'Técnico', 'Local', 'Hidrômetro', 'Tipo', 'Leitura Anterior', 'Leitura Atual', 'Consumo (m³)', 'Variação (%)', 'Status', 'Justificativa'];
+      
+      const rows = this.leiturasCache.map(l => {
+        const data = new Date(l.data);
+        const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR');
+        return [
+          dataStr,
+          l.rondaId || '',
+          l.tecnico || '',
+          l.local || '',
+          l.hidrometroId || l.id || '',
+          l.tipo || '',
+          l.leituraAnterior || '',
+          l.leituraAtual || l.leitura || '',
+          l.consumoDia || '',
+          l.variacao || '',
+          l.status || '',
+          l.justificativa || ''
+        ];
+      });
+      
+      // Cria o conteúdo CSV
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      ].join('\n');
+      
+      // BOM para Excel entender acentos
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Cria link de download
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.href = URL.createObjectURL(blob);
+      link.download = `leituras_hidrometros_${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      this.mostrarToast(`Exportados ${rows.length} registros para Excel`, 'success');
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      this.mostrarToast('Erro ao exportar: ' + error.message, 'error');
+    }
+  }
+
   verDetalhesLeitura(id) {
     const leitura = this.leiturasCache.find(l => l.id === id);
     if (!leitura) return;
@@ -675,7 +742,7 @@ class SistemaHidrometros {
 📅 Data: ${new Date(leitura.data).toLocaleString('pt-BR')}`);
   }
 
-  // ========== ANÁLISE (CORRIGIDO) ==========
+  // ========== ANÁLISE GERENCIAL REFORMULADA ==========
 
   async carregarAnalise() {
     if (!this.online) {
@@ -683,10 +750,11 @@ class SistemaHidrometros {
       return;
     }
     
-    this.mostrarLoading(true, 'Gerando análise comparativa...');
+    this.mostrarLoading(true, 'Gerando análise gerencial...');
     
     try {
-      const [resAtual, resAnterior] = await Promise.all([
+      // Carrega dados dos últimos 90 dias para análise completa
+      const [resRecente, resAnterior, resDetalhado] = await Promise.all([
         fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -696,25 +764,34 @@ class SistemaHidrometros {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'getDashboard', periodo: 60 })
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getLeituras', limite: 2000 })
         }).then(r => r.json())
       ]);
 
-      if (resAtual.success && resAnterior.success) {
-        // Filtra dados anteriores para pegar apenas o período 31-60 dias (exclui os últimos 30)
-        const dadosAnterioresFiltrados = resAnterior.ultimas.filter(l => {
+      if (resRecente.success && resDetalhado.success) {
+        // Processa dados para análise gerencial
+        const dadosAtuais = resRecente.ultimas || [];
+        const dadosAnteriores = resAnterior.ultimas ? resAnterior.ultimas.filter(l => {
           const data = new Date(l.data);
           const diasAtras = (new Date() - data) / (1000 * 60 * 60 * 24);
           return diasAtras > 30 && diasAtras <= 60;
-        });
+        }) : [];
+        
+        const todosDados = resDetalhado.leituras || dadosAtuais;
         
         this.analiseData = { 
-          atual: resAtual, 
-          anterior: { ...resAnterior, ultimas: dadosAnterioresFiltrados },
-          todos: [...resAtual.ultimas, ...dadosAnterioresFiltrados]
+          atual: dadosAtuais, 
+          anterior: dadosAnteriores,
+          todos: todosDados
         };
         
-        this.popularFiltroUsuarios(this.analiseData.todos, 'filtroUsuarioAnalise');
-        this.renderizarAnalise(resAtual, { ...resAnterior, ultimas: dadosAnterioresFiltrados });
+        this.popularFiltroUsuarios(todosDados, 'filtroUsuarioAnalise');
+        this.popularFiltroLocaisAnalise(todosDados);
+        this.renderizarAnaliseGerencial(dadosAtuais, dadosAnteriores, todosDados);
       } else {
         throw new Error('Erro ao carregar dados da análise');
       }
@@ -726,6 +803,15 @@ class SistemaHidrometros {
     }
   }
 
+  popularFiltroLocaisAnalise(dados) {
+    const select = document.getElementById('filtroLocalAnalise');
+    if (!select || !dados) return;
+    
+    const locais = [...new Set(dados.map(l => l.local).filter(l => l))].sort();
+    select.innerHTML = '<option value="">Todos os locais</option>' +
+      locais.map(l => `<option value="${l}">${l}</option>`).join('');
+  }
+
   aplicarFiltrosAnalise() {
     if (!this.analiseData) {
       this.mostrarToast('Carregue a análise primeiro', 'warning');
@@ -733,111 +819,334 @@ class SistemaHidrometros {
     }
     
     const filtroUsuario = document.getElementById('filtroUsuarioAnalise')?.value || '';
-    this.filtrosAnalise.usuario = filtroUsuario;
+    const filtroLocal = document.getElementById('filtroLocalAnalise')?.value || '';
     
-    let dadosAtual = [...this.analiseData.atual.ultimas];
-    let dadosAnterior = [...this.analiseData.anterior.ultimas];
+    this.filtrosAnalise.usuario = filtroUsuario;
+    this.filtrosAnalise.local = filtroLocal;
+    
+    let dadosAtual = [...this.analiseData.atual];
+    let dadosAnterior = [...this.analiseData.anterior];
+    let dadosTodos = [...this.analiseData.todos];
     
     if (filtroUsuario) {
       dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario);
       dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario);
+      dadosTodos = dadosTodos.filter(l => l.tecnico === filtroUsuario);
     }
     
-    const resAtualFiltrado = { ...this.analiseData.atual, ultimas: dadosAtual };
-    const resAnteriorFiltrado = { ...this.analiseData.anterior, ultimas: dadosAnterior };
+    if (filtroLocal) {
+      dadosAtual = dadosAtual.filter(l => l.local === filtroLocal);
+      dadosAnterior = dadosAnterior.filter(l => l.local === filtroLocal);
+      dadosTodos = dadosTodos.filter(l => l.local === filtroLocal);
+    }
     
-    this.renderizarAnalise(resAtualFiltrado, resAnteriorFiltrado);
-    this.mostrarToast(`Análise filtrada: ${filtroUsuario || 'Todos os usuários'}`, 'success');
+    this.renderizarAnaliseGerencial(dadosAtual, dadosAnterior, dadosTodos);
+    this.mostrarToast(`Análise filtrada aplicada`, 'success');
   }
 
-  renderizarAnalise(dadosAtual, dadosAnterior) {
-    const consumoAtual = dadosAtual.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
-    const consumoAnterior = dadosAnterior.ultimas.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
-    const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
-    const totalLeituras = dadosAtual.ultimas.length;
-    const alertas = dadosAtual.ultimas.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
-    
+  renderizarAnaliseGerencial(dadosAtual, dadosAnterior, todosDados) {
     const container = document.getElementById('analiseContainer');
     if (!container) return;
+
+    // Cálculos gerenciais
+    const consumoAtual = dadosAtual.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
+    const consumoAnterior = dadosAnterior.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
+    const variacaoConsumo = consumoAnterior > 0 ? ((consumoAtual - consumoAnterior) / consumoAnterior) * 100 : 0;
     
+    const totalLeituras = dadosAtual.length;
+    const alertas = dadosAtual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
+    const taxaAlertas = totalLeituras > 0 ? (alertas / totalLeituras) * 100 : 0;
+    
+    const vazamentos = dadosAtual.filter(l => l.status === 'VAZAMENTO').length;
+    
+    // Eficiência operacional
+    const leiturasPorDia = this.calcularLeiturasPorDia(dadosAtual);
+    const mediaLeiturasDia = leiturasPorDia.length > 0 ? 
+      leiturasPorDia.reduce((a, b) => a + b, 0) / leiturasPorDia.length : 0;
+    
+    // Top locais com maior consumo
+    const consumoPorLocal = this.calcularConsumoPorLocal(dadosAtual);
+    const topConsumo = Object.entries(consumoPorLocal)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    
+    // Locais críticos (com vazamentos)
+    const locaisCriticos = this.calcularLocaisCriticos(dadosAtual);
+    
+    // Produtividade por técnico
+    const produtividade = this.calcularProdutividade(dadosAtual);
+    
+    // Tendência (últimos 7 dias)
+    const tendencia = this.calcularTendencia(dadosAtual);
+
     container.innerHTML = `
-      <div class="analise-grid">
-        <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}">
-          <h4>Variação de Consumo</h4>
-          <div class="analise-valor">${(variacaoConsumo > 0 ? '+' : '') + variacaoConsumo.toFixed(1)}%</div>
-          <p>Comparativo período anterior (30 dias)</p>
-          <small>Atual: ${consumoAtual.toFixed(2)} m³ | Anterior: ${consumoAnterior.toFixed(2)} m³</small>
+      <!-- KPIs Gerenciais -->
+      <div class="analise-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div class="analise-card ${variacaoConsumo > 20 ? 'alerta' : 'normal'}" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${variacaoConsumo > 20 ? '#dc3545' : '#28a745'};">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Variação de Consumo</div>
+          <div style="font-size: 2rem; font-weight: 800; color: ${variacaoConsumo > 20 ? '#dc3545' : '#28a745'};">${(variacaoConsumo > 0 ? '+' : '') + variacaoConsumo.toFixed(1)}%</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">vs período anterior</div>
         </div>
         
-        <div class="analise-card">
-          <h4>Total de Leituras</h4>
-          <div class="analise-valor">${totalLeituras}</div>
-          <p>Últimos 30 dias</p>
+        <div class="analise-card" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #007bff;">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Consumo Total</div>
+          <div style="font-size: 2rem; font-weight: 800; color: #003366;">${consumoAtual.toFixed(2)} m³</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">Últimos 30 dias</div>
         </div>
         
-        <div class="analise-card">
-          <h4>Média por Leitura</h4>
-          <div class="analise-valor">${(consumoAtual / (totalLeituras || 1)).toFixed(2)} m³</div>
-          <p>Consumo médio diário</p>
+        <div class="analise-card ${taxaAlertas > 10 ? 'alerta' : 'normal'}" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${taxaAlertas > 10 ? '#ffc107' : '#28a745'};">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Taxa de Alertas</div>
+          <div style="font-size: 2rem; font-weight: 800; color: ${taxaAlertas > 10 ? '#ffc107' : '#28a745'};">${taxaAlertas.toFixed(1)}%</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">${alertas} de ${totalLeituras} leituras</div>
         </div>
         
-        <div class="analise-card ${alertas > 0 ? 'alerta' : 'normal'}">
-          <h4>Alertas</h4>
-          <div class="analise-valor">${alertas}</div>
-          <p>Leituras fora do normal</p>
+        <div class="analise-card ${vazamentos > 0 ? 'alerta' : 'normal'}" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${vazamentos > 0 ? '#dc3545' : '#28a745'};">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Vazamentos Detectados</div>
+          <div style="font-size: 2rem; font-weight: 800; color: ${vazamentos > 0 ? '#dc3545' : '#28a745'};">${vazamentos}</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">Necessitam atenção imediata</div>
+        </div>
+        
+        <div class="analise-card" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #17a2b8;">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Média Diária</div>
+          <div style="font-size: 2rem; font-weight: 800; color: #17a2b8;">${(consumoAtual / 30).toFixed(2)} m³</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">Consumo por dia</div>
+        </div>
+        
+        <div class="analise-card" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #6c757d;">
+          <div style="font-size: 0.875rem; color: #6c757d; margin-bottom: 0.5rem;">Produtividade</div>
+          <div style="font-size: 2rem; font-weight: 800; color: #6c757d;">${mediaLeiturasDia.toFixed(0)}</div>
+          <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">Leituras/dia</div>
         </div>
       </div>
-      
-      <div class="analise-section" style="background:white;padding:20px;border-radius:12px;margin-top:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-        <h3>Detalhamento por Local</h3>
-        <div id="detalhesAnaliseLocais" style="margin-top:15px;">
-          ${this.renderizarTabelaLocaisAnalise(dadosAtual.ultimas)}
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+        <!-- Top 5 Locais Consumo -->
+        <div class="analise-section" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h3 style="margin-bottom: 1rem; color: #003366; font-size: 1.1rem;">🏢 Top 5 Locais - Maior Consumo</h3>
+          ${topConsumo.length > 0 ? `
+            <table style="width: 100%; border-collapse: collapse;">
+              ${topConsumo.map(([local, consumo], idx) => `
+                <tr style="border-bottom: 1px solid #e9ecef;">
+                  <td style="padding: 0.75rem 0; font-weight: 600; color: ${idx === 0 ? '#dc3545' : '#495057'};">${idx + 1}. ${local}</td>
+                  <td style="padding: 0.75rem 0; text-align: right; font-weight: 700; color: #003366;">${consumo.toFixed(2)} m³</td>
+                  <td style="padding: 0.75rem 0; text-align: right;">
+                    <div style="width: 100px; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; display: inline-block;">
+                      <div style="width: ${(consumo / topConsumo[0][1]) * 100}%; height: 100%; background: ${idx === 0 ? '#dc3545' : '#007bff'};"></div>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </table>
+          ` : '<p style="color: #6c757d; text-align: center;">Sem dados disponíveis</p>'}
+        </div>
+
+        <!-- Locais Críticos -->
+        <div class="analise-section" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h3 style="margin-bottom: 1rem; color: #dc3545; font-size: 1.1rem;">🚨 Locais Críticos (Vazamentos)</h3>
+          ${locaisCriticos.length > 0 ? `
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f8f9fa;">
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; color: #6c757d;">Local</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.875rem; color: #6c757d;">Ocorrências</th>
+                  <th style="padding: 0.75rem; text-align: right; font-size: 0.875rem; color: #6c757d;">Impacto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${locaisCriticos.map(local => `
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">${local.nome}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                      <span style="background: #dc3545; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.875rem; font-weight: 700;">${local.count}</span>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: right; color: #dc3545; font-weight: 700;">${local.impacto.toFixed(2)} m³</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p style="color: #28a745; text-align: center; font-weight: 600;">✓ Nenhum vazamento detectado no período</p>'}
+        </div>
+
+        <!-- Produtividade por Técnico -->
+        <div class="analise-section" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h3 style="margin-bottom: 1rem; color: #003366; font-size: 1.1rem;">👥 Produtividade por Técnico</h3>
+          ${produtividade.length > 0 ? `
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f8f9fa;">
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; color: #6c757d;">Técnico</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.875rem; color: #6c757d;">Leituras</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.875rem; color: #6c757d;">Média/Dia</th>
+                  <th style="padding: 0.75rem; text-align: right; font-size: 0.875rem; color: #6c757d;">Eficiência</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${produtividade.map((p, idx) => `
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">
+                      ${idx < 3 ? '🏆' : '•'} ${p.nome}
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; font-weight: 700;">${p.total}</td>
+                    <td style="padding: 0.75rem; text-align: center;">${p.mediaDia.toFixed(1)}</td>
+                    <td style="padding: 0.75rem; text-align: right;">
+                      <div style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 60px; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;">
+                          <div style="width: ${p.eficiencia}%; height: 100%; background: ${p.eficiencia > 80 ? '#28a745' : p.eficiencia > 50 ? '#ffc107' : '#dc3545'};"></div>
+                        </div>
+                        <span style="font-size: 0.875rem; font-weight: 600; color: ${p.eficiencia > 80 ? '#28a745' : p.eficiencia > 50 ? '#ffc107' : '#dc3545'};">${p.eficiencia}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p style="color: #6c757d; text-align: center;">Sem dados de produtividade</p>'}
+        </div>
+
+        <!-- Tendência -->
+        <div class="analise-section" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h3 style="margin-bottom: 1rem; color: #003366; font-size: 1.1rem;">📈 Tendência de Consumo (7 dias)</h3>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 0.5rem; padding: 1rem 0;">
+            ${tendencia.map((dia, idx) => `
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                <div style="width: 100%; background: ${dia.variacao > 20 ? '#dc3545' : dia.variacao < -20 ? '#28a745' : '#007bff'}; 
+                            height: ${Math.max(20, (dia.consumo / Math.max(...tendencia.map(t => t.consumo))) * 100)}px; 
+                            border-radius: 4px 4px 0 0; min-height: 4px; opacity: ${0.5 + (idx / tendencia.length) * 0.5};"></div>
+                <div style="font-size: 0.75rem; color: #6c757d; text-align: center;">
+                  ${dia.data}<br>
+                  <strong style="color: ${dia.variacao > 20 ? '#dc3545' : '#003366'};">${dia.consumo.toFixed(1)}m³</strong>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef; font-size: 0.875rem; color: #6c757d; text-align: center;">
+            ${tendencia.length > 1 ? `
+              Tendência: 
+              <span style="color: ${tendencia[tendencia.length-1].consumo > tendencia[0].consumo ? '#dc3545' : '#28a745'}; font-weight: 700;">
+                ${((tendencia[tendencia.length-1].consumo - tendencia[0].consumo) / tendencia[0].consumo * 100).toFixed(1)}%
+              </span>
+              em relação ao início do período
+            ` : 'Dados insuficientes para tendência'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo Executivo -->
+      <div class="analise-section" style="background: linear-gradient(135deg, #003366 0%, #004080 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">📋 Resumo Executivo</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <div>
+            <div style="font-size: 0.875rem; opacity: 0.9;">Status Geral</div>
+            <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">
+              ${vazamentos > 0 ? '🔴 Crítico - Vazamentos detectados' : alertas > (totalLeituras * 0.1) ? '🟡 Atenção - Alta taxa de alertas' : '🟢 Normal - Operação estável'}
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 0.875rem; opacity: 0.9;">Recomendação</div>
+            <div style="font-size: 1rem; margin-top: 0.25rem; line-height: 1.4;">
+              ${vazamentos > 0 ? 'Priorizar inspeção nos locais com vazamentos identificados.' : 
+                variacaoConsumo > 30 ? 'Investigar aumento súbito de consumo nos principais locais.' :
+                'Manter ritmo de monitoramento. Prever manutenção preventiva.'}
+            </div>
+          </div>
         </div>
       </div>
     `;
   }
 
-  renderizarTabelaLocaisAnalise(leituras) {
+  // Métodos auxiliares para análise
+  calcularLeiturasPorDia(dados) {
+    const porDia = {};
+    dados.forEach(l => {
+      const dia = new Date(l.data).toISOString().split('T')[0];
+      porDia[dia] = (porDia[dia] || 0) + 1;
+    });
+    return Object.values(porDia);
+  }
+
+  calcularConsumoPorLocal(dados) {
     const locais = {};
-    leituras.forEach(l => {
+    dados.forEach(l => {
+      if (!l.local) return;
+      locais[l.local] = (locais[l.local] || 0) + (parseFloat(l.consumoDia) || 0);
+    });
+    return locais;
+  }
+
+  calcularLocaisCriticos(dados) {
+    const locais = {};
+    dados.filter(l => l.status === 'VAZAMENTO').forEach(l => {
       if (!locais[l.local]) {
-        locais[l.local] = { total: 0, count: 0, alertas: 0 };
+        locais[l.local] = { count: 0, impacto: 0 };
       }
-      locais[l.local].total += parseFloat(l.consumoDia) || 0;
       locais[l.local].count++;
-      if (l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO') locais[l.local].alertas++;
+      locais[l.local].impacto += parseFloat(l.consumoDia) || 0;
     });
     
-    const locaisOrdenados = Object.entries(locais)
-      .map(([local, dados]) => ({ local, ...dados, media: dados.total / dados.count }))
+    return Object.entries(locais)
+      .map(([nome, dados]) => ({ nome, ...dados }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  calcularProdutividade(dados) {
+    const tecnicos = {};
+    const diasPorTecnico = {};
+    
+    dados.forEach(l => {
+      const tech = l.tecnico || 'Não identificado';
+      if (!tecnicos[tech]) {
+        tecnicos[tech] = 0;
+        diasPorTecnico[tech] = new Set();
+      }
+      tecnicos[tech]++;
+      diasPorTecnico[tech].add(new Date(l.data).toISOString().split('T')[0]);
+    });
+    
+    const maxLeituras = Math.max(...Object.values(tecnicos));
+    
+    return Object.entries(tecnicos)
+      .map(([nome, total]) => {
+        const dias = diasPorTecnico[nome].size || 1;
+        return {
+          nome,
+          total,
+          mediaDia: total / dias,
+          eficiencia: Math.round((total / maxLeituras) * 100)
+        };
+      })
       .sort((a, b) => b.total - a.total);
+  }
+
+  calcularTendencia(dados) {
+    const ultimos7Dias = {};
+    const hoje = new Date();
     
-    if (locaisOrdenados.length === 0) return '<p style="color:#666;text-align:center;">Nenhum dado disponível</p>';
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(hoje);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      ultimos7Dias[key] = { consumo: 0, count: 0 };
+    }
     
-    return `
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="background:#f8f9fa;">
-            <th style="padding:12px;text-align:left;border-bottom:2px solid #dee2e6;">Local</th>
-            <th style="padding:12px;text-align:right;border-bottom:2px solid #dee2e6;">Consumo Total</th>
-            <th style="padding:12px;text-align:right;border-bottom:2px solid #dee2e6;">Média/Dia</th>
-            <th style="padding:12px;text-align:center;border-bottom:2px solid #dee2e6;">Alertas</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${locaisOrdenados.map(item => `
-            <tr>
-              <td style="padding:12px;border-bottom:1px solid #dee2e6;">${item.local}</td>
-              <td style="padding:12px;text-align:right;border-bottom:1px solid #dee2e6;">${item.total.toFixed(2)} m³</td>
-              <td style="padding:12px;text-align:right;border-bottom:1px solid #dee2e6;">${item.media.toFixed(2)} m³</td>
-              <td style="padding:12px;text-align:center;border-bottom:1px solid #dee2e6;">
-                ${item.alertas > 0 ? `<span style="color:#dc3545;font-weight:bold;">${item.alertas}</span>` : '<span style="color:#28a745;">0</span>'}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+    dados.forEach(l => {
+      const dia = new Date(l.data).toISOString().split('T')[0];
+      if (ultimos7Dias[dia]) {
+        ultimos7Dias[dia].consumo += parseFloat(l.consumoDia) || 0;
+        ultimos7Dias[dia].count++;
+      }
+    });
+    
+    const resultado = Object.entries(ultimos7Dias).map(([data, dados]) => {
+      const anterior = resultado && resultado.length > 0 ? resultado[resultado.length - 1]?.consumo : dados.consumo;
+      return {
+        data: new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        consumo: dados.consumo,
+        count: dados.count,
+        variacao: anterior > 0 ? ((dados.consumo - anterior) / anterior) * 100 : 0
+      };
+    });
+    
+    return resultado;
   }
 
   // ========== GESTÃO DE USUÁRIOS ==========
@@ -1162,7 +1471,7 @@ class SistemaHidrometros {
                  onchange="app.processarFoto('${h.id}', this.files[0])" style="display:none">
           <span>📷 Adicionar foto</span>
         </label>
-        <div class="foto-obrigatoria" id="foto-obg-${h.id}">
+        <div class="foto-obrigatoria" id="foto-obg-${h.id}" style="display:none; color:#dc3545; font-size:0.875rem; margin-top:0.5rem; text-align:center; font-weight:600;">
           ⚠️ Foto obrigatória para concluir
         </div>
         <img id="preview-${h.id}" class="preview-foto" style="display:none;max-width:100%;margin-top:10px;border-radius:8px;">
@@ -1234,6 +1543,8 @@ class SistemaHidrometros {
     if (!h.foto) {
       const cardEl = document.getElementById('card-' + id);
       if (cardEl) cardEl.classList.add('sem-foto');
+      const fotoObg = document.getElementById('foto-obg-' + id);
+      if (fotoObg) fotoObg.style.display = 'block';
     }
   }
 
@@ -1246,6 +1557,7 @@ class SistemaHidrometros {
     const info = document.getElementById('info-' + id);
     const alertas = document.getElementById('alertas-' + id);
     const justContainer = document.getElementById('just-container-' + id);
+    const fotoObg = document.getElementById('foto-obg-' + id);
     
     if (badge) {
       let statusTexto = 'PENDENTE';
@@ -1302,6 +1614,10 @@ class SistemaHidrometros {
     
     if (justContainer) {
       justContainer.style.display = (h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO') ? 'block' : 'none';
+    }
+    
+    if (fotoObg) {
+      fotoObg.style.display = h.foto ? 'none' : 'block';
     }
   }
 
@@ -1465,6 +1781,7 @@ class SistemaHidrometros {
     const btnFinalizar = document.getElementById('btnFinalizar');
     if (btnFinalizar) {
       btnFinalizar.disabled = percentual < 100;
+      btnFinalizar.className = percentual === 100 ? 'btn-finalizar pronto' : 'btn-finalizar';
       btnFinalizar.innerHTML = percentual === 100 ? '<span>✓</span><span>Finalizar Ronda</span>' : `<span>Finalizar (${percentual}%)</span>`;
     }
   }
@@ -1656,11 +1973,6 @@ class SistemaHidrometros {
     if (input) {
       input.type = input.type === 'password' ? 'text' : 'password';
     }
-  }
-
-  exportarDados() {
-    // Implementação básica
-    this.mostrarToast('Função de exportação em desenvolvimento', 'info');
   }
 }
 
