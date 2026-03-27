@@ -821,8 +821,28 @@ class SistemaHidrometros {
 
   // ========== RONDA ==========
 
+  // MELHORIA 1: Verifica se já existe ronda antes de iniciar nova
   async iniciarRonda() {
     if (!this.usuario) return;
+    
+    // MELHORIA: Verifica se existe ronda em andamento
+    const rondaExistente = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+    if (rondaExistente && rondaExistente.id && rondaExistente.hidrometros && rondaExistente.hidrometros.length > 0) {
+      const lidos = rondaExistente.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
+      const total = rondaExistente.hidrometros.length;
+      
+      const mensagem = `⚠️ ATENÇÃO!\n\nVocê já possui uma ronda em andamento (${lidos}/${total} hidrômetros lidos).\n\nSe iniciar uma nova ronda, TODOS os dados da ronda atual serão perdidos permanentemente.\n\nDeseja realmente iniciar uma nova ronda e descartar a atual?`;
+      
+      if (!confirm(mensagem)) {
+        return; // Cancela a operação se o usuário não confirmar
+      }
+      
+      // Se confirmou, limpa a ronda atual antes de iniciar nova
+      this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
+      this.localAtual = null;
+      localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+    }
+    
     this.mostrarLoading(true, 'Carregando hidrômetros...');
     try {
       const response = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'iniciar', usuario: this.usuario.usuario }) });
@@ -845,6 +865,10 @@ class SistemaHidrometros {
     this.mostrarTela('leituraScreen');
     const bottomBar = document.getElementById('bottomBar');
     if (bottomBar) bottomBar.style.display = 'flex';
+    
+    // MELHORIA 2: Ativa proteção contra fechamento e botão voltar
+    this.ativarProtecaoRonda();
+    
     this.popularSelectLocais();
     if (this.ronda.locais.length > 0) {
       const localInicial = this.localAtual && this.ronda.locais.includes(this.localAtual) ? this.localAtual : this.ronda.locais[0];
@@ -853,6 +877,54 @@ class SistemaHidrometros {
       this.carregarHidrometros(localInicial);
     }
     this.atualizarProgresso();
+  }
+
+  // NOVO MÉTODO: Ativa proteção contra fechamento do app
+  ativarProtecaoRonda() {
+    // Previne fechamento acidental da aba/janela
+    this.handleBeforeUnload = (e) => {
+      if (this.ronda.id && this.ronda.hidrometros.length > 0) {
+        const lidos = this.ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
+        const total = this.ronda.hidrometros.length;
+        
+        // Mensagem padrão do navegador (a maioria ignora texto customizado por segurança)
+        const mensagem = `Ronda em andamento (${lidos}/${total}). Se sair agora, os dados não salvos serão perdidos.`;
+        e.returnValue = mensagem;
+        e.preventDefault();
+        return mensagem;
+      }
+    };
+    
+    // Previne navegação pelo botão voltar
+    this.handlePopState = (e) => {
+      if (this.ronda.id && this.ronda.hidrometros.length > 0) {
+        const lidos = this.ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
+        const total = this.ronda.hidrometros.length;
+        
+        // Empurra estado novamente para impedir saída
+        history.pushState({ ronda: true }, '', location.href);
+        
+        this.mostrarToast(`⚠️ Ronda em andamento (${lidos}/${total})! Use "Pausar" ou "Finalizar" para sair.`, 'warning', 5000);
+      }
+    };
+    
+    // Adiciona estado inicial ao history para capturar o popstate
+    history.pushState({ ronda: true }, '', location.href);
+    
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    window.addEventListener('popstate', this.handlePopState);
+  }
+
+  // NOVO MÉTODO: Remove proteção quando sai da ronda
+  desativarProtecaoRonda() {
+    if (this.handleBeforeUnload) {
+      window.removeEventListener('beforeunload', this.handleBeforeUnload);
+      this.handleBeforeUnload = null;
+    }
+    if (this.handlePopState) {
+      window.removeEventListener('popstate', this.handlePopState);
+      this.handlePopState = null;
+    }
   }
 
   popularSelectLocais() {
@@ -1098,6 +1170,10 @@ class SistemaHidrometros {
       const data = await response.json();
       if (data.success) {
         this.mostrarToast(data.aviso ? 'Ronda salva! ' + data.aviso : 'Ronda finalizada!', data.aviso ? 'warning' : 'success', data.aviso ? 8000 : 3000);
+        
+        // MELHORIA: Remove proteção ao finalizar com sucesso
+        this.desativarProtecaoRonda();
+        
         this.ronda = { id: null, hidrometros: [], locais: [], inicio: null }; this.localAtual = null;
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         this.mostrarLoading(false);
@@ -1106,7 +1182,19 @@ class SistemaHidrometros {
     } catch (error) { this.mostrarLoading(false); this.mostrarToast('Erro ao finalizar: ' + error.message, 'error'); }
   }
 
-  pausarRonda() { this.salvarRonda(); this.mostrarToast('Ronda pausada', 'info'); this.mostrarTela('startScreen'); const bottomBar = document.getElementById('bottomBar'); if (bottomBar) bottomBar.style.display = 'none'; this.verificarRondaPendente(); }
+  pausarRonda() { 
+    this.salvarRonda(); 
+    this.mostrarToast('Ronda pausada', 'info'); 
+    
+    // MELHORIA: Remove proteção ao pausar
+    this.desativarProtecaoRonda();
+    
+    this.mostrarTela('startScreen'); 
+    const bottomBar = document.getElementById('bottomBar'); 
+    if (bottomBar) bottomBar.style.display = 'none'; 
+    this.verificarRondaPendente(); 
+  }
+  
   continuarRonda() { this.entrarModoLeitura(); }
 
   verificarRondaPendente() {
