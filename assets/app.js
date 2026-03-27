@@ -28,6 +28,7 @@ class SistemaHidrometros {
     this.analiseData = null;
     this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
     this.filtrosAnalise = { usuario: '', periodo: 30, local: '' };
+    this.protecaoAtiva = false; // Flag para controle de proteção
    
     console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
     this.inicializar();
@@ -531,7 +532,7 @@ class SistemaHidrometros {
     const alertas = dadosAtual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
     const taxaAlertas = totalLeituras > 0 ? (alertas / totalLeituras) * 100 : 0;
     const vazamentos = dadosAtual.filter(l => l.status === 'VAZAMENTO').length;
-    const kpi = this.calcularKPI(dadosAtual);
+    const kpi = this.calcularKPI(dadosAtuais);
     const leiturasPorDia = this.calcularLeiturasPorDia(dadosAtual);
     const mediaLeiturasDia = leiturasPorDia.length > 0 ? leiturasPorDia.reduce((a, b) => a + b, 0) / leiturasPorDia.length : 0;
     const consumoPorLocal = this.calcularConsumoPorLocal(dadosAtual);
@@ -879,37 +880,36 @@ class SistemaHidrometros {
     this.atualizarProgresso();
   }
 
-  // NOVO MÉTODO: Ativa proteção contra fechamento do app
+  // NOVO MÉTODO: Ativa proteção contra fechamento do app (VERSÃO REFORÇADA PARA MOBILE)
   ativarProtecaoRonda() {
-    // Previne fechamento acidental da aba/janela
+    // Flag para evitar múltiplos handlers
+    this.protecaoAtiva = true;
+    
+    // Previne fechamento acidental da aba/janela (desktop)
     this.handleBeforeUnload = (e) => {
       if (this.ronda.id && this.ronda.hidrometros.length > 0) {
-        const lidos = this.ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
-        const total = this.ronda.hidrometros.length;
-        
-        // Mensagem padrão do navegador (a maioria ignora texto customizado por segurança)
-        const mensagem = `Ronda em andamento (${lidos}/${total}). Se sair agora, os dados não salvos serão perdidos.`;
+        const mensagem = 'Ronda em andamento! Se sair agora, os dados não salvos serão perdidos.';
         e.returnValue = mensagem;
         e.preventDefault();
         return mensagem;
       }
     };
     
-    // Previne navegação pelo botão voltar
+    // Previne navegação pelo botão voltar (mobile/desktop)
     this.handlePopState = (e) => {
-      if (this.ronda.id && this.ronda.hidrometros.length > 0) {
-        const lidos = this.ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
-        const total = this.ronda.hidrometros.length;
-        
-        // Empurra estado novamente para impedir saída
-        history.pushState({ ronda: true }, '', location.href);
-        
-        this.mostrarToast(`⚠️ Ronda em andamento (${lidos}/${total})! Use "Pausar" ou "Finalizar" para sair.`, 'warning', 5000);
-      }
+      if (!this.protecaoAtiva || !this.ronda.id) return;
+      
+      // Sempre empurra o estado de volta para travar o usuário
+      history.pushState({ ronda: true, timestamp: Date.now() }, '', location.href);
+      
+      // Feedback visual imediato
+      this.mostrarToast('⚠️ Use "Pausar Ronda" para sair sem perder dados!', 'warning', 4000);
     };
     
-    // Adiciona estado inicial ao history para capturar o popstate
-    history.pushState({ ronda: true }, '', location.href);
+    // Limpa qualquer histórico anterior e cria múltiplas entradas para mobile
+    // Isso previne que 2 taps no botão voltar fechem o app
+    history.pushState({ ronda: true, step: 1 }, '', location.href);
+    history.pushState({ ronda: true, step: 2 }, '', location.href);
     
     window.addEventListener('beforeunload', this.handleBeforeUnload);
     window.addEventListener('popstate', this.handlePopState);
@@ -917,6 +917,8 @@ class SistemaHidrometros {
 
   // NOVO MÉTODO: Remove proteção quando sai da ronda
   desativarProtecaoRonda() {
+    this.protecaoAtiva = false;
+    
     if (this.handleBeforeUnload) {
       window.removeEventListener('beforeunload', this.handleBeforeUnload);
       this.handleBeforeUnload = null;
@@ -924,6 +926,11 @@ class SistemaHidrometros {
     if (this.handlePopState) {
       window.removeEventListener('popstate', this.handlePopState);
       this.handlePopState = null;
+    }
+    
+    // Limpa os estados extras do histórico (opcional, mas recomendado)
+    if (history.state && history.state.ronda) {
+      history.back();
     }
   }
 
