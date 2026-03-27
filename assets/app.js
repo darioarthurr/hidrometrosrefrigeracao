@@ -28,7 +28,8 @@ class SistemaHidrometros {
     this.analiseData = null;
     this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
     this.filtrosAnalise = { usuario: '', periodo: 30, local: '' };
-    this.protecaoAtiva = false; // Flag para controle de proteção
+    this.protecaoAtiva = false;
+    this.historicoInterval = null;
    
     console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
     this.inicializar();
@@ -880,45 +881,97 @@ class SistemaHidrometros {
     this.atualizarProgresso();
   }
 
-  // NOVO MÉTODO: Ativa proteção contra fechamento do app (VERSÃO REFORÇADA PARA MOBILE)
+  // NOVO MÉTODO: Ativa proteção contra fechamento do app (VERSÃO SUPER AGRESSIVA PARA MOBILE)
   ativarProtecaoRonda() {
-    // Flag para evitar múltiplos handlers
+    if (this.protecaoAtiva) return; // Evita duplicação
+    
     this.protecaoAtiva = true;
     
-    // Previne fechamento acidental da aba/janela (desktop)
+    // 1. Previne fechamento da aba/janela (funciona em desktop)
     this.handleBeforeUnload = (e) => {
-      if (this.ronda.id && this.ronda.hidrometros.length > 0) {
-        const mensagem = 'Ronda em andamento! Se sair agora, os dados não salvos serão perdidos.';
-        e.returnValue = mensagem;
+      if (this.protecaoAtiva) {
         e.preventDefault();
-        return mensagem;
+        e.returnValue = 'Ronda em andamento! Dados não salvos serão perdidos.';
+        return 'Ronda em andamento! Dados não salvos serão perdidos.';
       }
     };
     
-    // Previne navegação pelo botão voltar (mobile/desktop)
+    // 2. Estratégia para mobile: criar múltiplas entradas de histórico
+    // Limpa o histórico atual e cria uma "armadilha"
+    history.replaceState({ ronda: true, trap: true }, '', location.href);
+    
+    // Cria 5 entradas falsas no histórico (mobile precisa de mais)
+    for (let i = 0; i < 5; i++) {
+      history.pushState({ ronda: true, index: i }, '', location.href);
+    }
+    
+    // 3. Handler do botão voltar - intercepta TODAS as tentativas
     this.handlePopState = (e) => {
-      if (!this.protecaoAtiva || !this.ronda.id) return;
+      if (!this.protecaoAtiva) return;
       
-      // Sempre empurra o estado de volta para travar o usuário
-      history.pushState({ ronda: true, timestamp: Date.now() }, '', location.href);
+      // Se tentou voltar, empurra para frente novamente imediatamente
+      history.pushState({ ronda: true, trap: true }, '', location.href);
       
-      // Feedback visual imediato
-      this.mostrarToast('⚠️ Use "Pausar Ronda" para sair sem perder dados!', 'warning', 4000);
+      // Mostra aviso visual
+      this.mostrarToast('⚠️ Use "Pausar Ronda" para sair sem perder dados!', 'error', 3000);
+      
+      // Salva imediatamente por segurança
+      this.salvarRonda();
     };
     
-    // Limpa qualquer histórico anterior e cria múltiplas entradas para mobile
-    // Isso previne que 2 taps no botão voltar fechem o app
-    history.pushState({ ronda: true, step: 1 }, '', location.href);
-    history.pushState({ ronda: true, step: 2 }, '', location.href);
+    // 4. Previne gestos de swipe back (iOS)
+    this.handleTouchStart = (e) => {
+      if (!this.protecaoAtiva) return;
+      // Detecta se o toque foi na borda esquerda (gesto de voltar)
+      if (e.touches[0].pageX < 50) {
+        this.mostrarToast('⚠️ Use o botão Pausar para sair', 'warning', 2000);
+      }
+    };
     
+    // 5. Detecta quando o app volta ao foco (usuário saiu e voltou)
+    this.handleVisibilityChange = () => {
+      if (!this.protecaoAtiva) return;
+      
+      if (document.visibilityState === 'visible') {
+        // Usuário voltou para o app - reforça a proteção do histórico
+        setTimeout(() => {
+          // Remove entradas antigas e recria
+          history.replaceState({ ronda: true, trap: true }, '', location.href);
+          for (let i = 0; i < 3; i++) {
+            history.pushState({ ronda: true, index: i }, '', location.href);
+          }
+        }, 100);
+      } else {
+        // Usuário está saindo - salva tudo urgentemente
+        this.salvarRonda();
+      }
+    };
+    
+    // 6. Intervalo para manter o histórico "cheio" (contornar consumo rápido)
+    this.historicoInterval = setInterval(() => {
+      if (this.protecaoAtiva && history.length < 10) {
+        history.pushState({ ronda: true, maintenance: true }, '', location.href);
+      }
+    }, 1000);
+    
+    // Registra todos os listeners
     window.addEventListener('beforeunload', this.handleBeforeUnload);
     window.addEventListener('popstate', this.handlePopState);
+    window.addEventListener('touchstart', this.handleTouchStart, { passive: true });
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   // NOVO MÉTODO: Remove proteção quando sai da ronda
   desativarProtecaoRonda() {
     this.protecaoAtiva = false;
     
+    // Limpa o intervalo
+    if (this.historicoInterval) {
+      clearInterval(this.historicoInterval);
+      this.historicoInterval = null;
+    }
+    
+    // Remove todos os listeners
     if (this.handleBeforeUnload) {
       window.removeEventListener('beforeunload', this.handleBeforeUnload);
       this.handleBeforeUnload = null;
@@ -927,10 +980,18 @@ class SistemaHidrometros {
       window.removeEventListener('popstate', this.handlePopState);
       this.handlePopState = null;
     }
+    if (this.handleTouchStart) {
+      window.removeEventListener('touchstart', this.handleTouchStart);
+      this.handleTouchStart = null;
+    }
+    if (this.handleVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+      this.handleVisibilityChange = null;
+    }
     
-    // Limpa os estados extras do histórico (opcional, mas recomendado)
+    // Limpa o histórico artificial (volta para o estado limpo)
     if (history.state && history.state.ronda) {
-      history.back();
+      history.go(-5); // Tenta voltar 5 passos para limpar as entradas criadas
     }
   }
 
