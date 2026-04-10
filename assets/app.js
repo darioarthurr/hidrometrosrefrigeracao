@@ -847,59 +847,181 @@ class SistemaHidrometros {
   exportarDashboardPDF() {
     this.mostrarToast('Preparando relatório completo...', 'info');
     
-    // Criar uma nova janela com todo o conteúdo
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        this.mostrarToast('Permita popups para gerar o PDF', 'error');
-        return;
-    }
-    
-    const dashboardHTML = document.getElementById('dashboardScreen').innerHTML;
-    const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
-    let stylesHTML = '';
-    styles.forEach(s => stylesHTML += s.outerHTML);
-    
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Relatório Dashboard - ${new Date().toLocaleDateString('pt-BR')}</title>
-            <meta charset="UTF-8">
-            ${stylesHTML}
-            <style>
-                body { background: white; padding: 20px; }
-                .executive-header { page-break-after: avoid; }
-                .kpi-executive-grid { page-break-inside: avoid; }
-                .charts-executive-grid { page-break-inside: avoid; margin-bottom: 30px; }
-                .chart-card-premium { page-break-inside: avoid; margin-bottom: 20px; }
-                table { page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-                @media print {
-                    .btn-export, button { display: none !important; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px;">
-                <h1 style="color: #003366; margin: 0;">📊 Relatório Executivo - Hidrômetros GPS</h1>
-                <p style="color: #666; margin: 5px 0;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
-            </div>
-            ${dashboardHTML}
-            <div style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: #999; border-top: 1px solid #ddd; padding-top: 10px;">
-                Sistema Leitura de Hidrômetros v2.9.9.6 | Grupo GPS • Multiplan
-            </div>
-        </body>
-        </html>
-    `);
-    
-    printWindow.document.close();
-    
-    // Aguardar carregamento dos gráficos
+    // Aguardar um momento para garantir que os gráficos estejam renderizados
     setTimeout(() => {
-        printWindow.print();
-        // Não fechar imediatamente para permitir salvar como PDF
-    }, 1000);
+        // Clonar o dashboard para manipulação
+        const dashboardOriginal = document.getElementById('dashboardScreen');
+        if (!dashboardOriginal) {
+            this.mostrarToast('Erro: Dashboard não encontrado', 'error');
+            return;
+        }
+        
+        // Criar uma nova janela
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            this.mostrarToast('Permita popups para gerar o PDF', 'error');
+            return;
+        }
+        
+        // Converter todos os canvas (gráficos) para imagens PNG
+        const canvases = dashboardOriginal.querySelectorAll('canvas');
+        const canvasImages = {};
+        
+        canvases.forEach((canvas, index) => {
+            try {
+                const dataUrl = canvas.toDataURL('image/png');
+                canvasImages[index] = dataUrl;
+            } catch (e) {
+                console.error('Erro ao converter canvas:', e);
+            }
+        });
+        
+        // Clonar o conteúdo
+        const clone = dashboardOriginal.cloneNode(true);
+        
+        // Substituir os canvas clonados pelas imagens
+        const cloneCanvases = clone.querySelectorAll('canvas');
+        cloneCanvases.forEach((canvas, index) => {
+            if (canvasImages[index]) {
+                const img = document.createElement('img');
+                img.src = canvasImages[index];
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.maxHeight = '300px';
+                img.style.objectFit = 'contain';
+                canvas.parentNode.replaceChild(img, canvas);
+            }
+        });
+        
+        // Remover botões e elementos desnecessários do clone
+        const botoes = clone.querySelectorAll('button, .btn-export, .nav-item');
+        botoes.forEach(btn => btn.remove());
+        
+        // Pegar todos os estilos do documento atual
+        let stylesHTML = '';
+        document.querySelectorAll('style, link[rel="stylesheet"]').forEach(s => {
+            stylesHTML += s.outerHTML;
+        });
+        
+        // Montar o HTML da nova janela
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Relatório Dashboard - ${new Date().toLocaleDateString('pt-BR')}</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                ${stylesHTML}
+                <style>
+                    @media print {
+                        body { 
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            color-adjust: exact !important;
+                        }
+                        .executive-header { 
+                            page-break-after: avoid !important; 
+                            break-after: avoid !important;
+                        }
+                        .kpi-executive-grid { 
+                            page-break-inside: avoid !important; 
+                            break-inside: avoid !important;
+                        }
+                        .charts-executive-grid { 
+                            page-break-inside: avoid !important; 
+                            break-inside: avoid !important; 
+                            margin-bottom: 30px !important;
+                        }
+                        .chart-card-premium { 
+                            page-break-inside: avoid !important; 
+                            break-inside: avoid !important; 
+                            margin-bottom: 20px !important;
+                            break-before: auto !important;
+                        }
+                        .chart-card-premium img {
+                            max-width: 100% !important;
+                            height: auto !important;
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
+                        table { 
+                            page-break-inside: auto !important; 
+                            break-inside: auto !important;
+                        }
+                        tr { 
+                            page-break-inside: avoid !important; 
+                            break-inside: avoid !important;
+                            page-break-after: auto !important;
+                            break-after: auto !important;
+                        }
+                        thead { 
+                            display: table-header-group !important; 
+                        }
+                        .admin-nav, .btn-logout, button { 
+                            display: none !important; 
+                        }
+                        .screen { 
+                            display: block !important; 
+                            page-break-before: always !important;
+                            break-before: always !important;
+                        }
+                        .admin-screen { 
+                            page-break-before: avoid !important;
+                            break-before: avoid !important;
+                        }
+                    }
+                    body { 
+                        background: white !important; 
+                        padding: 20px !important; 
+                        font-family: Arial, sans-serif !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    .admin-container { 
+                        max-width: 100% !important; 
+                        margin: 0 !important;
+                    }
+                    img {
+                        max-width: 100%;
+                        height: auto;
+                    }
+                    .chart-card-premium {
+                        margin-bottom: 20px;
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .kpi-card-premium {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                </style>
+            </head>
+            <body>
+                <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px; page-break-after: avoid;">
+                    <h1 style="color: #003366; margin: 0; font-size: 24px;">📊 Relatório Executivo - Hidrômetros GPS</h1>
+                    <p style="color: #666; margin: 5px 0; font-size: 12px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                    <p style="color: #999; margin: 0; font-size: 10px;">Período: ${document.getElementById('filtroDataInicio')?.value || 'Últimos 30 dias'} até ${document.getElementById('filtroDataFim')?.value || 'Hoje'}</p>
+                </div>
+                
+                ${clone.innerHTML}
+                
+                <div style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: #999; border-top: 1px solid #ddd; padding-top: 10px; page-break-before: avoid;">
+                    Sistema Leitura de Hidrômetros v2.9.9.6 | Grupo GPS • Multiplan<br>
+                    Documento gerado automaticamente - Todos os dados sujeitos à auditoria
+                </div>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+        // Aguardar carregamento das imagens antes de imprimir
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 1500);
+        
+    }, 500);
   }
 
   popularFiltrosCompletos(dados) {
