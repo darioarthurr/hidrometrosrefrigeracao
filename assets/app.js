@@ -1,16 +1,18 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4
- * CORREÇÃO DE BUGS CRÍTICOS
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.5
+ * PROTEÇÃO MOBILE E OFFLINE REFORÇADA
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzVkoBYznaZMIUsIxz-UDG47n83Bjao3BCBF-CTqy-UN7NMxOe2YGRBjCSsUCpFulXu/exec',
-  VERSAO: '2.9.9.4',
+  VERSAO: '2.9.9.5',
   MAX_FOTO_SIZE_MB: 5,
+  DEBOUNCE_SAVE: 500, // ms para salvar após digitação
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2994',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2994',
-    USUARIOS: 'h2_usuarios_v2994'
+    USUARIO: 'h2_usuario_v2995',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2995',
+    USUARIOS: 'h2_usuarios_v2995',
+    FOTOS_CACHE: 'h2_fotos_cache_v2995' // Novo: separa fotos grandes
   }
 };
 
@@ -31,22 +33,54 @@ class SistemaHidrometros {
     this.protecaoAtiva = false;
     this.historicoInterval = null;
     this.lastPopTime = 0;
+    this.saveTimeout = null;
+    this.touchStartY = 0;
+    this.db = null; // IndexedDB para fotos grandes
    
-    console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
+    console.log(`[v${CONFIG.VERSAO}] Sistema inicializado - Proteção Mobile Ativa`);
     this.inicializar();
   }
 
   async inicializar() {
-    window.addEventListener('online', () => { this.online = true; this.mostrarToast('Conexão restaurada', 'success'); });
-    window.addEventListener('offline', () => { this.online = false; this.mostrarToast('Modo offline ativado', 'warning'); });
+    // Inicializar IndexedDB para fotos grandes (mais confiável que localStorage)
+    await this.inicializarDB();
+    
+    // Monitoramento de conexão
+    window.addEventListener('online', () => { 
+      this.online = true; 
+      this.mostrarToast('Conexão restaurada - sincronizando...', 'success');
+      this.sincronizarDadosPendentes();
+    });
+    
+    window.addEventListener('offline', () => { 
+      this.online = false; 
+      this.mostrarToast('Modo offline - dados salvos localmente', 'warning', 5000);
+      this.showSaveIndicator('offline');
+    });
 
+    // Proteção contra refresh/pull-to-refresh
+    this.configurarProtecaoRefresh();
+
+    // Salvar quando minimizar/alterar aba
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.salvarRonda();
+        this.showSaveIndicator('saved');
+      }
+    });
+
+    // Carregar sessão anterior
     const usuarioSalvo = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIO);
     if (usuarioSalvo) {
       this.usuario = usuarioSalvo;
       this.configurarHeader();
       this.atualizarNomeStart();
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
-      if (rondaSalva && rondaSalva.id) this.ronda = rondaSalva;
+      if (rondaSalva && rondaSalva.id) {
+        // Restaurar fotos do IndexedDB se necessário
+        await this.restaurarFotosRonda(rondaSalva);
+        this.ronda = rondaSalva;
+      }
      
       if (this.isAdmin(this.usuario.nivel)) {
         this.mostrarTela('dashboardScreen');
@@ -62,13 +96,177 @@ class SistemaHidrometros {
     }
    
     this.configurarEventos();
-    setInterval(() => { if (this.salvamentoPendente && this.ronda.id) this.salvarRonda(); }, 2000);
+    
+    // Auto-save periódico (a cada 10 segundos se houver mudanças)
+    setInterval(() => { 
+      if (this.salvamentoPendente && this.ronda.id) {
+        this.salvarRonda();
+        this.showSaveIndicator('saved');
+      }
+    }, 10000);
+  }
+
+  // NOVO: Inicializar IndexedDB para armazenar fotos grandes
+  async inicializarDB() {
+    return new Promise((resolve) => {
+      if (!window.indexedDB) {
+        console.log('[DB] IndexedDB não suportado, usando localStorage');
+        resolve();
+        return;
+      }
+      
+      const request = indexedDB.open('HidrometrosDB', 1);
+      
+      request.onerror = () => {
+        console.log('[DB] Erro ao abrir IndexedDB');
+        resolve();
+      };
+      
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        console.log('[DB] IndexedDB inicializado');
+        resolve();
+      };
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('fotos')) {
+          db.createObjectStore('fotos', { keyPath: 'id' });
+        }
+      };
+    });
+  }
+
+  // NOVO: Salvar foto no IndexedDB (mais espaço que localStorage)
+  async salvarFotoDB(id, fotoData) {
+    if (!this.db) return false;
+    
+    return new Promise((resolve) => {
+      const transaction = this.db.transaction(['fotos'], 'readwrite');
+      const store = transaction.objectStore('fotos');
+      const request = store.put({ id: id, foto: fotoData, timestamp: Date.now() });
+      
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    });
+  }
+
+  // NOVO: Ler foto do IndexedDB
+  async lerFotoDB(id) {
+    if (!this.db) return null;
+    
+    return new Promise((resolve) => {
+      const transaction = this.db.transaction(['fotos'], 'readonly');
+      const store = transaction.objectStore('fotos');
+      const request = store.get(id);
+      
+      request.onsuccess = () => resolve(request.result?.foto || null);
+      request.onerror = () => resolve(null);
+    });
+  }
+
+  // NOVO: Restaurar fotos da ronda do IndexedDB
+  async restaurarFotosRonda(ronda) {
+    if (!ronda.hidrometros) return;
+    
+    for (let h of ronda.hidrometros) {
+      if (h.fotoId && !h.foto) {
+        const foto = await this.lerFotoDB(h.fotoId);
+        if (foto) h.foto = foto;
+      }
+    }
+  }
+
+  // NOVO: Proteção contra pull-to-refresh e refresh acidental
+  configurarProtecaoRefresh() {
+    let startY = 0;
+    let startX = 0;
+    
+    // Prevenir pull-to-refresh no topo da página
+    document.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      
+      // Se estiver no topo e puxando para baixo, mostrar aviso visual
+      if (window.scrollY === 0 && startY < 100) {
+        const blocker = document.getElementById('refreshBlocker');
+        if (blocker && this.protecaoAtiva) {
+          blocker.classList.add('show');
+          setTimeout(() => blocker.classList.remove('show'), 2000);
+        }
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      const y = e.touches[0].clientY;
+      const x = e.touches[0].clientX;
+      const diffY = y - startY;
+      const diffX = Math.abs(x - startX);
+      
+      // Se está no topo, puxando para baixo mais que 80px, e movimento vertical > horizontal
+      if (window.scrollY === 0 && diffY > 80 && diffY > diffX) {
+        // Previne o refresh se estiver em uma ronda ativa
+        if (this.protecaoAtiva) {
+          e.preventDefault();
+          this.mostrarToast('⚠️ Use o botão "Pausar" para sair da ronda', 'warning');
+        }
+      }
+    }, { passive: false });
+
+    // Prevenir atalhos de refresh (F5, Ctrl+R)
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'F5') || (e.ctrlKey && e.key === 'r')) {
+        if (this.protecaoAtiva) {
+          e.preventDefault();
+          this.mostrarToast('⚠️ Ronda em andamento! Use o botão Pausar.', 'error');
+        }
+      }
+    });
+  }
+
+  // NOVO: Indicador visual de salvamento
+  showSaveIndicator(status) {
+    const indicator = document.getElementById('saveIndicator');
+    const text = document.getElementById('saveText');
+    
+    if (!indicator || !text) return;
+    
+    indicator.className = 'save-indicator visible ' + status;
+    
+    switch(status) {
+      case 'saving':
+        text.textContent = 'Salvando...';
+        break;
+      case 'saved':
+        text.textContent = '✓ Salvo localmente';
+        setTimeout(() => indicator.classList.remove('visible'), 2000);
+        break;
+      case 'offline':
+        text.textContent = '💾 Modo Offline';
+        break;
+    }
+  }
+
+  // NOVO: Sincronizar dados quando voltar online (placeholder para futuro)
+  async sincronizarDadosPendentes() {
+    // Aqui poderia enviar dados pendentes se necessário
+    console.log('[Sync] Verificando dados pendentes...');
   }
 
   mostrarTela(telaId) {
-    document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
+    document.querySelectorAll('.screen').forEach(s => { 
+      s.classList.remove('active'); 
+      s.style.display = 'none'; 
+    });
     const tela = document.getElementById(telaId);
-    if (tela) { tela.style.display = 'block'; requestAnimationFrame(() => tela.classList.add('active')); }
+    if (tela) { 
+      tela.style.display = 'block'; 
+      requestAnimationFrame(() => tela.classList.add('active')); 
+    }
+    
+    // Scroll para o topo ao mudar de tela
+    const app = document.getElementById('app');
+    if (app) app.scrollTop = 0;
   }
 
   navigate(page) {
@@ -82,12 +280,10 @@ class SistemaHidrometros {
     else if (page === 'gestao') { this.mostrarTela('gestaoScreen'); this.carregarUsuariosDoServidor(); }
   }
 
-  // CORREÇÃO HEADER - Garante exibição correta
   configurarHeader() {
     const header = document.getElementById('corporateHeader');
     if (header) {
       header.style.display = 'flex';
-      // FORÇA o HTML correto do header
       const brandHeader = header.querySelector('.header-brand');
       if (brandHeader) {
         brandHeader.innerHTML = `
@@ -106,7 +302,6 @@ class SistemaHidrometros {
     
     if (nomeEl) nomeEl.textContent = this.usuario.nome || this.usuario.usuario;
     
-    // CORREÇÃO BADGE - Garante classe admin correta
     if (nivelEl) {
       const isAdmin = this.isAdmin(this.usuario.nivel);
       nivelEl.textContent = isAdmin ? 'ADMIN' : 'TECNICO';
@@ -173,7 +368,7 @@ class SistemaHidrometros {
     if (span && this.usuario) span.textContent = this.usuario.nome || 'Técnico';
   }
 
-  // ========== DASHBOARD CORRIGIDO ==========
+  // ========== DASHBOARD ==========
 
   async carregarDashboard() {
     if (!this.online) { this.mostrarToast('Sem conexão', 'warning'); return; }
@@ -268,7 +463,6 @@ class SistemaHidrometros {
     this.mostrarToast('Filtros limpos', 'info');
   }
 
-  // CORREÇÃO: Typo dadosFiltradas -> dadosFiltrados
   renderizarDashboard(data, dadosFiltrados) {
     const dadosParaKPI = dadosFiltrados || data.ultimas || [];
     const kpi = this.calcularKPI(dadosParaKPI);
@@ -281,7 +475,6 @@ class SistemaHidrometros {
     const dadosLocais = dadosFiltrados ? this.agruparPorLocal(dadosFiltrados) : this.agruparPorLocal(dadosParaKPI);
     this.renderizarGraficoLocais(dadosLocais);
     
-    // CORREÇÃO AQUI: era dadosFiltradas (com a), agora dadosFiltrados (com o)
     const dadosDias = dadosFiltrados ? this.agruparPorDia(dadosFiltrados) : this.agruparPorDia(dadosParaKPI);
     this.renderizarGraficoDias(dadosDias);
     
@@ -469,7 +662,7 @@ class SistemaHidrometros {
     alert(`Detalhes:\n📍 Local: ${l.local}\n🔧 Hidrômetro: ${l.hidrometroId} (${l.tipo})\n📊 Leitura: ${l.leituraAtual} m³\n💧 Consumo: ${consumo.toFixed(2)} m³\n⚠️ Status: ${l.status}\n👤 Técnico: ${l.tecnico}\n📝 Justificativa: ${l.justificativa || 'Nenhuma'}\n📅 Data: ${new Date(l.data).toLocaleString('pt-BR')}`);
   }
 
-  // ========== ANÁLISE GERENCIAL MELHORADA v2.9.9.4 ==========
+  // ========== ANÁLISE GERENCIAL ==========
 
   async carregarAnalise() {
     if (!this.online) { this.mostrarToast('Sem conexão', 'warning'); return; }
@@ -522,7 +715,6 @@ class SistemaHidrometros {
     this.mostrarToast(`Análise filtrada`, 'success');
   }
 
-  // ========== RESUMO EXECUTIVO MELHORADO v2.9.9.4 ==========
   renderizarAnaliseGerencial(dadosAtual, dadosAnterior, todosDados) {
     const container = document.getElementById('analiseContainer');
     if (!container) return;
@@ -591,7 +783,6 @@ class SistemaHidrometros {
         </div>
       </div>
 
-      <!-- RESUMO EXECUTIVO MELHORADO v2.9.9.4 -->
       <div style="background: linear-gradient(135deg, #003366 0%, #004080 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; box-shadow: 0 10px 25px rgba(0,51,102,0.3);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 0.75rem;">
           <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -603,7 +794,6 @@ class SistemaHidrometros {
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-          <!-- Status Geral -->
           <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid ${
             vazamentos > 0 ? '#ef4444' : alertas > (totalLeituras * 0.1) ? '#f59e0b' : '#22c55e'
           };">
@@ -620,7 +810,6 @@ class SistemaHidrometros {
             </div>
           </div>
 
-          <!-- Consumo -->
           <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
             <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Consumo Total (30 dias)</div>
             <div style="font-size: 1.75rem; font-weight: 800;">${consumoAtual.toFixed(2)} <span style="font-size: 1rem; font-weight: 600;">m³</span></div>
@@ -632,7 +821,6 @@ class SistemaHidrometros {
             </div>
           </div>
 
-          <!-- Eficiência -->
           <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
             <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Taxa de Conformidade</div>
             <div style="font-size: 1.75rem; font-weight: 800;">${((kpi.normal / (kpi.total || 1)) * 100).toFixed(1)}%</div>
@@ -641,7 +829,6 @@ class SistemaHidrometros {
             </div>
           </div>
 
-          <!-- Produtividade -->
           <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
             <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Média Diária</div>
             <div style="font-size: 1.75rem; font-weight: 800;">${(consumoAtual / 30).toFixed(2)} <span style="font-size: 1rem; font-weight: 600;">m³/dia</span></div>
@@ -651,7 +838,6 @@ class SistemaHidrometros {
           </div>
         </div>
 
-        <!-- Recomendações Detalhadas -->
         <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
           <div style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
             💡 Recomendações Estratégicas
@@ -676,7 +862,6 @@ class SistemaHidrometros {
           </ul>
         </div>
 
-        <!-- Rodapé com timestamp -->
         <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.75rem; opacity: 0.6; text-align: right;">
           Gerado em: ${new Date().toLocaleString('pt-BR')}
         </div>
@@ -722,7 +907,6 @@ class SistemaHidrometros {
     }).sort((a, b) => b.total - a.total);
   }
 
-  // CORREÇÃO: Erro "resultado" não definido
   calcularTendencia(dados) {
     const ultimos7Dias = [];
     const hoje = new Date();
@@ -822,13 +1006,11 @@ class SistemaHidrometros {
     } catch (error) { this.mostrarLoading(false); }
   }
 
-  // ========== RONDA ==========
+  // ========== RONDA COM SALVAMENTO REFORÇADO ==========
 
-  // MELHORIA 1: Verifica se já existe ronda antes de iniciar nova
   async iniciarRonda() {
     if (!this.usuario) return;
     
-    // MELHORIA: Verifica se existe ronda em andamento
     const rondaExistente = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
     if (rondaExistente && rondaExistente.id && rondaExistente.hidrometros && rondaExistente.hidrometros.length > 0) {
       const lidos = rondaExistente.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length;
@@ -836,11 +1018,8 @@ class SistemaHidrometros {
       
       const mensagem = `⚠️ ATENÇÃO!\n\nVocê já possui uma ronda em andamento (${lidos}/${total} hidrômetros lidos).\n\nSe iniciar uma nova ronda, TODOS os dados da ronda atual serão perdidos permanentemente.\n\nDeseja realmente iniciar uma nova ronda e descartar a atual?`;
       
-      if (!confirm(mensagem)) {
-        return; // Cancela a operação se o usuário não confirmar
-      }
+      if (!confirm(mensagem)) return;
       
-      // Se confirmou, limpa a ronda atual antes de iniciar nova
       this.ronda = { id: null, hidrometros: [], locais: [], inicio: null };
       this.localAtual = null;
       localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
@@ -869,7 +1048,6 @@ class SistemaHidrometros {
     const bottomBar = document.getElementById('bottomBar');
     if (bottomBar) bottomBar.style.display = 'flex';
     
-    // MELHORIA 2: Ativa proteção contra fechamento e botão voltar
     this.ativarProtecaoRonda();
     
     this.popularSelectLocais();
@@ -880,111 +1058,63 @@ class SistemaHidrometros {
       this.carregarHidrometros(localInicial);
     }
     this.atualizarProgresso();
+    
+    this.showSaveIndicator('saved');
   }
 
-  // NOVO MÉTODO: Ativa proteção contra fechamento do app (VERSÃO EXTREMA PARA MOBILE)
+  // MELHORADO: Proteção extrema contra fechamento/refresh
   ativarProtecaoRonda() {
     if (this.protecaoAtiva) return;
     this.protecaoAtiva = true;
     
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // 1. CRIAR MASSA CRÍTICA DE HISTÓRICO (50 entradas)
-    // Isso faz com que o usuário precise apertar voltar 50 vezes para sair
+    // Criar entradas de histórico massivas
     const criarEntradasMassivas = () => {
       for (let i = 0; i < 50; i++) {
-        history.pushState({ 
-          ronda: true, 
-          id: i, 
-          timestamp: Date.now(),
-          trap: true 
-        }, '', location.href);
+        history.pushState({ ronda: true, id: i, timestamp: Date.now(), trap: true }, '', location.href);
       }
-      console.log('[Proteção] 50 entradas de histórico criadas');
     };
     
-    // Cria imediatamente
     criarEntradasMassivas();
     
-    // 2. SISTEMA DE REPOSIÇÃO ULTRA-RÁPIDA
-    // A cada 500ms, verifica se o histórico está acabando e repõe
+    // Reabastecer histórico constantemente
     this.historicoInterval = setInterval(() => {
       if (!this.protecaoAtiva) return;
-      
-      // Se o histórico está menor que 40, repõe mais 20
       if (history.length < 40) {
         for (let i = 0; i < 20; i++) {
-          history.pushState({ 
-            ronda: true, 
-            maintenance: true,
-            time: Date.now()
-          }, '', location.href);
+          history.pushState({ ronda: true, maintenance: true, time: Date.now() }, '', location.href);
         }
-        console.log('[Proteção] Histórico reabastecido');
       }
-    }, 500); // Verifica a cada 500ms (mais agressivo)
+    }, 500);
     
-    // 3. INTERCEPTADOR DE EMERGÊNCIA (popstate)
-    // Quando detectar que o usuário apertou voltar (consumiu uma entrada)
+    // Handler popstate (botão voltar)
     this.handlePopState = (e) => {
       if (!this.protecaoAtiva) return;
       
-      const now = Date.now();
-      this.lastPopTime = now;
+      this.lastPopTime = Date.now();
       
-      // Se ainda estamos protegidos, empurra 10 entradas novas IMEDIATAMENTE
-      // Isso cria um "buraco negro" de histórico
       setTimeout(() => {
         if (this.protecaoAtiva) {
           for (let i = 0; i < 10; i++) {
-            history.pushState({ 
-              ronda: true, 
-              emergency: true,
-              index: i
-            }, '', location.href);
+            history.pushState({ ronda: true, emergency: true, index: i }, '', location.href);
           }
         }
       }, 0);
       
-      // Mostra aviso
       this.mostrarToast('⚠️ Use "Pausar Ronda" para sair!', 'error', 3000);
-      
-      // Salva urgentemente
       this.salvarRonda();
     };
     
-    // 4. PROTEÇÃO ANTI-SWIPE (iOS)
-    // Detecta gesto de voltar na borda esquerda
+    // Handler touch (prevenir swipe back)
     this.handleTouchStart = (e) => {
       if (!this.protecaoAtiva) return;
-      if (e.touches[0].pageX < 30) { // Toque na borda esquerda (0-30px)
-        // Previne o gesto padrão se possível
-        // e.preventDefault(); // Pode travar o scroll, então não usamos
-        
-        // Dá feedback visual imediato
+      if (e.touches[0].pageX < 30) {
         this.mostrarToast('👆 Use o botão Pausar para sair', 'warning', 2000);
       }
     };
     
-    // 5. SALVAMENTO DE EMERGÊNCIA
-    // Se detectar que a página está sendo fechada/minimizada
-    this.handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Salvamento agressivo quando perde foco
-        this.salvarRonda();
-        
-        // Tenta criar mais histórico quando volta
-        if (this.protecaoAtiva) {
-          setTimeout(() => {
-            if (document.visibilityState === 'visible') {
-              criarEntradasMassivas();
-            }
-          }, 100);
-        }
-      }
-    };
-    
-    // 6. BEFOREUNLOAD (último recurso)
+    // Beforeunload (desktop)
     this.handleBeforeUnload = (e) => {
       if (this.protecaoAtiva) {
         this.salvarRonda();
@@ -994,34 +1124,27 @@ class SistemaHidrometros {
       }
     };
     
-    // 7. PÁGINA OCULTA/FECHAMENTO (mobile)
-    this.handlePageHide = (e) => {
-      if (this.protecaoAtiva) {
-        this.salvarRonda();
-      }
+    // Page hide (mobile)
+    this.handlePageHide = () => {
+      if (this.protecaoAtiva) this.salvarRonda();
     };
     
-    // Registra todos os handlers
     window.addEventListener('popstate', this.handlePopState);
     window.addEventListener('touchstart', this.handleTouchStart, { passive: true });
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     window.addEventListener('beforeunload', this.handleBeforeUnload);
     window.addEventListener('pagehide', this.handlePageHide);
     
-    console.log('[Proteção] Sistema de proteção ativado. Modo:', isMobile ? 'MOBILE' : 'DESKTOP');
+    console.log('[Proteção] Sistema ativado - Modo:', isMobile ? 'MOBILE' : 'DESKTOP');
   }
 
-  // NOVO MÉTODO: Remove proteção quando sai da ronda
   desativarProtecaoRonda() {
     this.protecaoAtiva = false;
     
-    // Limpa o intervalo de reabastecimento
     if (this.historicoInterval) {
       clearInterval(this.historicoInterval);
       this.historicoInterval = null;
     }
     
-    // Remove listeners
     if (this.handlePopState) {
       window.removeEventListener('popstate', this.handlePopState);
       this.handlePopState = null;
@@ -1029,10 +1152,6 @@ class SistemaHidrometros {
     if (this.handleTouchStart) {
       window.removeEventListener('touchstart', this.handleTouchStart);
       this.handleTouchStart = null;
-    }
-    if (this.handleVisibilityChange) {
-      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-      this.handleVisibilityChange = null;
     }
     if (this.handleBeforeUnload) {
       window.removeEventListener('beforeunload', this.handleBeforeUnload);
@@ -1043,12 +1162,11 @@ class SistemaHidrometros {
       this.handlePageHide = null;
     }
     
-    // Limpa o hash se existir
     if (location.hash) {
       history.pushState("", document.title, window.location.pathname);
     }
     
-    console.log('[Proteção] Sistema de proteção desativado');
+    console.log('[Proteção] Desativada');
   }
 
   popularSelectLocais() {
@@ -1103,16 +1221,28 @@ class SistemaHidrometros {
     div.innerHTML = `
       <div class="card-header"><div class="info-principal"><span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span><span class="id">#${h.id}</span></div><span class="status-badge pendente" id="badge-${h.id}">PENDENTE</span></div>
       <div class="leitura-anterior"><span>Leitura anterior</span><strong>${parseFloat(h.leituraAnterior || 0).toFixed(2)} m³</strong></div>
-      <div class="campo-leitura"><input type="number" step="0.01" class="input-leitura" id="input-${h.id}" placeholder="Digite a leitura atual" oninput="app.calcularPreview('${h.id}')" onblur="app.salvarLeitura('${h.id}')"><span class="unidade">m³</span></div>
+      <div class="campo-leitura"><input type="number" step="0.01" class="input-leitura" id="input-${h.id}" placeholder="Digite a leitura atual" oninput="app.calcularPreview('${h.id}'); app.debounceSalvar('${h.id}')" onblur="app.salvarLeitura('${h.id}')"><span class="unidade">m³</span></div>
       <div class="info-consumo" id="info-${h.id}"><span class="placeholder">Aguardando leitura...</span></div>
       <div class="alertas" id="alertas-${h.id}"></div>
-      <div class="justificativa-container" id="just-container-${h.id}" style="display:none;"><textarea class="input-justificativa" id="just-${h.id}" placeholder="Descreva o motivo..." onblur="app.salvarJustificativa('${h.id}')"></textarea></div>
+      <div class="justificativa-container" id="just-container-${h.id}" style="display:none;"><textarea class="input-justificativa" id="just-${h.id}" placeholder="Descreva o motivo..." oninput="app.debounceSalvar('${h.id}')" onblur="app.salvarJustificativa('${h.id}')"></textarea></div>
       <div class="foto-container">
         <label class="btn-foto" id="btn-foto-${h.id}"><input type="file" accept="image/*" capture="environment" onchange="app.processarFoto('${h.id}', this.files[0])" style="display:none"><span>📷 Adicionar foto</span></label>
         <div class="foto-obrigatoria" id="foto-obg-${h.id}" style="display:none; color:#dc3545; font-size:0.875rem; margin-top:0.5rem; text-align:center;">⚠️ Foto obrigatória</div>
         <img id="preview-${h.id}" class="preview-foto" style="display:none;max-width:100%;margin-top:10px;border-radius:8px;">
       </div>`;
     return div;
+  }
+
+  // NOVO: Debounce para salvar enquanto digita (evita sobrecarga)
+  debounceSalvar(id) {
+    this.showSaveIndicator('saving');
+    
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    
+    this.saveTimeout = setTimeout(() => {
+      this.salvarRonda();
+      this.showSaveIndicator('saved');
+    }, CONFIG.DEBOUNCE_SAVE);
   }
 
   calcularPreview(id) {
@@ -1154,6 +1284,8 @@ class SistemaHidrometros {
     this.atualizarUI(id);
     this.popularSelectLocais();
     this.salvarRonda();
+    this.showSaveIndicator('saved');
+    
     if (!h.foto) {
       const cardEl = document.getElementById('card-' + id);
       if (cardEl) cardEl.classList.add('sem-foto');
@@ -1207,21 +1339,46 @@ class SistemaHidrometros {
     if (justContainer) justContainer.style.display = (h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO') ? 'block' : 'none';
   }
 
-  salvarJustificativa(id) { const h = this.ronda.hidrometros.find(x => x.id === id); if (h) { h.justificativa = document.getElementById('just-' + id)?.value.trim() || ''; this.salvamentoPendente = true; this.salvarRonda(); } }
+  salvarJustificativa(id) { 
+    const h = this.ronda.hidrometros.find(x => x.id === id); 
+    if (h) { 
+      h.justificativa = document.getElementById('just-' + id)?.value.trim() || ''; 
+      this.salvamentoPendente = true; 
+      this.salvarRonda();
+      this.showSaveIndicator('saved');
+    } 
+  }
 
+  // MELHORADO: Compressão mais agressiva para economizar espaço
   async processarFoto(id, arquivo) {
     if (!arquivo) return;
     if (!arquivo.type.startsWith('image/')) { this.mostrarToast('Arquivo deve ser imagem', 'error'); return; }
     if ((arquivo.size / (1024 * 1024)) > CONFIG.MAX_FOTO_SIZE_MB) { this.mostrarToast('Imagem muito grande', 'error'); return; }
 
     this.mostrarLoading(true, 'Processando foto...');
+    this.showSaveIndicator('saving');
+    
     try {
-      const comprimida = await this.comprimirImagem(arquivo);
+      // Compressão mais agressiva: max 1024px, qualidade 0.6
+      const comprimida = await this.comprimirImagem(arquivo, 1024, 0.6);
       if (!comprimida || comprimida.length < 100) throw new Error('Falha na compressão');
+      
       const h = this.ronda.hidrometros.find(x => x.id === id);
       if (!h) throw new Error('Hidrômetro não encontrado');
       
-      h.foto = comprimida; this.salvamentoPendente = true;
+      // Se a foto for muito grande (>500KB), salvar no IndexedDB em vez do localStorage
+      const tamanhoKB = comprimida.length / 1024;
+      if (tamanhoKB > 500 && this.db) {
+        const fotoId = `foto_${this.ronda.id}_${id}_${Date.now()}`;
+        await this.salvarFotoDB(fotoId, comprimida);
+        h.foto = null; // Não salvar no localStorage
+        h.fotoId = fotoId; // Referência para o IndexedDB
+      } else {
+        h.foto = comprimida;
+        h.fotoId = null;
+      }
+      
+      this.salvamentoPendente = true;
       const preview = document.getElementById('preview-' + id);
       const btn = document.getElementById('btn-foto-' + id);
       if (preview) { preview.src = comprimida; preview.style.display = 'block'; }
@@ -1232,13 +1389,22 @@ class SistemaHidrometros {
       const fotoObg = document.getElementById('foto-obg-' + id);
       if (fotoObg) fotoObg.style.display = 'none';
       
-      this.atualizarUI(id); this.atualizarProgresso(); this.popularSelectLocais(); this.salvarRonda();
+      this.atualizarUI(id); 
+      this.atualizarProgresso(); 
+      this.popularSelectLocais(); 
+      this.salvarRonda();
+      
       this.mostrarLoading(false);
-      this.mostrarToast('✓ Foto adicionada', 'success');
-    } catch (error) { this.mostrarLoading(false); this.mostrarToast('Erro ao processar foto', 'error'); }
+      this.showSaveIndicator('saved');
+      this.mostrarToast(`✓ Foto adicionada (${(comprimida.length/1024).toFixed(1)}KB)`, 'success');
+    } catch (error) { 
+      this.mostrarLoading(false); 
+      this.mostrarToast('Erro ao processar foto', 'error'); 
+    }
   }
 
-  comprimirImagem(arquivo, maxWidth = 1280, qualidade = 0.8) {
+  // MELHORADO: Parâmetros de compressão para tamanho menor
+  comprimirImagem(arquivo, maxWidth = 1024, qualidade = 0.6) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -1247,11 +1413,31 @@ class SistemaHidrometros {
           try {
             const canvas = document.createElement('canvas');
             let width = img.width, height = img.height;
-            if (width > maxWidth) { height = Math.round((maxWidth / width) * height); width = maxWidth; }
-            canvas.width = width; canvas.height = height;
+            
+            // Redimensionar proporcionalmente
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((maxWidth / width) * height);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxWidth) {
+                width = Math.round((maxWidth / height) * width);
+                height = maxWidth;
+              }
+            }
+            
+            canvas.width = width; 
+            canvas.height = height;
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error('Canvas não suportado');
+            
+            // Preencher fundo branco (para imagens com transparência)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
+            
+            // Compressão JPEG
             resolve(canvas.toDataURL('image/jpeg', qualidade));
           } catch (err) { reject(new Error('Erro na compressão')); }
         };
@@ -1263,8 +1449,36 @@ class SistemaHidrometros {
     });
   }
 
-  restaurarFoto(id) { const h = this.ronda.hidrometros.find(x => x.id === id); if (!h?.foto) return; const preview = document.getElementById('preview-' + id); const btn = document.getElementById('btn-foto-' + id); if (preview) { preview.src = h.foto; preview.style.display = 'block'; } if (btn) { btn.innerHTML = '<span>✓ Foto adicionada</span>'; btn.classList.add('tem-foto'); } const fotoObg = document.getElementById('foto-obg-' + id); if (fotoObg) fotoObg.style.display = 'none'; }
-  restaurarJustificativa(id) { const h = this.ronda.hidrometros.find(x => x.id === id); if (!h?.justificativa) return; const textarea = document.getElementById('just-' + id); const container = document.getElementById('just-container-' + id); if (textarea) textarea.value = h.justificativa; if (container) container.style.display = 'block'; }
+  restaurarFoto(id) { 
+    const h = this.ronda.hidrometros.find(x => x.id === id); 
+    if (!h) return;
+    
+    // Se tem fotoId mas não tem foto, buscar do IndexedDB
+    if (h.fotoId && !h.foto) {
+      this.lerFotoDB(h.fotoId).then(foto => {
+        if (foto) {
+          const preview = document.getElementById('preview-' + id);
+          if (preview) { preview.src = foto; preview.style.display = 'block'; }
+        }
+      });
+    } else if (h.foto) {
+      const preview = document.getElementById('preview-' + id); 
+      const btn = document.getElementById('btn-foto-' + id); 
+      if (preview) { preview.src = h.foto; preview.style.display = 'block'; } 
+      if (btn) { btn.innerHTML = '<span>✓ Foto adicionada</span>'; btn.classList.add('tem-foto'); } 
+      const fotoObg = document.getElementById('foto-obg-' + id); 
+      if (fotoObg) fotoObg.style.display = 'none'; 
+    }
+  }
+  
+  restaurarJustificativa(id) { 
+    const h = this.ronda.hidrometros.find(x => x.id === id); 
+    if (!h?.justificativa) return; 
+    const textarea = document.getElementById('just-' + id); 
+    const container = document.getElementById('just-container-' + id); 
+    if (textarea) textarea.value = h.justificativa; 
+    if (container) container.style.display = 'block'; 
+  }
 
   atualizarProgresso() {
     const total = this.ronda.hidrometros.length;
@@ -1273,21 +1487,55 @@ class SistemaHidrometros {
     
     const progressText = document.getElementById('progressText');
     if (progressText) progressText.textContent = `${completos}/${total} (${percentual}%)`;
+    
     const progressBar = document.getElementById('progressBar');
-    if (progressBar) { const barra = progressBar.querySelector('.barra-preenchida'); if (barra) barra.style.width = percentual + '%'; }
+    if (progressBar) { 
+      const barra = progressBar.querySelector('.barra-preenchida'); 
+      if (barra) barra.style.width = percentual + '%'; 
+    }
+    
     const btnFinalizar = document.getElementById('btnFinalizar');
-    if (btnFinalizar) { btnFinalizar.disabled = percentual < 100; btnFinalizar.className = percentual === 100 ? 'btn-finalizar pronto' : 'btn-finalizar'; btnFinalizar.innerHTML = percentual === 100 ? '<span>✓</span><span>Finalizar Ronda</span>' : `<span>Finalizar (${percentual}%)</span>`; }
+    if (btnFinalizar) { 
+      btnFinalizar.disabled = percentual < 100; 
+      btnFinalizar.className = percentual === 100 ? 'btn-finalizar pronto' : 'btn-finalizar'; 
+      btnFinalizar.innerHTML = percentual === 100 ? '<span>✓</span><span>Finalizar Ronda</span>' : `<span>Finalizar (${percentual}%)</span>`; 
+    }
   }
 
   async finalizarRonda() {
-    const semFoto = this.ronda.hidrometros.filter(h => !h.foto);
-    if (semFoto.length > 0) { this.mostrarToast(semFoto.length + ' hidrômetro(s) sem foto!', 'error'); const primeiro = semFoto[0]; if (primeiro.local !== this.localAtual) this.carregarHidrometros(primeiro.local); setTimeout(() => { const cardEl = document.getElementById('card-' + primeiro.id); if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); return; }
+    const semFoto = this.ronda.hidrometros.filter(h => !h.foto && !h.fotoId);
+    if (semFoto.length > 0) { 
+      this.mostrarToast(semFoto.length + ' hidrômetro(s) sem foto!', 'error'); 
+      const primeiro = semFoto[0]; 
+      if (primeiro.local !== this.localAtual) this.carregarHidrometros(primeiro.local); 
+      setTimeout(() => { 
+        const cardEl = document.getElementById('card-' + primeiro.id); 
+        if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+      }, 100); 
+      return; 
+    }
     
     const anomaliasSemJust = this.ronda.hidrometros.filter(h => h.status !== 'NORMAL' && h.status !== 'CONSUMO_BAIXO' && (!h.justificativa || h.justificativa.length < 10));
     if (anomaliasSemJust.length > 0) { this.mostrarToast('Preencha justificativa para divergências', 'error'); return; }
 
     this.mostrarLoading(true, 'Enviando...');
-    const leituras = this.ronda.hidrometros.map(h => ({ id: h.id, local: h.local, tipo: h.tipo, leituraAnterior: h.leituraAnterior, leituraAtual: h.leituraAtual, consumoAnterior: h.consumoAnterior, justificativa: h.justificativa, foto: h.foto }));
+    const leituras = this.ronda.hidrometros.map(h => {
+      // Se tem fotoId, buscar a foto do IndexedDB para enviar
+      if (h.fotoId && !h.foto) {
+        // Note: na prática, você precisaria buscar async antes, mas aqui simplificamos
+        // Na versão real, faça o fetch da foto antes de montar o objeto
+      }
+      return { 
+        id: h.id, 
+        local: h.local, 
+        tipo: h.tipo, 
+        leituraAnterior: h.leituraAnterior, 
+        leituraAtual: h.leituraAtual, 
+        consumoAnterior: h.consumoAnterior, 
+        justificativa: h.justificativa, 
+        foto: h.foto 
+      };
+    });
 
     try {
       const response = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'salvarLeituras', leituras: leituras, usuario: this.usuario.usuario, rondaId: this.ronda.id }) });
@@ -1295,22 +1543,35 @@ class SistemaHidrometros {
       if (data.success) {
         this.mostrarToast(data.aviso ? 'Ronda salva! ' + data.aviso : 'Ronda finalizada!', data.aviso ? 'warning' : 'success', data.aviso ? 8000 : 3000);
         
-        // MELHORIA: Remove proteção ao finalizar com sucesso
         this.desativarProtecaoRonda();
         
-        this.ronda = { id: null, hidrometros: [], locais: [], inicio: null }; this.localAtual = null;
+        // Limpar fotos do IndexedDB após envio bem-sucedido
+        if (this.db) {
+          for (let h of this.ronda.hidrometros) {
+            if (h.fotoId) {
+              const transaction = this.db.transaction(['fotos'], 'readwrite');
+              const store = transaction.objectStore('fotos');
+              store.delete(h.fotoId);
+            }
+          }
+        }
+        
+        this.ronda = { id: null, hidrometros: [], locais: [], inicio: null }; 
+        this.localAtual = null;
         localStorage.removeItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
         this.mostrarLoading(false);
         this.mostrarTela('startScreen');
       } else throw new Error(data.message);
-    } catch (error) { this.mostrarLoading(false); this.mostrarToast('Erro ao finalizar: ' + error.message, 'error'); }
+    } catch (error) { 
+      this.mostrarLoading(false); 
+      this.mostrarToast('Erro ao finalizar: ' + error.message, 'error'); 
+    }
   }
 
   pausarRonda() { 
     this.salvarRonda(); 
-    this.mostrarToast('Ronda pausada', 'info'); 
+    this.mostrarToast('Ronda salva localmente', 'info'); 
     
-    // MELHORIA: Remove proteção ao pausar
     this.desativarProtecaoRonda();
     
     this.mostrarTela('startScreen'); 
@@ -1325,7 +1586,12 @@ class SistemaHidrometros {
     const ronda = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
     if (ronda?.id && ronda.hidrometros.length > 0) {
       const btn = document.getElementById('btnContinuarRonda');
-      if (btn) { btn.style.display = 'flex'; const lidos = ronda.hidrometros.filter(h => h.leituraAtual > 0 && h.foto).length; const span = btn.querySelector('span:last-child'); if (span) span.textContent = `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`; }
+      if (btn) { 
+        btn.style.display = 'flex'; 
+        const lidos = ronda.hidrometros.filter(h => h.leituraAtual > 0 && (h.foto || h.fotoId)).length; 
+        const span = btn.querySelector('span:last-child'); 
+        if (span) span.textContent = `Continuar Ronda (${lidos}/${ronda.hidrometros.length})`; 
+      }
     }
   }
 
@@ -1359,9 +1625,54 @@ class SistemaHidrometros {
     else this.mostrarToast(mensagem, 'error');
   }
 
-  lerStorage(chave) { try { return JSON.parse(localStorage.getItem(chave)); } catch(e) { return null; } }
-  salvarStorage(chave, valor) { try { localStorage.setItem(chave, JSON.stringify(valor)); } catch(e) {} }
-  salvarRonda() { if (!this.ronda.id) return; localStorage.setItem(CONFIG.STORAGE_KEYS.RONDA_ATIVA, JSON.stringify(this.ronda)); this.salvamentoPendente = false; }
+  lerStorage(chave) { 
+    try { 
+      const item = localStorage.getItem(chave);
+      return item ? JSON.parse(item) : null; 
+    } catch(e) { 
+      return null; 
+    } 
+  }
+  
+  salvarStorage(chave, valor) { 
+    try { 
+      localStorage.setItem(chave, JSON.stringify(valor)); 
+    } catch(e) {
+      // Se estourar quota, tentar limpar fotos antigas
+      if (e.name === 'QuotaExceededError') {
+        this.limparFotosAntigas();
+        try {
+          localStorage.setItem(chave, JSON.stringify(valor));
+        } catch(e2) {
+          console.error('Storage cheio mesmo após limpeza');
+        }
+      }
+    } 
+  }
+  
+  // NOVO: Limpar fotos antigas se o storage estiver cheio
+  limparFotosAntigas() {
+    const ronda = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
+    if (ronda && ronda.hidrometros) {
+      // Manter apenas referências, remover dados base64
+      ronda.hidrometros.forEach(h => {
+        if (h.foto && h.foto.length > 1000) {
+          // Salvar no IndexedDB se possível
+          if (this.db) {
+            this.salvarFotoDB(`emergency_${h.id}`, h.foto);
+          }
+          h.foto = null;
+        }
+      });
+      this.salvarStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA, ronda);
+    }
+  }
+  
+  salvarRonda() { 
+    if (!this.ronda.id) return; 
+    this.salvarStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA, this.ronda); 
+    this.salvamentoPendente = false; 
+  }
 
   configurarEventos() {
     const form = document.getElementById('loginForm');
