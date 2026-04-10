@@ -845,184 +845,475 @@ class SistemaHidrometros {
   }
 
   exportarDashboardPDF() {
-    this.mostrarToast('Preparando relatório completo...', 'info');
+    this.mostrarToast('📄 Gerando PDF completo... aguarde', 'info', 5000);
     
-    // Aguardar um momento para garantir que os gráficos estejam renderizados
+    const dashboardOriginal = document.getElementById('dashboardScreen');
+    if (!dashboardOriginal) {
+        this.mostrarToast('Erro: Dashboard não encontrado', 'error');
+        return;
+    }
+
+    // Desativar scroll temporariamente e expandir tudo
+    const originalOverflow = dashboardOriginal.style.overflow;
+    const originalMaxHeight = dashboardOriginal.style.maxHeight;
+    dashboardOriginal.style.overflow = 'visible';
+    dashboardOriginal.style.maxHeight = 'none';
+    
+    // Forçar renderização de todos os gráficos em alta resolução
+    const canvasElements = dashboardOriginal.querySelectorAll('canvas');
+    const canvasImages = [];
+    
+    canvasElements.forEach((canvas, index) => {
+        try {
+            // Criar imagem em alta resolução (2x para qualidade)
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
+            canvasImages.push({
+                index: index,
+                src: dataUrl,
+                width: canvas.width,
+                height: canvas.height
+            });
+        } catch (e) {
+            console.error('Erro ao converter canvas:', e);
+        }
+    });
+
+    // Criar HTML completo do relatório
+    const dataInicio = document.getElementById('filtroDataInicio')?.value || 'Últimos 30 dias';
+    const dataFim = document.getElementById('filtroDataFim')?.value || 'Hoje';
+    const totalLeituras = document.getElementById('kpiTotal')?.textContent || '0';
+    const alertas = document.getElementById('kpiAlertas')?.textContent || '0';
+    const vazamentos = document.getElementById('kpiVazamentos')?.textContent || '0';
+    const eficiencia = document.getElementById('kpiEficiencia')?.textContent || '0%';
+
+    // Clonar o conteúdo para manipulação
+    const clone = dashboardOriginal.cloneNode(true);
+    
+    // Substituir os canvas pelas imagens no clone
+    const cloneCanvases = clone.querySelectorAll('canvas');
+    cloneCanvases.forEach((canvas, index) => {
+        if (canvasImages[index]) {
+            const img = document.createElement('img');
+            img.src = canvasImages[index].src;
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.maxHeight = '350px';
+            img.style.objectFit = 'contain';
+            img.style.display = 'block';
+            img.style.margin = '0 auto';
+            canvas.parentNode.replaceChild(img, canvas);
+        }
+    });
+
+    // Remover elementos desnecessários
+    const elementosRemover = clone.querySelectorAll('button, .btn-export, .admin-nav, select, input[type="date"], .toggle-password');
+    elementosRemover.forEach(el => {
+        if (el.tagName === 'SELECT' || el.type === 'date') {
+            // Substituir selects por texto estático
+            const valor = el.value || 'Todos';
+            const span = document.createElement('span');
+            span.textContent = valor;
+            span.style.fontWeight = '600';
+            span.style.color = '#003366';
+            el.parentNode.replaceChild(span, el);
+        } else {
+            el.remove();
+        }
+    });
+
+    // Criar janela de impressão otimizada
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        this.mostrarToast('Permita popups para gerar o PDF', 'error');
+        return;
+    }
+
+    // CSS completo para múltiplas páginas
+    const styles = `
+        * { box-sizing: border-box; }
+        body { 
+            font-family: Arial, Helvetica, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: white; 
+            color: #333;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        /* Controle de quebra de páginas */
+        .page-break { 
+            page-break-before: always; 
+            break-before: always;
+        }
+        
+        .no-break { 
+            page-break-inside: avoid; 
+            break-inside: avoid;
+        }
+        
+        /* Header do relatório */
+        .report-header {
+            text-align: center;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            page-break-after: avoid;
+            break-after: avoid;
+        }
+        
+        .report-header h1 {
+            color: #003366;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        
+        .report-meta {
+            color: #666;
+            font-size: 11px;
+        }
+        
+        /* Cards de KPI */
+        .kpi-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .kpi-box {
+            border: 1px solid #ddd;
+            border-left: 4px solid #003366;
+            padding: 15px;
+            background: #f9f9f9;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .kpi-box.alert { border-left-color: #dc3545; }
+        .kpi-box.warning { border-left-color: #ffc107; }
+        .kpi-box.success { border-left-color: #28a745; }
+        .kpi-box.info { border-left-color: #17a2b8; }
+        
+        .kpi-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #003366;
+            margin: 5px 0;
+        }
+        
+        /* Seções de gráficos */
+        .chart-section {
+            margin: 20px 0;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .chart-title {
+            color: #003366;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .chart-container {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+        
+        /* Grid de gráficos lado a lado */
+        .chart-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-grid-2 .chart-container {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        /* Tabelas */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 11px;
+        }
+        
+        .data-table th {
+            background: #003366;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .data-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+        
+        /* Alertas */
+        .alert-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            page-break-inside: avoid;
+        }
+        
+        .alert-box.critical {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        /* Footer */
+        .report-footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            page-break-before: avoid;
+        }
+        
+        /* Sumário executivo */
+        .executive-summary {
+            background: linear-gradient(135deg, #003366 0%, #004080 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .summary-item {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .no-print { display: none !important; }
+        }
+    `;
+
+    // Montar o HTML estruturado
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Relatório Dashboard - ${new Date().toLocaleDateString('pt-BR')}</title>
+            <meta charset="UTF-8">
+            <style>${styles}</style>
+        </head>
+        <body>
+            <!-- CAPA / HEADER -->
+            <div class="report-header no-break">
+                <h1>📊 Relatório Executivo - Hidrômetros GPS</h1>
+                <div class="report-meta">
+                    <strong>Período:</strong> ${dataInicio} até ${dataFim}<br>
+                    <strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}<br>
+                    <strong>Sistema:</strong> v2.9.9.6 | Grupo GPS • Multiplan
+                </div>
+            </div>
+
+            <!-- RESUMO EXECUTIVO -->
+            <div class="executive-summary no-break">
+                <h2 style="margin:0 0 10px 0; font-size:18px;">📈 Resumo Executivo</h2>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="kpi-label" style="color:#fff; opacity:0.8;">Total Leituras</div>
+                        <div class="summary-value">${totalLeituras}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="kpi-label" style="color:#fff; opacity:0.8;">Alertas</div>
+                        <div class="summary-value">${alertas}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="kpi-label" style="color:#fff; opacity:0.8;">Vazamentos</div>
+                        <div class="summary-value">${vazamentos}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="kpi-label" style="color:#fff; opacity:0.8;">Eficiência</div>
+                        <div class="summary-value">${eficiencia}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs DETALHADOS -->
+            <div class="kpi-section no-break">
+                <div class="kpi-box">
+                    <div class="kpi-label">Total de Leituras</div>
+                    <div class="kpi-value" style="color:#003366;">${document.getElementById('kpiTotal')?.textContent || '0'}</div>
+                    <div style="font-size:10px; color:#666;">${document.getElementById('kpiTotalTrend')?.textContent || ''}</div>
+                </div>
+                <div class="kpi-box alert">
+                    <div class="kpi-label">Alertas Críticos</div>
+                    <div class="kpi-value" style="color:#dc3545;">${document.getElementById('kpiAlertas')?.textContent || '0'}</div>
+                </div>
+                <div class="kpi-box warning">
+                    <div class="kpi-label">Vazamentos Detectados</div>
+                    <div class="kpi-value" style="color:#ffc107;">${document.getElementById('kpiVazamentos')?.textContent || '0'}</div>
+                    <div style="font-size:10px; color:#666;">${document.getElementById('kpiVazamentosPct')?.textContent || ''}</div>
+                </div>
+                <div class="kpi-box success">
+                    <div class="kpi-label">Custo Estimado (R$)</div>
+                    <div class="kpi-value" style="color:#28a745; font-size:18px;">${document.getElementById('kpiCusto')?.textContent || 'R$ 0,00'}</div>
+                    <div style="font-size:10px; color:#28a745;">${document.getElementById('kpiEconomia')?.textContent || ''}</div>
+                </div>
+                <div class="kpi-box info">
+                    <div class="kpi-label">Taxa de Eficiência</div>
+                    <div class="kpi-value" style="color:#17a2b8;">${document.getElementById('kpiEficiencia')?.textContent || '0%'}</div>
+                    <div style="font-size:10px; color:#666;">Meta: >95%</div>
+                </div>
+                <div class="kpi-box" style="border-left-color:#6f42c1;">
+                    <div class="kpi-label">Projeção Mês</div>
+                    <div class="kpi-value" style="color:#6f42c1; font-size:18px;">${document.getElementById('kpiProjecao')?.textContent || '0 m³'}</div>
+                    <div style="font-size:10px; color:#666;">${document.getElementById('kpiProjecaoStatus')?.innerText || ''}</div>
+                </div>
+            </div>
+
+            <!-- GRÁFICOS COMPARATIVOS -->
+            <div class="page-break"></div>
+            <div class="chart-section">
+                <div class="chart-title">📊 Comparativo Mensal (Mês Atual vs Anterior)</div>
+                <div class="chart-container">
+                    ${canvasImages[0] ? `<img src="${canvasImages[0].src}" alt="Gráfico Comparativo">` : '<p>Gráfico não disponível</p>'}
+                </div>
+            </div>
+
+            <!-- GRÁFICOS LADO A LADO -->
+            <div class="chart-grid-2">
+                <div class="chart-container no-break">
+                    <div class="chart-title">🎯 Distribuição de Status</div>
+                    ${canvasImages[1] ? `<img src="${canvasImages[1].src}" alt="Distribuição" style="max-height:250px;">` : ''}
+                    <div style="margin-top:10px; font-size:10px;">
+                        ${document.getElementById('distribuicaoLegend')?.innerHTML || ''}
+                    </div>
+                </div>
+                <div class="chart-container no-break">
+                    <div class="chart-title">🏢 Top 10 Locais (Consumo em m³)</div>
+                    ${canvasImages[2] ? `<img src="${canvasImages[2].src}" alt="Top Locais" style="max-height:250px;">` : ''}
+                </div>
+            </div>
+
+            <!-- PARETO E RANKING -->
+            <div class="page-break"></div>
+            <div class="chart-grid-2">
+                <div class="chart-container no-break">
+                    <div class="chart-title" style="color:#dc3545;">⚠️ Análise Pareto (80/20)</div>
+                    <p style="font-size:11px; color:#666; margin-top:0;">20% dos locais geram 80% dos alertas</p>
+                    ${canvasImages[3] ? `<img src="${canvasImages[3].src}" alt="Pareto" style="max-height:250px;">` : ''}
+                </div>
+                <div class="no-break">
+                    <div class="chart-title">🏆 Ranking de Técnicos</div>
+                    <div style="border:1px solid #eee; padding:10px;">
+                        ${document.getElementById('rankingTecnicos')?.innerHTML || '<p>Sem dados</p>'}
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEATMAP -->
+            <div class="chart-section no-break">
+                <div class="chart-title">🌡️ Heatmap de Consumo (Dia/Hora)</div>
+                <div class="chart-container">
+                    ${canvasImages[4] ? `<img src="${canvasImages[4].src}" alt="Heatmap" style="max-height:300px;">` : ''}
+                </div>
+            </div>
+
+            <!-- ALERTAS RECENTES -->
+            <div class="page-break"></div>
+            <div class="chart-section">
+                <div class="chart-title" style="color:#dc3545;">🔔 Alertas Recentes (${document.getElementById('alertCount')?.textContent || '0'})</div>
+                <div style="border:1px solid #eee; padding:10px; max-height:400px; overflow:hidden;">
+                    ${document.getElementById('alertasFeed')?.innerHTML || '<p>Nenhum alerta</p>'}
+                </div>
+            </div>
+
+            <!-- TABELA COMPLETA -->
+            <div class="page-break"></div>
+            <div class="chart-section">
+                <div class="chart-title">📋 Últimas Leituras Detalhadas</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Local</th>
+                            <th>Técnico</th>
+                            <th>Leitura</th>
+                            <th>Consumo</th>
+                            <th>Status</th>
+                            <th>Variação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${document.getElementById('ultimasLeituras')?.innerHTML || '<tr><td colspan="7">Sem dados</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="report-footer">
+                <p>Relatório gerado automaticamente pelo Sistema de Leitura de Hidrômetros v2.9.9.6</p>
+                <p>Grupo GPS • Multiplan | Documento confidencial</p>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Restaurar estilos originais
+    dashboardOriginal.style.overflow = originalOverflow;
+    dashboardOriginal.style.maxHeight = originalMaxHeight;
+
+    // Aguardar carregamento e imprimir
     setTimeout(() => {
-        // Clonar o dashboard para manipulação
-        const dashboardOriginal = document.getElementById('dashboardScreen');
-        if (!dashboardOriginal) {
-            this.mostrarToast('Erro: Dashboard não encontrado', 'error');
-            return;
-        }
-        
-        // Criar uma nova janela
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            this.mostrarToast('Permita popups para gerar o PDF', 'error');
-            return;
-        }
-        
-        // Converter todos os canvas (gráficos) para imagens PNG
-        const canvases = dashboardOriginal.querySelectorAll('canvas');
-        const canvasImages = {};
-        
-        canvases.forEach((canvas, index) => {
-            try {
-                const dataUrl = canvas.toDataURL('image/png');
-                canvasImages[index] = dataUrl;
-            } catch (e) {
-                console.error('Erro ao converter canvas:', e);
-            }
-        });
-        
-        // Clonar o conteúdo
-        const clone = dashboardOriginal.cloneNode(true);
-        
-        // Substituir os canvas clonados pelas imagens
-        const cloneCanvases = clone.querySelectorAll('canvas');
-        cloneCanvases.forEach((canvas, index) => {
-            if (canvasImages[index]) {
-                const img = document.createElement('img');
-                img.src = canvasImages[index];
-                img.style.width = '100%';
-                img.style.height = 'auto';
-                img.style.maxHeight = '300px';
-                img.style.objectFit = 'contain';
-                canvas.parentNode.replaceChild(img, canvas);
-            }
-        });
-        
-        // Remover botões e elementos desnecessários do clone
-        const botoes = clone.querySelectorAll('button, .btn-export, .nav-item');
-        botoes.forEach(btn => btn.remove());
-        
-        // Pegar todos os estilos do documento atual
-        let stylesHTML = '';
-        document.querySelectorAll('style, link[rel="stylesheet"]').forEach(s => {
-            stylesHTML += s.outerHTML;
-        });
-        
-        // Montar o HTML da nova janela
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Relatório Dashboard - ${new Date().toLocaleDateString('pt-BR')}</title>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                ${stylesHTML}
-                <style>
-                    @media print {
-                        body { 
-                            -webkit-print-color-adjust: exact !important; 
-                            print-color-adjust: exact !important;
-                            color-adjust: exact !important;
-                        }
-                        .executive-header { 
-                            page-break-after: avoid !important; 
-                            break-after: avoid !important;
-                        }
-                        .kpi-executive-grid { 
-                            page-break-inside: avoid !important; 
-                            break-inside: avoid !important;
-                        }
-                        .charts-executive-grid { 
-                            page-break-inside: avoid !important; 
-                            break-inside: avoid !important; 
-                            margin-bottom: 30px !important;
-                        }
-                        .chart-card-premium { 
-                            page-break-inside: avoid !important; 
-                            break-inside: avoid !important; 
-                            margin-bottom: 20px !important;
-                            break-before: auto !important;
-                        }
-                        .chart-card-premium img {
-                            max-width: 100% !important;
-                            height: auto !important;
-                            page-break-inside: avoid !important;
-                            break-inside: avoid !important;
-                        }
-                        table { 
-                            page-break-inside: auto !important; 
-                            break-inside: auto !important;
-                        }
-                        tr { 
-                            page-break-inside: avoid !important; 
-                            break-inside: avoid !important;
-                            page-break-after: auto !important;
-                            break-after: auto !important;
-                        }
-                        thead { 
-                            display: table-header-group !important; 
-                        }
-                        .admin-nav, .btn-logout, button { 
-                            display: none !important; 
-                        }
-                        .screen { 
-                            display: block !important; 
-                            page-break-before: always !important;
-                            break-before: always !important;
-                        }
-                        .admin-screen { 
-                            page-break-before: avoid !important;
-                            break-before: avoid !important;
-                        }
-                    }
-                    body { 
-                        background: white !important; 
-                        padding: 20px !important; 
-                        font-family: Arial, sans-serif !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                    }
-                    .admin-container { 
-                        max-width: 100% !important; 
-                        margin: 0 !important;
-                    }
-                    img {
-                        max-width: 100%;
-                        height: auto;
-                    }
-                    .chart-card-premium {
-                        margin-bottom: 20px;
-                        page-break-inside: avoid;
-                        break-inside: avoid;
-                    }
-                    .kpi-card-premium {
-                        page-break-inside: avoid;
-                        break-inside: avoid;
-                    }
-                </style>
-            </head>
-            <body>
-                <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px; page-break-after: avoid;">
-                    <h1 style="color: #003366; margin: 0; font-size: 24px;">📊 Relatório Executivo - Hidrômetros GPS</h1>
-                    <p style="color: #666; margin: 5px 0; font-size: 12px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
-                    <p style="color: #999; margin: 0; font-size: 10px;">Período: ${document.getElementById('filtroDataInicio')?.value || 'Últimos 30 dias'} até ${document.getElementById('filtroDataFim')?.value || 'Hoje'}</p>
-                </div>
-                
-                ${clone.innerHTML}
-                
-                <div style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: #999; border-top: 1px solid #ddd; padding-top: 10px; page-break-before: avoid;">
-                    Sistema Leitura de Hidrômetros v2.9.9.6 | Grupo GPS • Multiplan<br>
-                    Documento gerado automaticamente - Todos os dados sujeitos à auditoria
-                </div>
-            </body>
-            </html>
-        `);
-        
-        printWindow.document.close();
-        
-        // Aguardar carregamento das imagens antes de imprimir
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 1500);
-        
-    }, 500);
-  }
+        printWindow.focus();
+        printWindow.print();
+        this.mostrarToast('✅ PDF gerado com sucesso!', 'success');
+    }, 2000);
+}
 
   popularFiltrosCompletos(dados) {
     this.popularFiltroLocais(dados);
