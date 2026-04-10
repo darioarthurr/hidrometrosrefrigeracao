@@ -1,17 +1,53 @@
 {
-  "name": "Leitura de Hidrômetros v2.0",
-  "short_name": "Hidrômetros",
+  "name": "Leitura de Hidrômetros GPS v2.9.9.5",
+  "short_name": "GPS Hidrômetros",
   "description": "Sistema de leitura de hidrômetros - Grupo GPS • Multiplan",
+  "id": "/hidrometrosrefrigeracao/?source=pwa",
   "start_url": "/hidrometrosrefrigeracao/",
+  "scope": "/hidrometrosrefrigeracao/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#003366",
   "theme_color": "#003366",
   "orientation": "portrait",
+  "categories": ["utilities", "business", "productivity"],
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23003366' width='192' height='192'/><text x='96' y='120' font-size='100' text-anchor='middle' fill='white'>💧</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23003366' width='192' height='192'/><text x='96' y='125' font-size='100' text-anchor='middle' fill='white'>💧</text></svg>",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23003366' width='512' height='512' rx='80'/><text x='256' y='340' font-size='280' text-anchor='middle' fill='white'>💧</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23003366' width='192' height='192'/><text x='96' y='125' font-size='100' text-anchor='middle' fill='white'>💧</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova Ronda",
+      "short_name": "Ronda",
+      "description": "Iniciar nova leitura de hidrômetros",
+      "url": "/hidrometrosrefrigeracao/?action=new-round",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%2300A651' width='96' height='96' rx='20'/><text x='48' y='65' font-size='50' text-anchor='middle'>🚀</text></svg>", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Admin",
+      "description": "Acessar painel administrativo",
+      "url": "/hidrometrosrefrigeracao/?action=dashboard",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%23003366' width='96' height='96' rx='20'/><text x='48' y='65' font-size='50' text-anchor='middle'>📊</text></svg>", "sizes": "96x96" }]
     }
   ]
 }
