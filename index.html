@@ -11,21 +11,20 @@
     <meta name="application-name" content="Hidrômetros GPS">
     <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
    
-    <title>Leitura de Hidrômetros v2.9.9.5 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.9.6 | Grupo GPS • Multiplan</title>
    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.9.5">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.9.6">
    
     <style>
         /* ==========================================
-           PROTEÇÃO CONTRA PULL-TO-REFRESH v2.9.9.5
+           PROTEÇÃO CONTRA PULL-TO-REFRESH v2.9.9.6
            ========================================== */
         
-        /* Previne o comportamento de overscroll no body */
         html, body {
             overscroll-behavior-y: none;
             -webkit-overflow-scrolling: touch;
@@ -35,26 +34,21 @@
             overflow: hidden;
         }
 
-        /* Container principal que permite scroll controlado */
         #app {
             height: 100vh;
             width: 100%;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            overscroll-behavior-y: contain; /* Permite scroll mas bloqueia refresh */
+            overscroll-behavior-y: contain;
             position: relative;
             background: #f0f2f5;
         }
 
-        /* Previne bounce no iOS Safari */
         @supports (-webkit-touch-callout: none) {
-            #app {
-                -webkit-overflow-scrolling: touch;
-            }
+            #app { -webkit-overflow-scrolling: touch; }
         }
 
-        /* Indicador de salvamento offline */
         .save-indicator {
             position: fixed;
             top: 70px;
@@ -76,22 +70,10 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .save-indicator.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .save-indicator.saving {
-            background: rgba(245, 158, 11, 0.9);
-        }
-
-        .save-indicator.saved {
-            background: rgba(16, 185, 129, 0.9);
-        }
-
-        .save-indicator.offline {
-            background: rgba(107, 114, 128, 0.9);
-        }
+        .save-indicator.visible { opacity: 1; transform: translateY(0); }
+        .save-indicator.saving { background: rgba(245, 158, 11, 0.9); }
+        .save-indicator.saved { background: rgba(16, 185, 129, 0.9); }
+        .save-indicator.offline { background: rgba(107, 114, 128, 0.9); }
 
         .save-dot {
             width: 6px;
@@ -101,12 +83,8 @@
             animation: pulse 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* Bloqueio de refresh visual */
         .refresh-blocker {
             position: fixed;
             top: -60px;
@@ -126,11 +104,9 @@
             pointer-events: none;
         }
 
-        .refresh-blocker.show {
-            transform: translateY(60px);
-        }
+        .refresh-blocker.show { transform: translateY(60px); }
 
-        /* CORREÇÕES v2.9.9.4 mantidas */
+        /* Correções visuais mantidas */
         .login-card .brand-header {
             display: flex !important;
             flex-direction: row !important;
@@ -144,113 +120,79 @@
             letter-spacing: 1px !important;
         }
 
-        .login-card .logo-gps {
-            color: #003366 !important;
-            font-weight: 800 !important;
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
+        .login-card .logo-gps { color: #003366 !important; font-weight: 800 !important; display: inline-block !important; visibility: visible !important; opacity: 1 !important; }
+        .login-card .logo-separator { color: #94a3b8 !important; display: inline-block !important; }
+        .login-card .logo-multiplan { color: #00A651 !important; font-weight: 800 !important; display: inline-block !important; visibility: visible !important; opacity: 1 !important; }
 
-        .login-card .logo-separator {
-            color: #94a3b8 !important;
-            display: inline-block !important;
-        }
-
-        .login-card .logo-multiplan {
-            color: #00A651 !important;
-            font-weight: 800 !important;
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        .corporate-header .logo-gps,
-        .corporate-header .header-gps {
-            color: #ffffff !important;
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
+        .corporate-header .logo-gps, .corporate-header .header-gps { color: #ffffff !important; display: inline-block !important; visibility: visible !important; opacity: 1 !important; }
         
-        .user-badge {
-            display: inline-block !important;
-            visibility: visible !important;
-        }
-        
-        .user-badge.admin {
-            background: #003366 !important;
-            color: #ffffff !important;
-        }
-        
-        .status-badge {
-            display: inline-flex !important;
-            visibility: visible !important;
-        }
+        .user-badge { display: inline-block !important; visibility: visible !important; }
+        .user-badge.admin { background: #003366 !important; color: #ffffff !important; }
+        .status-badge { display: inline-flex !important; visibility: visible !important; }
         
         @keyframes slideInCard {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .hidrometro-card {
-            animation: slideInCard 0.3s ease;
-        }
+        .hidrometro-card { animation: slideInCard 0.3s ease; }
 
-        /* Melhorias inputs mobile */
         input, textarea, select {
-            font-size: 16px !important; /* Prevents zoom on iOS */
+            font-size: 16px !important;
             touch-action: manipulation;
         }
+
+        /* Dashboard v2.9.9.6 extras */
+        .kpi-card-premium { transition: transform 0.2s, box-shadow 0.2s; }
+        .kpi-card-premium:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        
+        .chart-card-premium { transition: transform 0.2s; }
+        .chart-card-premium:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body>
     <!-- 
     ============================================
-    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.5
+    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.6
     ============================================
     
     CHANGELOG:
-    v2.9.9.5 (10/04/2026) - Proteção Mobile e Offline
-    - [NOVO] Proteção contra refresh acidental (pull-to-refresh) no mobile
-    - [NOVO] Indicador visual de salvamento automático
-    - [MELHORIA] Salvamento agressivo a cada 500ms durante digitação
-    - [MELHORIA] Compressão de fotos otimizada (60% qualidade, max 1024px)
-    - [MELHORIA] Persistência em IndexedDB para fotos grandes (fallback localStorage)
-    - [MELHORIA] Sincronização automática ao voltar online
-    - [CORREÇÃO] Prevenção de perda de dados ao minimizar app no mobile
+    v2.9.9.6 (10/04/2026) - Dashboard Executivo Premium
+    - [NOVO] Dashboard admin completo com 6 KPIs e sparklines
+    - [NOVO] Gráfico comparativo mensal (atual vs anterior)
+    - [NOVO] Gráfico de distribuição (rosca) e Pareto 80/20
+    - [NOVO] Ranking de técnicos com medalhas
+    - [NOVO] Feed de alertas em tempo real
+    - [NOVO] Heatmap de consumo e projeção mensal
+    - [NOVO] Custo estimado (R$) de perdas
     
-    v2.9.9.4 (26/03/2026) - Correções de Interface
-    - [CORREÇÃO] Logo Grupo GPS visível na tela de login (cor azul)
-    - [MELHORIA] Resumo Executivo enriquecido com KPIs detalhados
-    - [CORREÇÃO] Badge ADMIN/TÉCNICO sem conflitos de cor
-    - [CORREÇÃO] Status badges garantidos visíveis
+    v2.9.9.5 (10/04/2026) - Proteção Mobile e Offline
+    - Proteção contra pull-to-refresh
+    - IndexedDB para fotos grandes
+    - Salvamento automático a cada 500ms
+    - Indicador visual de salvamento
     ============================================
     -->
 
-    <!-- Indicador de Salvamento -->
     <div id="saveIndicator" class="save-indicator">
         <span class="save-dot"></span>
         <span id="saveText">Salvando...</span>
     </div>
 
-    <!-- Bloqueio de Refresh Visual -->
     <div id="refreshBlocker" class="refresh-blocker">
         ⚠️ Solte para continuar - Use "Pausar" para sair
     </div>
 
     <div id="app" role="application">
       
-        <!-- Loading -->
         <div id="loadingOverlay" class="loading-overlay" style="display: none;">
             <div class="spinner"></div>
             <div id="loadingText" class="loading-text">Carregando...</div>
         </div>
         
-        <!-- Toast Container -->
         <div id="toastContainer" class="toast-container"></div>
 
-        <!-- TELA LOGIN -->
+        <!-- LOGIN -->
         <section id="loginScreen" class="screen active" role="main">
             <div class="login-container">
                 <div class="login-card">
@@ -259,23 +201,18 @@
                         <div class="logo-separator">•</div>
                         <div class="logo-multiplan">MULTIPLAN</div>
                     </header>
-                  
                     <div class="login-icon">
                         <span>💧</span>
                         <div class="pulse-ring"></div>
                     </div>
-                  
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.9.5</p>
-                  
+                    <p class="login-version">v2.9.9.6</p>
                     <div id="loginError" class="error-message"></div>
-                  
                     <form id="loginForm" class="login-form" novalidate>
                         <div class="form-group">
                             <label for="username" class="form-label">Usuário</label>
                             <input type="text" id="username" class="form-input" placeholder="Digite seu usuário" autocomplete="username" required>
                         </div>
-                      
                         <div class="form-group">
                             <label for="password" class="form-label">Senha</label>
                             <div class="password-wrapper">
@@ -283,12 +220,10 @@
                                 <button type="button" class="toggle-password" onclick="app.togglePassword()">👁️</button>
                             </div>
                         </div>
-                      
                         <button type="submit" class="btn-primary btn-login">
                             <span>Entrar no Sistema</span>
                         </button>
                     </form>
-                  
                     <footer class="login-footer">
                         <p>Sistema exclusivo para equipe autorizada</p>
                     </footer>
@@ -296,7 +231,7 @@
             </div>
         </section>
 
-        <!-- HEADER CORPORATIVO -->
+        <!-- HEADER -->
         <header id="corporateHeader" class="corporate-header" style="display:none;">
             <div class="header-container">
                 <div class="header-brand">
@@ -307,23 +242,19 @@
                     </div>
                     <span class="system-subtitle">Sistema de Leitura de Hidrômetros</span>
                 </div>
-                
                 <div class="header-center">
                     <span class="header-icon">💧</span>
                     <span class="header-title-text">Leitura de Hidrômetros</span>
                 </div>
-                
                 <div class="header-user">
                     <div class="status-wrapper" id="statusWrapper">
                         <span class="status-indicator online" id="statusIndicator"></span>
                         <span class="status-text" id="statusText">Online</span>
                     </div>
-                    
                     <div class="user-info">
                         <span id="nomeTecnico" class="user-name"></span>
                         <span id="nivelUsuario" class="user-badge">OP</span>
                     </div>
-                    
                     <button class="btn-logout" onclick="app.logout()" title="Sair">🚪</button>
                 </div>
             </div>
@@ -345,24 +276,21 @@
             </button>
         </nav>
 
-        <!-- TELA INICIAL (Técnico) -->
+        <!-- TELA INICIAL -->
         <section id="startScreen" class="screen" role="main">
             <div class="welcome-container">
                 <div class="welcome-card">
                     <div class="welcome-icon">👋</div>
                     <h2 class="welcome-title">Olá, <span id="nomeTecnicoStart"></span></h2>
                     <p class="welcome-subtitle">Pronto para iniciar a ronda de leituras?</p>
-                  
                     <button class="btn-primary btn-start" onclick="app.iniciarRonda()" id="btnIniciar">
                         <span>🚀</span><span>INICIAR LEITURA DOS HIDRÔMETROS</span>
                     </button>
-                  
                     <button class="btn-secondary btn-continuar" onclick="app.continuarRonda()" id="btnContinuarRonda" style="display:none;">
                         <span>▶️</span><span>Continuar Ronda em Andamento</span>
                     </button>
-                  
                     <div class="system-info">
-                        <p>Versão 2.9.9.5</p>
+                        <p>Versão 2.9.9.6</p>
                         <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">💾 Salvamento automático ativado</p>
                     </div>
                 </div>
@@ -381,7 +309,6 @@
                         <div class="barra-preenchida" style="width: 0%"></div>
                     </div>
                 </div>
-
                 <div class="local-selector-card">
                     <label for="localSelect" class="selector-label">Selecione o local</label>
                     <div class="custom-select">
@@ -391,11 +318,9 @@
                         <span class="select-arrow">▼</span>
                     </div>
                 </div>
-
                 <div id="hidrometrosContainer" class="hidrometros-list"></div>
                 <div class="bottom-spacer"></div>
             </div>
-
             <div id="bottomBar" class="bottom-bar" style="display: none;">
                 <div class="bottom-bar-actions">
                     <button id="btnPausar" class="btn-pausar" onclick="app.pausarRonda()">
@@ -408,157 +333,263 @@
             </div>
         </section>
 
-        <!-- TELA DASHBOARD -->
+        <!-- DASHBOARD ADMIN PREMIUM v2.9.9.6 -->
         <section id="dashboardScreen" class="screen admin-screen" role="main">
             <div class="admin-container">
-                <header class="page-header">
-                    <h1>Dashboard</h1>
+                
+                <!-- HEADER EXECUTIVO -->
+                <header class="executive-header" style="background: linear-gradient(135deg, #003366 0%, #004080 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,51,102,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h1 style="margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                📊 Dashboard Executivo
+                                <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">v2.9.9.6</span>
+                            </h1>
+                            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">Visão consolidada em tempo real • Atualizado: <span id="lastUpdate">--:--</span></p>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button onclick="app.exportarDashboardPDF()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
+                                📄 PDF
+                            </button>
+                            <button onclick="app.compararPeriodos()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
+                                📅 Comparar Períodos
+                            </button>
+                        </div>
+                    </div>
                 </header>
 
-                <!-- FILTROS -->
-                <div class="filters-bar">
-                    <div class="filters-header">
-                        <span class="filters-title">🔍 Filtros</span>
+                <!-- FILTROS AVANÇADOS -->
+                <div class="filters-bar" style="background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-weight: 600; color: #003366;">🔍 Filtros Avançados</span>
+                        <button onclick="app.toggleFiltrosAvancados()" style="background: none; border: none; color: #003366; cursor: pointer; font-size: 0.875rem;">
+                            Mostrar/Esconder
+                        </button>
                     </div>
-                    <div class="filters-grid">
+                    <div id="filtrosAvancados" class="filters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         <div class="filter-item">
-                            <label>Local</label>
-                            <select id="filtroLocal">
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">Local</label>
+                            <select id="filtroLocal" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
                                 <option value="">Todos os locais</option>
                             </select>
                         </div>
                         <div class="filter-item">
-                            <label>Usuário</label>
-                            <select id="filtroUsuario">
-                                <option value="">Todos os usuários</option>
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">Técnico</label>
+                            <select id="filtroUsuario" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                                <option value="">Todos os técnicos</option>
                             </select>
                         </div>
                         <div class="filter-item">
-                            <label>Tipo</label>
-                            <select id="filtroTipo">
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">Tipo</label>
+                            <select id="filtroTipo" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
                                 <option value="">Todos os tipos</option>
                             </select>
                         </div>
                         <div class="filter-item">
-                            <label>Status</label>
-                            <select id="filtroStatus">
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">Status</label>
+                            <select id="filtroStatus" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
                                 <option value="">Todos</option>
-                                <option value="NORMAL">Normal</option>
-                                <option value="VAZAMENTO">Vazamento</option>
-                                <option value="ALERTA_VARIACAO">Alerta</option>
-                                <option value="CONSUMO_BAIXO">Consumo Baixo</option>
+                                <option value="NORMAL">✅ Normal</option>
+                                <option value="VAZAMENTO">🚨 Vazamento</option>
+                                <option value="ALERTA_VARIACAO">⚠️ Alerta</option>
+                                <option value="CONSUMO_BAIXO">📉 Consumo Baixo</option>
                             </select>
                         </div>
                         <div class="filter-item">
-                            <label>Data</label>
-                            <input type="date" id="filtroData">
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">De</label>
+                            <input type="date" id="filtroDataInicio" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
                         </div>
-                        <div class="filter-actions">
-                            <button onclick="app.aplicarFiltros()" class="btn-filter btn-apply">Aplicar</button>
-                            <button onclick="app.limparFiltros()" class="btn-filter btn-clear">Limpar</button>
+                        <div class="filter-item">
+                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #666;">Até</label>
+                            <input type="date" id="filtroDataFim" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+                        </div>
+                        <div class="filter-actions" style="display: flex; align-items: end; gap: 0.5rem;">
+                            <button onclick="app.aplicarFiltros()" style="flex: 1; background: #003366; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">Aplicar</button>
+                            <button onclick="app.limparFiltros()" style="flex: 1; background: #e9ecef; color: #333; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">Limpar</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- KPIs -->
-                <div class="kpi-grid">
-                    <article class="kpi-card kpi-total">
-                        <div class="kpi-icon">💧</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiTotal">0</span>
-                            <span class="kpi-label">Total Leituras</span>
+                <!-- KPIs EXECUTIVOS -->
+                <div class="kpi-executive-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #003366; position: relative; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Total Leituras</span>
+                                <span id="kpiTotal" style="font-size: 2rem; font-weight: 800; color: #003366; display: block;">0</span>
+                                <span id="kpiTotalTrend" style="font-size: 0.8rem; display: flex; align-items: center; gap: 0.25rem; margin-top: 0.5rem;"></span>
+                            </div>
+                            <div style="width: 60px; height: 40px;"><canvas id="sparkTotal"></canvas></div>
                         </div>
                     </article>
-                    <article class="kpi-card kpi-alertas">
-                        <div class="kpi-icon">⚠️</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiAlertas">0</span>
-                            <span class="kpi-label">Alertas</span>
+
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #dc3545; position: relative; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Alertas Críticos</span>
+                                <span id="kpiAlertas" style="font-size: 2rem; font-weight: 800; color: #dc3545; display: block;">0</span>
+                                <span id="kpiAlertasTrend" style="font-size: 0.8rem; display: flex; align-items: center; gap: 0.25rem; margin-top: 0.5rem;"></span>
+                            </div>
+                            <div style="width: 60px; height: 40px;"><canvas id="sparkAlertas"></canvas></div>
                         </div>
                     </article>
-                    <article class="kpi-card kpi-vazamentos">
-                        <div class="kpi-icon">🚨</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiVazamentos">0</span>
-                            <span class="kpi-label">Vazamentos</span>
+
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #ffc107; position: relative; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Vazamentos</span>
+                                <span id="kpiVazamentos" style="font-size: 2rem; font-weight: 800; color: #ffc107; display: block;">0</span>
+                                <span id="kpiVazamentosPct" style="font-size: 0.8rem; color: #6c757d; margin-top: 0.5rem; display: block;">0% do total</span>
+                            </div>
+                            <div style="width: 60px; height: 40px;"><canvas id="sparkVazamentos"></canvas></div>
                         </div>
                     </article>
-                    <article class="kpi-card kpi-normal">
-                        <div class="kpi-icon">✓</div>
-                        <div class="kpi-content">
-                            <span class="kpi-value" id="kpiNormal">0</span>
-                            <span class="kpi-label">Normal</span>
+
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #28a745; position: relative; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Custo Estimado (R$)</span>
+                                <span id="kpiCusto" style="font-size: 2rem; font-weight: 800; color: #28a745; display: block;">R$ 0,00</span>
+                                <span id="kpiEconomia" style="font-size: 0.8rem; color: #28a745; margin-top: 0.5rem; display: block; font-weight: 600;"></span>
+                            </div>
+                            <div style="width: 60px; height: 40px;"><canvas id="sparkCusto"></canvas></div>
+                        </div>
+                    </article>
+
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #17a2b8; position: relative; overflow: hidden;">
+                        <div>
+                            <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Taxa de Eficiência</span>
+                            <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                                <span id="kpiEficiencia" style="font-size: 2rem; font-weight: 800; color: #17a2b8; display: block;">0%</span>
+                                <div style="flex: 1; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;">
+                                    <div id="barEficiencia" style="height: 100%; width: 0%; background: #17a2b8; transition: width 1s ease;"></div>
+                                </div>
+                            </div>
+                            <span id="kpiEficienciaLabel" style="font-size: 0.8rem; color: #6c757d; margin-top: 0.5rem; display: block;">Meta: >95%</span>
+                        </div>
+                    </article>
+
+                    <article class="kpi-card-premium" style="background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #6f42c1; position: relative; overflow: hidden;">
+                        <div>
+                            <span style="color: #6c757d; font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">Projeção Mês</span>
+                            <span id="kpiProjecao" style="font-size: 2rem; font-weight: 800; color: #6f42c1; display: block;">0 m³</span>
+                            <span id="kpiProjecaoStatus" style="font-size: 0.8rem; margin-top: 0.5rem; display: block;"></span>
                         </div>
                     </article>
                 </div>
 
                 <!-- GRÁFICOS -->
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <h3>Consumo por Local (m³)</h3>
-                        <div class="chart-container">
-                            <canvas id="chartLocais"></canvas>
+                <div class="charts-executive-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: #003366; font-size: 1.1rem;">📊 Comparativo Mensal</h3>
+                            <div style="display: flex; gap: 0.5rem; font-size: 0.75rem;">
+                                <span style="display: flex; align-items: center; gap: 0.25rem;"><span style="width: 12px; height: 12px; background: #003366; border-radius: 2px;"></span> Atual</span>
+                                <span style="display: flex; align-items: center; gap: 0.25rem;"><span style="width: 12px; height: 12px; background: #94a3b8; border-radius: 2px;"></span> Anterior</span>
+                            </div>
+                        </div>
+                        <div style="height: 300px; position: relative;"><canvas id="chartComparativoMensal"></canvas></div>
+                    </div>
+
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 1rem 0; color: #003366; font-size: 1.1rem;">🎯 Distribuição Status</h3>
+                        <div style="height: 300px; position: relative; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="chartDistribuicao"></canvas>
+                        </div>
+                        <div id="distribuicaoLegend" style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.8rem;"></div>
+                    </div>
+                </div>
+
+                <div class="charts-executive-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 1rem 0; color: #003366; font-size: 1.1rem;">🏢 Top 10 Locais (m³)</h3>
+                        <div style="height: 300px; position: relative;"><canvas id="chartLocais"></canvas></div>
+                    </div>
+
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 1rem 0; color: #dc3545; font-size: 1.1rem;">⚠️ Análise Pareto (80/20)</h3>
+                        <p style="margin: 0 0 1rem 0; font-size: 0.8rem; color: #6c757d;">20% dos locais geram 80% dos alertas</p>
+                        <div style="height: 260px; position: relative;"><canvas id="chartPareto"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="charts-executive-grid" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 1rem 0; color: #003366; font-size: 1.1rem;">🏆 Ranking Técnicos</h3>
+                        <div id="rankingTecnicos" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div style="text-align: center; color: #999; padding: 2rem;">Carregando...</div>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h3>Leituras por Dia</h3>
-                        <div class="chart-container">
-                            <canvas id="chartDias"></canvas>
+
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 1rem 0; color: #003366; font-size: 1.1rem;">🌡️ Heatmap de Consumo (Dia/Hora)</h3>
+                        <div id="heatmapContainer" style="height: 250px; position: relative;">
+                            <canvas id="chartHeatmap"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- TABELA -->
-                <div class="table-card">
-                    <h3>Últimas Leituras</h3>
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Local</th>
-                                    <th>Técnico</th>
-                                    <th>Leitura</th>
-                                    <th>Consumo</th>
-                                    <th>Status</th>
-                                    <th>Variação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ultimasLeituras">
-                                <tr><td colspan="7" style="text-align:center;padding:20px;">Carregando...</td></tr>
-                            </tbody>
-                        </table>
+                <!-- ALERTAS E TABELA -->
+                <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="chart-card-premium" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-height: 400px; overflow: hidden; display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 1rem 0; color: #dc3545; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            🔔 Alertas Recentes
+                            <span id="alertCount" style="background: #dc3545; color: white; font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 10px;">0</span>
+                        </h3>
+                        <div id="alertasFeed" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.5rem;">
+                            <div style="font-size: 0.85rem; color: #999; text-align: center; padding: 1rem;">Nenhum alerta crítico</div>
+                        </div>
+                    </div>
+
+                    <div class="table-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: #003366; font-size: 1.1rem;">📋 Últimas Leituras Detalhadas</h3>
+                            <button onclick="app.exportarTabelaCSV()" style="background: #003366; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                                📥 Exportar CSV
+                            </button>
+                        </div>
+                        <div class="table-responsive" style="overflow-x: auto; max-height: 300px; overflow-y: auto;">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                                    <tr>
+                                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Data</th>
+                                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Local</th>
+                                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Técnico</th>
+                                        <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid #dee2e6;">Leitura</th>
+                                        <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid #dee2e6;">Consumo</th>
+                                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #dee2e6;">Status</th>
+                                        <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid #dee2e6;">Var.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ultimasLeituras">
+                                    <tr><td colspan="7" style="text-align:center;padding:20px;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
-        <!-- TELA LEITURAS (HISTÓRICO) -->
+        <!-- TELA LEITURAS -->
         <section id="leiturasAdminScreen" class="screen admin-screen" role="main">
             <div class="admin-container">
                 <header class="page-header">
                     <h1>Histórico de Leituras</h1>
-                    <button onclick="app.exportarDados()" class="btn-export">
-                        📥 Exportar CSV
-                    </button>
+                    <button onclick="app.exportarDados()" class="btn-export">📥 Exportar CSV</button>
                 </header>
                
                 <div class="filters-bar">
-                    <div class="filters-header">
-                        <span class="filters-title">🔍 Filtros</span>
-                    </div>
                     <div class="filters-grid">
                         <div class="filter-item">
                             <label>Local</label>
-                            <select id="filtroLocalLeituras">
-                                <option value="">Todos</option>
-                            </select>
+                            <select id="filtroLocalLeituras"><option value="">Todos</option></select>
                         </div>
                         <div class="filter-item">
                             <label>Usuário</label>
-                            <select id="filtroUsuarioLeituras">
-                                <option value="">Todos os usuários</option>
-                            </select>
+                            <select id="filtroUsuarioLeituras"><option value="">Todos</option></select>
                         </div>
                         <div class="filter-item">
                             <label>Status</label>
@@ -572,11 +603,11 @@
                         </div>
                         <div class="filter-item">
                             <label>De</label>
-                            <input type="date" id="filtroDataInicio">
+                            <input type="date" id="filtroDataInicioLeituras">
                         </div>
                         <div class="filter-item">
                             <label>Até</label>
-                            <input type="date" id="filtroDataFim">
+                            <input type="date" id="filtroDataFimLeituras">
                         </div>
                         <div class="filter-actions">
                             <button onclick="app.limparFiltrosLeituras()" class="btn-filter btn-clear">Limpar</button>
@@ -599,9 +630,7 @@
                                 </tr>
                             </thead>
                             <tbody id="tabelaLeituras">
-                                <tr>
-                                    <td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar" para carregar</td>
-                                </tr>
+                                <tr><td colspan="6" style="text-align:center;padding:30px;">Clique em "Aplicar" para carregar</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -618,20 +647,17 @@
                 </header>
                 
                 <div class="filters-bar">
-                    <div class="filters-header">
-                        <span class="filters-title">🔍 Filtros da Análise</span>
-                    </div>
                     <div class="filters-grid">
                         <div class="filter-item">
                             <label>Usuário</label>
                             <select id="filtroUsuarioAnalise" onchange="app.aplicarFiltrosAnalise()">
-                                <option value="">Todos os usuários</option>
+                                <option value="">Todos</option>
                             </select>
                         </div>
                         <div class="filter-item">
                             <label>Local</label>
                             <select id="filtroLocalAnalise" onchange="app.aplicarFiltrosAnalise()">
-                                <option value="">Todos os locais</option>
+                                <option value="">Todos</option>
                             </select>
                         </div>
                     </div>
@@ -666,21 +692,19 @@
                 
                 <div class="gestao-card">
                     <h3>👥 Usuários Cadastrados</h3>
-                    <div id="listaUsuarios">
-                        <p style="color:#666;text-align:center;padding:20px;">Carregando...</p>
-                    </div>
+                    <div id="listaUsuarios"><p style="color:#666;text-align:center;padding:20px;">Carregando...</p></div>
                 </div>
             </div>
         </section>
     </div>
 
-    <script src="assets/app.js?v=2.9.9.5"></script>
+    <script src="assets/app.js?v=2.9.9.6"></script>
   
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.9.5')
-                    .then(registration => console.log('[SW] Registrado v2.9.9.5'))
+                navigator.serviceWorker.register('sw.js?v=2.9.9.6')
+                    .then(registration => console.log('[SW] Registrado v2.9.9.6'))
                     .catch(error => console.log('[SW] Falha:', error));
             });
         }
