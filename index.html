@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#003366">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -11,17 +11,126 @@
     <meta name="application-name" content="Hidrômetros GPS">
     <meta name="description" content="Sistema de leitura de hidrômetros - Grupo GPS Multiplan">
    
-    <title>Leitura de Hidrômetros v2.9.9.4 | Grupo GPS • Multiplan</title>
+    <title>Leitura de Hidrômetros v2.9.9.5 | Grupo GPS • Multiplan</title>
    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23003366' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>💧</text></svg>">
    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="assets/style.css?v=2.9.9.4">
+    <link rel="stylesheet" href="assets/style.css?v=2.9.9.5">
    
     <style>
-        /* CORREÇÕES v2.9.9.4 - Logo visível no login */
+        /* ==========================================
+           PROTEÇÃO CONTRA PULL-TO-REFRESH v2.9.9.5
+           ========================================== */
+        
+        /* Previne o comportamento de overscroll no body */
+        html, body {
+            overscroll-behavior-y: none;
+            -webkit-overflow-scrolling: touch;
+            height: 100%;
+            position: fixed;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Container principal que permite scroll controlado */
+        #app {
+            height: 100vh;
+            width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain; /* Permite scroll mas bloqueia refresh */
+            position: relative;
+            background: #f0f2f5;
+        }
+
+        /* Previne bounce no iOS Safari */
+        @supports (-webkit-touch-callout: none) {
+            #app {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* Indicador de salvamento offline */
+        .save-indicator {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            background: rgba(0, 51, 102, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .save-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .save-indicator.saving {
+            background: rgba(245, 158, 11, 0.9);
+        }
+
+        .save-indicator.saved {
+            background: rgba(16, 185, 129, 0.9);
+        }
+
+        .save-indicator.offline {
+            background: rgba(107, 114, 128, 0.9);
+        }
+
+        .save-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Bloqueio de refresh visual */
+        .refresh-blocker {
+            position: fixed;
+            top: -60px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to bottom, rgba(220, 53, 69, 0.9), transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            z-index: 9998;
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .refresh-blocker.show {
+            transform: translateY(60px);
+        }
+
+        /* CORREÇÕES v2.9.9.4 mantidas */
         .login-card .brand-header {
             display: flex !important;
             flex-direction: row !important;
@@ -56,7 +165,6 @@
             opacity: 1 !important;
         }
 
-        /* Header corporativo mantém branco */
         .corporate-header .logo-gps,
         .corporate-header .header-gps {
             color: #ffffff !important;
@@ -65,7 +173,6 @@
             opacity: 1 !important;
         }
         
-        /* Correção badge admin */
         .user-badge {
             display: inline-block !important;
             visibility: visible !important;
@@ -76,13 +183,11 @@
             color: #ffffff !important;
         }
         
-        /* Status badge garantido */
         .status-badge {
             display: inline-flex !important;
             visibility: visible !important;
         }
         
-        /* Animação cards */
         @keyframes slideInCard {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -91,31 +196,48 @@
         .hidrometro-card {
             animation: slideInCard 0.3s ease;
         }
+
+        /* Melhorias inputs mobile */
+        input, textarea, select {
+            font-size: 16px !important; /* Prevents zoom on iOS */
+            touch-action: manipulation;
+        }
     </style>
 </head>
 <body>
     <!-- 
     ============================================
-    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.4
+    SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.5
     ============================================
     
     CHANGELOG:
+    v2.9.9.5 (10/04/2026) - Proteção Mobile e Offline
+    - [NOVO] Proteção contra refresh acidental (pull-to-refresh) no mobile
+    - [NOVO] Indicador visual de salvamento automático
+    - [MELHORIA] Salvamento agressivo a cada 500ms durante digitação
+    - [MELHORIA] Compressão de fotos otimizada (60% qualidade, max 1024px)
+    - [MELHORIA] Persistência em IndexedDB para fotos grandes (fallback localStorage)
+    - [MELHORIA] Sincronização automática ao voltar online
+    - [CORREÇÃO] Prevenção de perda de dados ao minimizar app no mobile
+    
     v2.9.9.4 (26/03/2026) - Correções de Interface
     - [CORREÇÃO] Logo Grupo GPS visível na tela de login (cor azul)
     - [MELHORIA] Resumo Executivo enriquecido com KPIs detalhados
     - [CORREÇÃO] Badge ADMIN/TÉCNICO sem conflitos de cor
     - [CORREÇÃO] Status badges garantidos visíveis
-    
-    v2.9.9.3 (26/03/2026) - Correções Críticas
-    - [CORREÇÃO] Erro "dadosFiltradas is not defined" corrigido
-    - [CORREÇÃO] Análise gerencial carregando corretamente
-    - [CORREÇÃO] Header Grupo GPS • Multiplan visível em todas as telas
-    - [CORREÇÃO] Badge ADMIN/TÉCNICO exibido corretamente sem tarjas azuis
-    - [CORREÇÃO] Filtros reposicionados acima dos cards KPI
-    - [CORREÇÃO] Removido seletor de período que causava erros
-    - [CORREÇÃO] Exportação CSV/Excel funcional na aba Leituras
     ============================================
     -->
+
+    <!-- Indicador de Salvamento -->
+    <div id="saveIndicator" class="save-indicator">
+        <span class="save-dot"></span>
+        <span id="saveText">Salvando...</span>
+    </div>
+
+    <!-- Bloqueio de Refresh Visual -->
+    <div id="refreshBlocker" class="refresh-blocker">
+        ⚠️ Solte para continuar - Use "Pausar" para sair
+    </div>
 
     <div id="app" role="application">
       
@@ -144,7 +266,7 @@
                     </div>
                   
                     <h1 class="login-title">Leitura de Hidrômetros</h1>
-                    <p class="login-version">v2.9.9.4</p>
+                    <p class="login-version">v2.9.9.5</p>
                   
                     <div id="loginError" class="error-message"></div>
                   
@@ -179,7 +301,7 @@
             <div class="header-container">
                 <div class="header-brand">
                     <div class="brand-top">
-                        <span class="logo-gps">Grupo GPS</span>
+                        <span class="logo-gps">GRUPO GPS</span>
                         <span class="logo-separator">•</span>
                         <span class="logo-multiplan">MULTIPLAN</span>
                     </div>
@@ -240,7 +362,8 @@
                     </button>
                   
                     <div class="system-info">
-                        <p>Versão 2.9.9.4</p>
+                        <p>Versão 2.9.9.5</p>
+                        <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">💾 Salvamento automático ativado</p>
                     </div>
                 </div>
             </div>
@@ -292,7 +415,7 @@
                     <h1>Dashboard</h1>
                 </header>
 
-                <!-- FILTROS (AGORA PRIMEIRO) -->
+                <!-- FILTROS -->
                 <div class="filters-bar">
                     <div class="filters-header">
                         <span class="filters-title">🔍 Filtros</span>
@@ -337,7 +460,7 @@
                     </div>
                 </div>
 
-                <!-- KPIs (DEPOIS DOS FILTROS) -->
+                <!-- KPIs -->
                 <div class="kpi-grid">
                     <article class="kpi-card kpi-total">
                         <div class="kpi-icon">💧</div>
@@ -551,13 +674,13 @@
         </section>
     </div>
 
-    <script src="assets/app.js?v=2.9.9.4"></script>
+    <script src="assets/app.js?v=2.9.9.5"></script>
   
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=2.9.9.4')
-                    .then(registration => console.log('[SW] Registrado v2.9.9.4'))
+                navigator.serviceWorker.register('sw.js?v=2.9.9.5')
+                    .then(registration => console.log('[SW] Registrado v2.9.9.5'))
                     .catch(error => console.log('[SW] Falha:', error));
             });
         }
