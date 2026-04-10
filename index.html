@@ -289,7 +289,14 @@
                     <button class="btn-secondary btn-continuar" onclick="app.continuarRonda()" id="btnContinuarRonda" style="display:none;">
                         <span>▶️</span><span>Continuar Ronda em Andamento</span>
                     </button>
-                    <div class="system-info">
+                    
+                    <!-- BOTÃO LOGOUT ADICIONADO AQUI -->
+                    <button onclick="app.logout()" style="margin-top: 20px; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; width: 100%;">
+                        <span>🚪</span>
+                        <span>Sair do Sistema</span>
+                    </button>
+                    
+                    <div class="system-info" style="margin-top: 15px;">
                         <p>Versão 2.9.9.6</p>
                         <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">💾 Salvamento automático ativado</p>
                     </div>
