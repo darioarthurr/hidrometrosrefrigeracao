@@ -845,8 +845,61 @@ class SistemaHidrometros {
   }
 
   exportarDashboardPDF() {
-    this.mostrarToast('Preparando PDF...', 'info');
-    setTimeout(() => window.print(), 500);
+    this.mostrarToast('Preparando relatório completo...', 'info');
+    
+    // Criar uma nova janela com todo o conteúdo
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        this.mostrarToast('Permita popups para gerar o PDF', 'error');
+        return;
+    }
+    
+    const dashboardHTML = document.getElementById('dashboardScreen').innerHTML;
+    const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
+    let stylesHTML = '';
+    styles.forEach(s => stylesHTML += s.outerHTML);
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Relatório Dashboard - ${new Date().toLocaleDateString('pt-BR')}</title>
+            <meta charset="UTF-8">
+            ${stylesHTML}
+            <style>
+                body { background: white; padding: 20px; }
+                .executive-header { page-break-after: avoid; }
+                .kpi-executive-grid { page-break-inside: avoid; }
+                .charts-executive-grid { page-break-inside: avoid; margin-bottom: 30px; }
+                .chart-card-premium { page-break-inside: avoid; margin-bottom: 20px; }
+                table { page-break-inside: auto; }
+                tr { page-break-inside: avoid; page-break-after: auto; }
+                @media print {
+                    .btn-export, button { display: none !important; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px;">
+                <h1 style="color: #003366; margin: 0;">📊 Relatório Executivo - Hidrômetros GPS</h1>
+                <p style="color: #666; margin: 5px 0;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+            </div>
+            ${dashboardHTML}
+            <div style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: #999; border-top: 1px solid #ddd; padding-top: 10px;">
+                Sistema Leitura de Hidrômetros v2.9.9.6 | Grupo GPS • Multiplan
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Aguardar carregamento dos gráficos
+    setTimeout(() => {
+        printWindow.print();
+        // Não fechar imediatamente para permitir salvar como PDF
+    }, 1000);
   }
 
   popularFiltrosCompletos(dados) {
@@ -980,8 +1033,54 @@ class SistemaHidrometros {
     }).join('');
   }
 
+  // NOVA FUNÇÃO para exportar do Dashboard
+  exportarDashboardCSV() {
+      // Usar dados do dashboard se disponíveis
+      const dados = this.dashboardData?.atual || this.leiturasCache;
+      
+      if (!dados || dados.length === 0) { 
+          this.mostrarToast('Nenhum dado para exportar. Aplique os filtros primeiro.', 'error'); 
+          return; 
+      }
+      
+      try {
+          const headers = ['Data', 'Ronda ID', 'Técnico', 'Local', 'Hidrômetro', 'Tipo', 'Leitura Anterior', 'Leitura Atual', 'Consumo (m³)', 'Variação (%)', 'Status', 'Justificativa'];
+          const rows = dados.map(l => {
+              const data = new Date(l.data || l.timestamp);
+              return [ 
+                  data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR'), 
+                  l.rondaId || '', 
+                  l.tecnico || l.usuario || '', 
+                  l.local || '', 
+                  l.hidrometroId || l.id || '', 
+                  l.tipo || '', 
+                  l.leituraAnterior || '', 
+                  l.leituraAtual || l.leitura || '', 
+                  l.consumoDia || '', 
+                  l.variacao || '', 
+                  l.status || '', 
+                  l.justificativa || '' 
+              ];
+          });
+          
+          const csvContent = [headers.join(';'), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))].join('\n');
+          const BOM = '\uFEFF';
+          const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `dashboard_hidrometros_${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          this.mostrarToast(`Exportados ${rows.length} registros do dashboard`, 'success');
+      } catch (error) { 
+          console.error(error);
+          this.mostrarToast('Erro ao exportar', 'error'); 
+      }
+  }
+
   exportarTabelaCSV() {
-    this.exportarDados();
+    this.exportarDashboardCSV();
   }
 
   // ========== LEITURAS E EXPORTAÇÃO ==========
@@ -1190,7 +1289,15 @@ class SistemaHidrometros {
     const alertas = dadosAtual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
     const taxaAlertas = totalLeituras > 0 ? (alertas / totalLeituras) * 100 : 0;
     const vazamentos = dadosAtual.filter(l => l.status === 'VAZAMENTO').length;
-    const kpi = this.calcularKPI(dadosAtuais);
+    
+    // Corrigido: usar dadosAtual aqui também
+    const kpi = {
+      total: dadosAtual.length,
+      alertas: dadosAtual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length,
+      vazamentos: dadosAtual.filter(l => l.status === 'VAZAMENTO').length,
+      normal: dadosAtual.filter(l => l.status === 'NORMAL' || l.status === 'CONSUMO_BAIXO').length
+    };
+    
     const leiturasPorDia = this.calcularLeiturasPorDia(dadosAtual);
     const mediaLeiturasDia = leiturasPorDia.length > 0 ? leiturasPorDia.reduce((a, b) => a + b, 0) / leiturasPorDia.length : 0;
     const consumoPorLocal = this.calcularConsumoPorLocal(dadosAtual);
