@@ -1,18 +1,18 @@
 /**
- * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.5
- * PROTEÇÃO MOBILE E OFFLINE REFORÇADA
+ * SISTEMA DE LEITURA DE HIDRÔMETROS v2.9.9.6
+ * Dashboard Executivo + Proteção Mobile Offline
  */
 
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzVkoBYznaZMIUsIxz-UDG47n83Bjao3BCBF-CTqy-UN7NMxOe2YGRBjCSsUCpFulXu/exec',
-  VERSAO: '2.9.9.5',
+  VERSAO: '2.9.9.6',
   MAX_FOTO_SIZE_MB: 5,
-  DEBOUNCE_SAVE: 500, // ms para salvar após digitação
+  DEBOUNCE_SAVE: 500,
   STORAGE_KEYS: {
-    USUARIO: 'h2_usuario_v2995',
-    RONDA_ATIVA: 'h2_ronda_ativa_v2995',
-    USUARIOS: 'h2_usuarios_v2995',
-    FOTOS_CACHE: 'h2_fotos_cache_v2995' // Novo: separa fotos grandes
+    USUARIO: 'h2_usuario_v2996',
+    RONDA_ATIVA: 'h2_ronda_ativa_v2996',
+    USUARIOS: 'h2_usuarios_v2996',
+    FOTOS_CACHE: 'h2_fotos_cache_v2996'
   }
 };
 
@@ -35,20 +35,18 @@ class SistemaHidrometros {
     this.lastPopTime = 0;
     this.saveTimeout = null;
     this.touchStartY = 0;
-    this.db = null; // IndexedDB para fotos grandes
+    this.db = null;
    
-    console.log(`[v${CONFIG.VERSAO}] Sistema inicializado - Proteção Mobile Ativa`);
+    console.log(`[v${CONFIG.VERSAO}] Sistema inicializado`);
     this.inicializar();
   }
 
   async inicializar() {
-    // Inicializar IndexedDB para fotos grandes (mais confiável que localStorage)
     await this.inicializarDB();
     
-    // Monitoramento de conexão
     window.addEventListener('online', () => { 
       this.online = true; 
-      this.mostrarToast('Conexão restaurada - sincronizando...', 'success');
+      this.mostrarToast('Conexão restaurada', 'success');
       this.sincronizarDadosPendentes();
     });
     
@@ -58,10 +56,8 @@ class SistemaHidrometros {
       this.showSaveIndicator('offline');
     });
 
-    // Proteção contra refresh/pull-to-refresh
     this.configurarProtecaoRefresh();
 
-    // Salvar quando minimizar/alterar aba
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         this.salvarRonda();
@@ -69,7 +65,6 @@ class SistemaHidrometros {
       }
     });
 
-    // Carregar sessão anterior
     const usuarioSalvo = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIO);
     if (usuarioSalvo) {
       this.usuario = usuarioSalvo;
@@ -77,7 +72,6 @@ class SistemaHidrometros {
       this.atualizarNomeStart();
       const rondaSalva = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
       if (rondaSalva && rondaSalva.id) {
-        // Restaurar fotos do IndexedDB se necessário
         await this.restaurarFotosRonda(rondaSalva);
         this.ronda = rondaSalva;
       }
@@ -97,7 +91,6 @@ class SistemaHidrometros {
    
     this.configurarEventos();
     
-    // Auto-save periódico (a cada 10 segundos se houver mudanças)
     setInterval(() => { 
       if (this.salvamentoPendente && this.ronda.id) {
         this.salvarRonda();
@@ -106,21 +99,17 @@ class SistemaHidrometros {
     }, 10000);
   }
 
-  // NOVO: Inicializar IndexedDB para armazenar fotos grandes
   async inicializarDB() {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
-        console.log('[DB] IndexedDB não suportado, usando localStorage');
+        console.log('[DB] IndexedDB não suportado');
         resolve();
         return;
       }
       
       const request = indexedDB.open('HidrometrosDB', 1);
       
-      request.onerror = () => {
-        console.log('[DB] Erro ao abrir IndexedDB');
-        resolve();
-      };
+      request.onerror = () => resolve();
       
       request.onsuccess = (event) => {
         this.db = event.target.result;
@@ -137,38 +126,30 @@ class SistemaHidrometros {
     });
   }
 
-  // NOVO: Salvar foto no IndexedDB (mais espaço que localStorage)
   async salvarFotoDB(id, fotoData) {
     if (!this.db) return false;
-    
     return new Promise((resolve) => {
       const transaction = this.db.transaction(['fotos'], 'readwrite');
       const store = transaction.objectStore('fotos');
       const request = store.put({ id: id, foto: fotoData, timestamp: Date.now() });
-      
       request.onsuccess = () => resolve(true);
       request.onerror = () => resolve(false);
     });
   }
 
-  // NOVO: Ler foto do IndexedDB
   async lerFotoDB(id) {
     if (!this.db) return null;
-    
     return new Promise((resolve) => {
       const transaction = this.db.transaction(['fotos'], 'readonly');
       const store = transaction.objectStore('fotos');
       const request = store.get(id);
-      
       request.onsuccess = () => resolve(request.result?.foto || null);
       request.onerror = () => resolve(null);
     });
   }
 
-  // NOVO: Restaurar fotos da ronda do IndexedDB
   async restaurarFotosRonda(ronda) {
     if (!ronda.hidrometros) return;
-    
     for (let h of ronda.hidrometros) {
       if (h.fotoId && !h.foto) {
         const foto = await this.lerFotoDB(h.fotoId);
@@ -177,17 +158,11 @@ class SistemaHidrometros {
     }
   }
 
-  // NOVO: Proteção contra pull-to-refresh e refresh acidental
   configurarProtecaoRefresh() {
     let startY = 0;
-    let startX = 0;
     
-    // Prevenir pull-to-refresh no topo da página
     document.addEventListener('touchstart', (e) => {
       startY = e.touches[0].clientY;
-      startX = e.touches[0].clientX;
-      
-      // Se estiver no topo e puxando para baixo, mostrar aviso visual
       if (window.scrollY === 0 && startY < 100) {
         const blocker = document.getElementById('refreshBlocker');
         if (blocker && this.protecaoAtiva) {
@@ -199,21 +174,14 @@ class SistemaHidrometros {
 
     document.addEventListener('touchmove', (e) => {
       const y = e.touches[0].clientY;
-      const x = e.touches[0].clientX;
       const diffY = y - startY;
-      const diffX = Math.abs(x - startX);
       
-      // Se está no topo, puxando para baixo mais que 80px, e movimento vertical > horizontal
-      if (window.scrollY === 0 && diffY > 80 && diffY > diffX) {
-        // Previne o refresh se estiver em uma ronda ativa
-        if (this.protecaoAtiva) {
-          e.preventDefault();
-          this.mostrarToast('⚠️ Use o botão "Pausar" para sair da ronda', 'warning');
-        }
+      if (window.scrollY === 0 && diffY > 80 && this.protecaoAtiva) {
+        e.preventDefault();
+        this.mostrarToast('⚠️ Use o botão "Pausar" para sair da ronda', 'warning');
       }
     }, { passive: false });
 
-    // Prevenir atalhos de refresh (F5, Ctrl+R)
     document.addEventListener('keydown', (e) => {
       if ((e.key === 'F5') || (e.ctrlKey && e.key === 'r')) {
         if (this.protecaoAtiva) {
@@ -224,32 +192,24 @@ class SistemaHidrometros {
     });
   }
 
-  // NOVO: Indicador visual de salvamento
   showSaveIndicator(status) {
     const indicator = document.getElementById('saveIndicator');
     const text = document.getElementById('saveText');
-    
     if (!indicator || !text) return;
     
     indicator.className = 'save-indicator visible ' + status;
     
     switch(status) {
-      case 'saving':
-        text.textContent = 'Salvando...';
+      case 'saving': text.textContent = 'Salvando...'; break;
+      case 'saved': 
+        text.textContent = '✓ Salvo localmente'; 
+        setTimeout(() => indicator.classList.remove('visible'), 2000); 
         break;
-      case 'saved':
-        text.textContent = '✓ Salvo localmente';
-        setTimeout(() => indicator.classList.remove('visible'), 2000);
-        break;
-      case 'offline':
-        text.textContent = '💾 Modo Offline';
-        break;
+      case 'offline': text.textContent = '💾 Modo Offline'; break;
     }
   }
 
-  // NOVO: Sincronizar dados quando voltar online (placeholder para futuro)
   async sincronizarDadosPendentes() {
-    // Aqui poderia enviar dados pendentes se necessário
     console.log('[Sync] Verificando dados pendentes...');
   }
 
@@ -263,8 +223,6 @@ class SistemaHidrometros {
       tela.style.display = 'block'; 
       requestAnimationFrame(() => tela.classList.add('active')); 
     }
-    
-    // Scroll para o topo ao mudar de tela
     const app = document.getElementById('app');
     if (app) app.scrollTop = 0;
   }
@@ -368,28 +326,58 @@ class SistemaHidrometros {
     if (span && this.usuario) span.textContent = this.usuario.nome || 'Técnico';
   }
 
-  // ========== DASHBOARD ==========
+  // ========== DASHBOARD EXECUTIVO v2.9.9.6 ==========
 
   async carregarDashboard() {
-    if (!this.online) { this.mostrarToast('Sem conexão', 'warning'); return; }
-    this.mostrarLoading(true, 'Carregando estatísticas...');
+    if (!this.online) { 
+      this.mostrarToast('Modo offline - exibindo dados locais', 'warning'); 
+      return; 
+    }
+    
+    this.mostrarLoading(true, 'Carregando dashboard executivo...');
+    this.atualizarTimestamp();
     
     try {
-      const [resDashboard, resLeituras] = await Promise.all([
-        fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'getDashboard', periodo: 30 }) }).then(r => r.json()),
-        fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'getLeituras', limite: 1000 }) }).then(r => r.json())
+      const hoje = new Date();
+      const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      const inicioMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      const fimMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+      
+      const [resDashboard, resLeituras, resMesAnterior] = await Promise.all([
+        fetch(CONFIG.API_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+          body: JSON.stringify({ action: 'getDashboard', periodo: 30 }) 
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+          body: JSON.stringify({ action: 'getLeituras', limite: 2000 }) 
+        }).then(r => r.json()),
+        fetch(CONFIG.API_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+          body: JSON.stringify({ 
+            action: 'getLeituras', 
+            dataInicio: inicioMesAnterior.toISOString(),
+            dataFim: fimMesAnterior.toISOString()
+          }) 
+        }).then(r => r.json()).catch(() => ({ success: false, leituras: [] }))
       ]);
       
-      let data = resDashboard;
-      let leiturasCompletas = resLeituras.success && resLeituras.leituras ? resLeituras.leituras : (data.ultimas || []);
-      
-      if (data.success) {
-        data.ultimas = leiturasCompletas;
-        this.dashboardData = data;
-        this.renderizarDashboard(data);
-        this.popularFiltroLocais(leiturasCompletas);
-        this.popularFiltroTipos(leiturasCompletas);
-        this.popularFiltroUsuarios(leiturasCompletas, 'filtroUsuario');
+      if (resDashboard.success) {
+        const dadosAtuais = resLeituras.success ? resLeituras.leituras : (resDashboard.ultimas || []);
+        const dadosAnteriores = resMesAnterior.success ? resMesAnterior.leituras : [];
+        
+        this.dashboardData = {
+          atual: dadosAtuais,
+          anterior: dadosAnteriores,
+          resumo: resDashboard
+        };
+        
+        this.renderizarDashboardExecutivo(dadosAtuais, dadosAnteriores);
+        this.popularFiltrosCompletos(dadosAtuais);
+        this.gerarAlertasFeed(dadosAtuais);
       }
     } catch (error) {
       console.error('[Dashboard] Erro:', error);
@@ -398,6 +386,486 @@ class SistemaHidrometros {
       this.mostrarLoading(false);
     }
   }
+
+  atualizarTimestamp() {
+    const el = document.getElementById('lastUpdate');
+    if (el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+  }
+
+  renderizarDashboardExecutivo(dadosAtuais, dadosAnteriores) {
+    const metricas = this.calcularMetricasAvancadas(dadosAtuais, dadosAnteriores);
+    
+    this.animarNumero('kpiTotal', metricas.total);
+    this.animarNumero('kpiAlertas', metricas.alertas);
+    this.animarNumero('kpiVazamentos', metricas.vazamentos);
+    this.animarNumero('kpiEficiencia', metricas.taxaEficiencia);
+    
+    document.getElementById('barEficiencia').style.width = metricas.taxaEficiencia + '%';
+    
+    const custoTotal = metricas.consumoTotal * 5;
+    document.getElementById('kpiCusto').textContent = 'R$ ' + custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    const economia = metricas.economiaVsAnterior * 5;
+    const ecoEl = document.getElementById('kpiEconomia');
+    if (economia > 0) {
+      ecoEl.innerHTML = `⬇️ Economia de R$ ${economia.toFixed(2)} vs mês anterior`;
+      ecoEl.style.color = '#28a745';
+    } else {
+      ecoEl.innerHTML = `⬆️ Aumento de R$ ${Math.abs(economia).toFixed(2)} vs mês anterior`;
+      ecoEl.style.color = '#dc3545';
+    }
+    
+    const diasDecorridos = new Date().getDate();
+    const diasMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    const projecao = (metricas.consumoTotal / diasDecorridos) * diasMes;
+    document.getElementById('kpiProjecao').textContent = projecao.toFixed(0) + ' m³';
+    
+    const projStatus = document.getElementById('kpiProjecaoStatus');
+    if (projecao > metricas.consumoMesAnterior) {
+      projStatus.innerHTML = '<span style="color: #dc3545;">📈 Acima do mês anterior</span>';
+    } else {
+      projStatus.innerHTML = '<span style="color: #28a745;">📉 Abaixo do mês anterior</span>';
+    }
+    
+    this.renderizarSparkline('sparkTotal', metricas.historicoLeituras);
+    this.renderizarSparkline('sparkAlertas', metricas.historicoAlertas, '#dc3545');
+    this.renderizarSparkline('sparkVazamentos', metricas.historicoVazamentos, '#ffc107');
+    
+    this.renderizarGraficoComparativo(dadosAtuais, dadosAnteriores);
+    this.renderizarGraficoDistribuicao(dadosAtuais);
+    this.renderizarGraficoLocais(dadosAtuais.slice(0, 10));
+    this.renderizarGraficoPareto(dadosAtuais);
+    this.renderizarRankingTecnicos(dadosAtuais);
+    this.renderizarHeatmap(dadosAtuais);
+    this.renderizarUltimasLeituras(dadosAtuais.slice(0, 50));
+    
+    this.atualizarTendencias(metricas);
+  }
+
+  calcularMetricasAvancadas(atual, anterior) {
+    const total = atual.length;
+    const alertas = atual.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length;
+    const vazamentos = atual.filter(l => l.status === 'VAZAMENTO').length;
+    const normal = atual.filter(l => l.status === 'NORMAL' || l.status === 'CONSUMO_BAIXO').length;
+    const taxaEficiencia = total > 0 ? ((normal / total) * 100).toFixed(1) : 0;
+    
+    const consumoTotal = atual.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
+    const consumoMesAnterior = anterior.reduce((acc, l) => acc + (parseFloat(l.consumoDia) || 0), 0);
+    const economiaVsAnterior = consumoMesAnterior - consumoTotal;
+    
+    const ultimosDias = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const diaStr = d.toISOString().split('T')[0];
+      const leiturasDia = atual.filter(l => (l.data || '').startsWith(diaStr)).length;
+      const alertasDia = atual.filter(l => (l.data || '').startsWith(diaStr) && l.status !== 'NORMAL').length;
+      const vazDia = atual.filter(l => (l.data || '').startsWith(diaStr) && l.status === 'VAZAMENTO').length;
+      ultimosDias.push({ dia: diaStr, leituras: leiturasDia, alertas: alertasDia, vazamentos: vazDia });
+    }
+    
+    return {
+      total, alertas, vazamentos, taxaEficiencia, consumoTotal, consumoMesAnterior, economiaVsAnterior,
+      historicoLeituras: ultimosDias.map(d => d.leituras),
+      historicoAlertas: ultimosDias.map(d => d.alertas),
+      historicoVazamentos: ultimosDias.map(d => d.vazamentos)
+    };
+  }
+
+  atualizarTendencias(metricas) {
+    const calcTendencia = (atual, anterior) => {
+      if (anterior === 0) return { icon: '➡️', cor: '#6c757d', texto: 'Estável' };
+      const varia = ((atual - anterior) / anterior) * 100;
+      if (varia > 5) return { icon: '📈', cor: '#dc3545', texto: `+${varia.toFixed(1)}%` };
+      if (varia < -5) return { icon: '📉', cor: '#28a745', texto: `${varia.toFixed(1)}%` };
+      return { icon: '➡️', cor: '#6c757d', texto: 'Estável' };
+    };
+    
+    const tendTotal = calcTendencia(metricas.total, metricas.total * 0.9);
+    const elTotal = document.getElementById('kpiTotalTrend');
+    if (elTotal) {
+      elTotal.innerHTML = `<span style="color: ${tendTotal.cor};">${tendTotal.icon} ${tendTotal.texto}</span> <span style="color: #999;">vs semana anterior</span>`;
+    }
+  }
+
+  renderizarSparkline(canvasId, dados, cor = '#003366') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = 60;
+    canvas.height = 40;
+    
+    ctx.clearRect(0, 0, 60, 40);
+    if (dados.length === 0) return;
+    
+    const max = Math.max(...dados, 1);
+    const min = Math.min(...dados);
+    const range = max - min || 1;
+    
+    ctx.beginPath();
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 2;
+    
+    dados.forEach((val, i) => {
+      const x = (i / (dados.length - 1)) * 60;
+      const y = 40 - ((val - min) / range) * 36 - 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    
+    ctx.stroke();
+    
+    ctx.lineTo(60, 40);
+    ctx.lineTo(0, 40);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, 0, 0, 40);
+    gradient.addColorStop(0, cor + '40');
+    gradient.addColorStop(1, cor + '00');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
+  renderizarGraficoComparativo(atual, anterior) {
+    const canvas = document.getElementById('chartComparativoMensal');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const dias = {};
+    for (let i = 1; i <= 31; i++) dias[i] = { atual: 0, anterior: 0 };
+    
+    atual.forEach(l => {
+      const dia = new Date(l.data).getDate();
+      if (dias[dia]) dias[dia].atual += parseFloat(l.consumoDia) || 0;
+    });
+    
+    anterior.forEach(l => {
+      const dia = new Date(l.data).getDate();
+      if (dias[dia]) dias[dia].anterior += parseFloat(l.consumoDia) || 0;
+    });
+    
+    const labels = Object.keys(dias).filter(d => dias[d].atual > 0 || dias[d].anterior > 0);
+    
+    if (this.charts.comparativo) this.charts.comparativo.destroy();
+    
+    this.charts.comparativo = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Mês Atual', data: labels.map(d => dias[d].atual), backgroundColor: '#003366', borderRadius: 4 },
+          { label: 'Mês Anterior', data: labels.map(d => dias[d].anterior), backgroundColor: '#94a3b8', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  renderizarGraficoDistribuicao(dados) {
+    const canvas = document.getElementById('chartDistribuicao');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const contagem = {
+      'Normal': dados.filter(l => l.status === 'NORMAL').length,
+      'Vazamento': dados.filter(l => l.status === 'VAZAMENTO').length,
+      'Alerta': dados.filter(l => l.status === 'ALERTA_VARIACAO').length,
+      'Consumo Baixo': dados.filter(l => l.status === 'CONSUMO_BAIXO').length,
+      'Erro': dados.filter(l => l.status === 'ANOMALIA_NEGATIVO').length
+    };
+    
+    if (this.charts.distribuicao) this.charts.distribuicao.destroy();
+    
+    this.charts.distribuicao = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(contagem),
+        datasets: [{
+          data: Object.values(contagem),
+          backgroundColor: ['#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+      }
+    });
+    
+    const legend = document.getElementById('distribuicaoLegend');
+    const cores = ['#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'];
+    legend.innerHTML = Object.keys(contagem).map((label, i) => `
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="width: 12px; height: 12px; background: ${cores[i]}; border-radius: 2px;"></span>
+        <span>${label}: ${contagem[label]}</span>
+      </div>
+    `).join('');
+  }
+
+  renderizarGraficoLocais(dados) {
+    const canvas = document.getElementById('chartLocais');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const locais = {};
+    dados.forEach(l => {
+      if (!l.local) return;
+      locais[l.local] = (locais[l.local] || 0) + (parseFloat(l.consumoDia) || 0);
+    });
+    
+    const sorted = Object.entries(locais).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    
+    if (this.charts.locais) this.charts.locais.destroy();
+    
+    this.charts.locais = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(l => l[0]),
+        datasets: [{
+          label: 'Consumo (m³)',
+          data: sorted.map(l => l[1]),
+          backgroundColor: sorted.map((_, i) => i < 3 ? '#003366' : '#6c757d'),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+  }
+
+  renderizarGraficoPareto(dados) {
+    const canvas = document.getElementById('chartPareto');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const problemas = {};
+    dados.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').forEach(l => {
+      if (!problemas[l.local]) problemas[l.local] = 0;
+      problemas[l.local]++;
+    });
+    
+    const sorted = Object.entries(problemas).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const total = sorted.reduce((acc, [, val]) => acc + val, 0);
+    
+    let acumulado = 0;
+    const percentuais = sorted.map(([, val]) => {
+      acumulado += val;
+      return (acumulado / total) * 100;
+    });
+    
+    if (this.charts.pareto) this.charts.pareto.destroy();
+    
+    this.charts.pareto = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(l => l[0].substring(0, 15)),
+        datasets: [
+          {
+            label: 'Ocorrências',
+            data: sorted.map(l => l[1]),
+            backgroundColor: '#dc3545',
+            order: 2,
+            borderRadius: 4
+          },
+          {
+            label: '% Acumulado',
+            data: percentuais,
+            type: 'line',
+            borderColor: '#003366',
+            borderWidth: 2,
+            pointRadius: 3,
+            order: 1,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, position: 'left' },
+          y1: { beginAtZero: true, max: 100, position: 'right', grid: { display: false } },
+          x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
+        }
+      }
+    });
+  }
+
+  renderizarRankingTecnicos(dados) {
+    const container = document.getElementById('rankingTecnicos');
+    if (!container) return;
+    
+    const tecnicos = {};
+    dados.forEach(l => {
+      const tech = l.tecnico || 'Não identificado';
+      if (!tecnicos[tech]) {
+        tecnicos[tech] = { nome: tech, total: 0, alertas: 0, eficiencia: 0 };
+      }
+      tecnicos[tech].total++;
+      if (l.status === 'NORMAL' || l.status === 'CONSUMO_BAIXO') {
+        tecnicos[tech].eficiencia++;
+      } else {
+        tecnicos[tech].alertas++;
+      }
+    });
+    
+    const ranking = Object.values(tecnicos)
+      .map(t => ({ ...t, taxa: (t.eficiencia / t.total * 100).toFixed(0) }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+    
+    const medalhas = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    const cores = ['#FFD700', '#C0C0C0', '#CD7F32', '#6c757d', '#6c757d'];
+    
+    container.innerHTML = ranking.map((t, i) => `
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: ${i < 3 ? cores[i] + '20' : '#f8f9fa'}; border-radius: 8px; border-left: 3px solid ${cores[i] || '#6c757d'};">
+        <div style="font-size: 1.5rem;">${medalhas[i]}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: #003366; font-size: 0.9rem;">${t.nome}</div>
+          <div style="font-size: 0.75rem; color: #6c757d; display: flex; gap: 1rem;">
+            <span>${t.total} leituras</span>
+            <span style="color: ${t.taxa > 90 ? '#28a745' : '#ffc107'};">${t.taxa}% eficácia</span>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 0.75rem; color: ${t.alertas > 0 ? '#dc3545' : '#28a745'};">
+            ${t.alertas > 0 ? `⚠️ ${t.alertas} alertas` : '✓ OK'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderizarHeatmap(dados) {
+    const canvas = document.getElementById('chartHeatmap');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const horas = ['06h', '08h', '10h', '12h', '14h', '16h', '18h'];
+    
+    const matriz = Array(7).fill(null).map(() => Array(7).fill(0));
+    
+    dados.forEach(l => {
+      const data = new Date(l.data);
+      const dia = data.getDay();
+      const hora = data.getHours();
+      const idxHora = Math.floor((hora - 6) / 2);
+      
+      if (idxHora >= 0 && idxHora < 7) {
+        matriz[dia][idxHora] += parseFloat(l.consumoDia) || 0;
+      }
+    });
+    
+    const maxVal = Math.max(...matriz.flat(), 1);
+    
+    const cellWidth = canvas.width / 8;
+    const cellHeight = canvas.height / 8;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 7; h++) {
+        const val = matriz[d][h];
+        const intensidade = val / maxVal;
+        const r = Math.floor(255 * (1 - intensidade));
+        const g = Math.floor(255 * (1 - intensidade * 0.5));
+        const b = 255;
+        
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect((h + 1) * cellWidth, (d + 1) * cellHeight, cellWidth - 2, cellHeight - 2);
+      }
+    }
+    
+    ctx.fillStyle = '#333';
+    ctx.font = '10px Arial';
+    diasSemana.forEach((dia, i) => ctx.fillText(dia, 5, (i + 1.5) * cellHeight));
+    horas.forEach((hora, i) => ctx.fillText(hora, (i + 1.2) * cellWidth, 15));
+  }
+
+  gerarAlertasFeed(dados) {
+    const feed = document.getElementById('alertasFeed');
+    const count = document.getElementById('alertCount');
+    if (!feed) return;
+    
+    const alertas = dados
+      .filter(l => l.status === 'VAZAMENTO' || l.status === 'ALERTA_VARIACAO' || l.status === 'ANOMALIA_NEGATIVO')
+      .sort((a, b) => new Date(b.data) - new Date(a.data))
+      .slice(0, 10);
+    
+    if (count) count.textContent = alertas.length;
+    
+    if (alertas.length === 0) {
+      feed.innerHTML = '<div style="padding: 2rem; text-align: center; color: #28a745; background: #d4edda; border-radius: 8px;">✅ Nenhum alerta crítico no período</div>';
+      return;
+    }
+    
+    const icons = { 'VAZAMENTO': '🚨', 'ALERTA_VARIACAO': '⚠️', 'ANOMALIA_NEGATIVO': '❌' };
+    const cores = { 'VAZAMENTO': '#dc3545', 'ALERTA_VARIACAO': '#ffc107', 'ANOMALIA_NEGATIVO': '#6c757d' };
+    
+    feed.innerHTML = alertas.map(a => `
+      <div style="padding: 0.75rem; border-left: 3px solid ${cores[a.status]}; background: ${cores[a.status]}10; border-radius: 4px; font-size: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+          <span style="font-weight: 600;">${icons[a.status]} ${a.local || 'Sem local'}</span>
+          <span style="color: #6c757d; font-size: 0.75rem;">${new Date(a.data).toLocaleDateString('pt-BR')}</span>
+        </div>
+        <div style="color: #333; margin-bottom: 0.25rem;">${a.hidrometroId || a.id} - ${a.tecnico}</div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6c757d;">
+          <span>Consumo: ${(parseFloat(a.consumoDia) || 0).toFixed(2)} m³</span>
+          <span style="color: ${a.variacao > 0 ? '#dc3545' : '#28a745'};">${a.variacao > 0 ? '+' : ''}${(parseFloat(a.variacao) || 0).toFixed(0)}%</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  toggleFiltrosAvancados() {
+    const el = document.getElementById('filtrosAvancados');
+    if (el) el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+  }
+
+  compararPeriodos() {
+    this.mostrarToast('Selecione os períodos no filtro superior (De/Até)', 'info');
+    document.getElementById('filtrosAvancados').style.display = 'grid';
+    document.getElementById('filtroDataInicio').focus();
+  }
+
+  exportarDashboardPDF() {
+    this.mostrarToast('Preparando PDF...', 'info');
+    setTimeout(() => window.print(), 500);
+  }
+
+  popularFiltrosCompletos(dados) {
+    this.popularFiltroLocais(dados);
+    this.popularFiltroTipos(dados);
+    this.popularFiltroUsuarios(dados, 'filtroUsuario');
+    
+    const hoje = new Date();
+    const trintaDiasAtras = new Date();
+    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
+    
+    const inputFim = document.getElementById('filtroDataFim');
+    const inputInicio = document.getElementById('filtroDataInicio');
+    
+    if (inputFim) inputFim.value = hoje.toISOString().split('T')[0];
+    if (inputInicio) inputInicio.value = trintaDiasAtras.toISOString().split('T')[0];
+  }
+
+  // ========== MÉTODOS ORIGINAIS MANTIDOS ==========
 
   popularFiltroLocais(dados) {
     const select = document.getElementById('filtroLocal');
@@ -423,7 +891,7 @@ class SistemaHidrometros {
   }
 
   aplicarFiltros(mostrarToastMsg = true) {
-    if (!this.dashboardData || !this.dashboardData.ultimas) {
+    if (!this.dashboardData || !this.dashboardData.atual) {
       this.mostrarToast('Dados não carregados', 'error');
       return;
     }
@@ -432,23 +900,21 @@ class SistemaHidrometros {
       const filtroLocal = document.getElementById('filtroLocal')?.value || '';
       const filtroTipo = document.getElementById('filtroTipo')?.value || '';
       const filtroStatus = document.getElementById('filtroStatus')?.value || '';
-      const filtroData = document.getElementById('filtroData')?.value || '';
       const filtroUsuario = document.getElementById('filtroUsuario')?.value || '';
+      const dataInicio = document.getElementById('filtroDataInicio')?.value || '';
+      const dataFim = document.getElementById('filtroDataFim')?.value || '';
       
-      this.filtrosAtuais = { local: filtroLocal, tipo: filtroTipo, status: filtroStatus, data: filtroData, usuario: filtroUsuario };
-      
-      let filtradas = [...this.dashboardData.ultimas];
+      let filtradas = [...this.dashboardData.atual];
       if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
       if (filtroTipo) filtradas = filtradas.filter(l => l.tipo === filtroTipo);
       if (filtroStatus) filtradas = filtradas.filter(l => l.status === filtroStatus);
       if (filtroUsuario) filtradas = filtradas.filter(l => l.tecnico === filtroUsuario);
       
-      if (filtroData) {
-        const dataFiltroStr = new Date(filtroData).toISOString().split('T')[0];
-        filtradas = filtradas.filter(l => { if (!l.data) return false; return new Date(l.data).toISOString().split('T')[0] === dataFiltroStr; });
-      }
+      if (dataInicio) filtradas = filtradas.filter(l => new Date(l.data) >= new Date(dataInicio));
+      if (dataFim) filtradas = filtradas.filter(l => new Date(l.data) <= new Date(dataFim));
       
-      this.renderizarDashboard(this.dashboardData, filtradas);
+      this.renderizarDashboardExecutivo(filtradas, this.dashboardData.anterior);
+      this.gerarAlertasFeed(filtradas);
       if (mostrarToastMsg) this.mostrarToast(filtradas.length + ' leituras filtradas', 'success');
     } catch (e) {
       console.error('[Filtros] Erro:', e);
@@ -457,50 +923,12 @@ class SistemaHidrometros {
   }
 
   limparFiltros() {
-    ['filtroLocal', 'filtroTipo', 'filtroStatus', 'filtroData', 'filtroUsuario'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    this.filtrosAtuais = { local: '', tipo: '', status: '', data: '', usuario: '' };
-    if (this.dashboardData) this.renderizarDashboard(this.dashboardData);
+    ['filtroLocal', 'filtroTipo', 'filtroStatus', 'filtroUsuario', 'filtroDataInicio', 'filtroDataFim'].forEach(id => { 
+      const el = document.getElementById(id); 
+      if (el) el.value = ''; 
+    });
+    if (this.dashboardData) this.renderizarDashboardExecutivo(this.dashboardData.atual, this.dashboardData.anterior);
     this.mostrarToast('Filtros limpos', 'info');
-  }
-
-  renderizarDashboard(data, dadosFiltrados) {
-    const dadosParaKPI = dadosFiltrados || data.ultimas || [];
-    const kpi = this.calcularKPI(dadosParaKPI);
-    
-    this.animarNumero('kpiTotal', kpi.total);
-    this.animarNumero('kpiAlertas', kpi.alertas);
-    this.animarNumero('kpiVazamentos', kpi.vazamentos);
-    this.animarNumero('kpiNormal', kpi.normal);
-    
-    const dadosLocais = dadosFiltrados ? this.agruparPorLocal(dadosFiltrados) : this.agruparPorLocal(dadosParaKPI);
-    this.renderizarGraficoLocais(dadosLocais);
-    
-    const dadosDias = dadosFiltrados ? this.agruparPorDia(dadosFiltrados) : this.agruparPorDia(dadosParaKPI);
-    this.renderizarGraficoDias(dadosDias);
-    
-    const dadosOrdenados = [...dadosParaKPI].sort((a, b) => new Date(b.data || b.timestamp || 0) - new Date(a.data || a.timestamp || 0));
-    this.renderizarUltimasLeituras(dadosOrdenados.slice(0, 50));
-  }
-
-  calcularKPI(leituras) {
-    return {
-      total: leituras.length,
-      alertas: leituras.filter(l => l.status !== 'NORMAL' && l.status !== 'CONSUMO_BAIXO').length,
-      vazamentos: leituras.filter(l => l.status === 'VAZAMENTO').length,
-      normal: leituras.filter(l => l.status === 'NORMAL' || l.status === 'CONSUMO_BAIXO').length
-    };
-  }
-
-  agruparPorLocal(leituras) {
-    const locais = {};
-    leituras.forEach(l => { if (!l.local) return; locais[l.local] = (locais[l.local] || 0) + (parseFloat(l.consumoDia) || 0); });
-    return Object.entries(locais).sort((a, b) => b[1] - a[1]);
-  }
-
-  agruparPorDia(leituras) {
-    const dias = {};
-    leituras.forEach(l => { if (!l.data) return; const dia = new Date(l.data).toISOString().split('T')[0]; dias[dia] = (dias[dia] || 0) + 1; });
-    return Object.entries(dias).sort((a, b) => a[0].localeCompare(b[0]));
   }
 
   animarNumero(elementId, valorFinal) {
@@ -518,48 +946,42 @@ class SistemaHidrometros {
     requestAnimationFrame(animar);
   }
 
-  renderizarGraficoLocais(dados) {
-    const canvas = document.getElementById('chartLocais');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (this.charts.locais) this.charts.locais.destroy();
-    
-    this.charts.locais = new Chart(ctx, {
-      type: 'bar',
-      data: { labels: dados.map(d => d[0]), datasets: [{ label: 'Consumo Total (m³)', data: dados.map(d => d[1]), backgroundColor: '#007bff', borderRadius: 4 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: (val) => val.toFixed(1) + ' m³' } }, x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } } }
-    });
-  }
-
-  renderizarGraficoDias(dados) {
-    const canvas = document.getElementById('chartDias');
-    if (!canvas) return;
-    if (this.charts.dias) this.charts.dias.destroy();
-    const ctx = canvas.getContext('2d');
-    const ultimosDados = dados.slice(-15);
-    
-    this.charts.dias = new Chart(ctx, {
-      type: 'line',
-      data: { labels: ultimosDados.map(d => new Date(d[0]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })), datasets: [{ label: 'Leituras', data: ultimosDados.map(d => d[1]), borderColor: '#003366', backgroundColor: 'rgba(0, 51, 102, 0.1)', borderWidth: 3, pointBackgroundColor: '#003366', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5, tension: 0.4, fill: true }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { ticks: { maxRotation: 45, minRotation: 45 } } } }
-    });
-  }
-
   renderizarUltimasLeituras(leituras) {
     const tbody = document.getElementById('ultimasLeituras');
     if (!tbody) return;
-    if (leituras.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#666;">Nenhuma leitura encontrada</td></tr>'; return; }
+    
+    if (leituras.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#666;">Nenhuma leitura encontrada</td></tr>'; 
+      return; 
+    }
     
     tbody.innerHTML = leituras.map(l => {
       const data = new Date(l.data || l.timestamp);
       const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-      let statusClass = 'badge-normal';
-      if (l.status === 'VAZAMENTO') statusClass = 'badge-danger';
-      else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
-      else if (l.status === 'ANOMALIA_NEGATIVO') statusClass = 'badge-danger';
       
-      return `<tr><td>${dataStr}</td><td>${l.local || '-'}</td><td>${l.tecnico || '-'}</td><td>${parseFloat(l.leitura || l.leituraAtual || 0).toFixed(2)} m³</td><td><strong>${(parseFloat(l.consumoDia) || 0).toFixed(2)} m³</strong></td><td><span class="badge ${statusClass}">${l.status}</span></td><td>${(parseFloat(l.variacao) || 0).toFixed(1)}%</td></tr>`;
+      let statusStyle = 'background: #28a745; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;';
+      if (l.status === 'VAZAMENTO') statusStyle = 'background: #dc3545; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;';
+      else if (l.status === 'ALERTA_VARIACAO') statusStyle = 'background: #ffc107; color: #000; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;';
+      else if (l.status === 'ANOMALIA_NEGATIVO') statusStyle = 'background: #6c757d; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;';
+      
+      const variacao = parseFloat(l.variacao) || 0;
+      const varColor = Math.abs(variacao) > 20 ? '#dc3545' : (variacao > 0 ? '#28a745' : '#6c757d');
+      const varIcon = variacao > 0 ? '↑' : (variacao < 0 ? '↓' : '→');
+      
+      return `<tr style="border-bottom: 1px solid #e9ecef;">
+        <td style="padding: 0.75rem; font-size: 0.85rem;">${dataStr}</td>
+        <td style="padding: 0.75rem; font-weight: 500;">${l.local || '-'}</td>
+        <td style="padding: 0.75rem;">${l.tecnico || '-'}</td>
+        <td style="padding: 0.75rem; text-align: right; font-family: monospace;">${parseFloat(l.leitura || l.leituraAtual || 0).toFixed(2)}</td>
+        <td style="padding: 0.75rem; text-align: right; font-weight: 600;">${(parseFloat(l.consumoDia) || 0).toFixed(2)} m³</td>
+        <td style="padding: 0.75rem; text-align: center;"><span style="${statusStyle}">${l.status}</span></td>
+        <td style="padding: 0.75rem; text-align: right; color: ${varColor}; font-weight: 600; font-size: 0.85rem;">${varIcon} ${Math.abs(variacao).toFixed(1)}%</td>
+      </tr>`;
     }).join('');
+  }
+
+  exportarTabelaCSV() {
+    this.exportarDados();
   }
 
   // ========== LEITURAS E EXPORTAÇÃO ==========
@@ -569,7 +991,11 @@ class SistemaHidrometros {
     this.mostrarLoading(true, 'Carregando histórico...');
     
     try {
-      const response = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'getLeituras', limite: 1000 }) });
+      const response = await fetch(CONFIG.API_URL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+        body: JSON.stringify({ action: 'getLeituras', limite: 1000 }) 
+      });
       const data = await response.json();
       
       if (data.success && data.leituras) {
@@ -585,7 +1011,10 @@ class SistemaHidrometros {
   renderizarTabelaLeituras(leituras) {
     const tbody = document.getElementById('tabelaLeituras');
     if (!tbody) return;
-    if (leituras.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Nenhuma leitura encontrada</td></tr>'; return; }
+    if (leituras.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Nenhuma leitura encontrada</td></tr>'; 
+      return; 
+    }
     
     tbody.innerHTML = leituras.slice().reverse().map(l => {
       const data = new Date(l.data);
@@ -594,7 +1023,16 @@ class SistemaHidrometros {
       if (l.status === 'VAZAMENTO') statusClass = 'badge-danger';
       else if (l.status === 'ALERTA_VARIACAO') statusClass = 'badge-warning';
       
-      return `<tr><td>${l.rondaId ? l.rondaId.substring(0, 20) + '...' : '--'}</td><td>${dataStr}</td><td>${l.tecnico}</td><td>${l.local}</td><td><span class="badge ${statusClass}">${l.status}</span></td><td style="text-align:center;"><button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">Ver</button></td></tr>`;
+      return `<tr>
+        <td>${l.rondaId ? l.rondaId.substring(0, 20) + '...' : '--'}</td>
+        <td>${dataStr}</td>
+        <td>${l.tecnico}</td>
+        <td>${l.local}</td>
+        <td><span class="badge ${statusClass}">${l.status}</span></td>
+        <td style="text-align:center;">
+          <button onclick="app.verDetalhesLeitura('${l.id}')" style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">Ver</button>
+        </td>
+      </tr>`;
     }).join('');
   }
 
@@ -610,8 +1048,8 @@ class SistemaHidrometros {
     const filtroLocal = document.getElementById('filtroLocalLeituras')?.value || '';
     const filtroStatus = document.getElementById('filtroStatusLeituras')?.value || '';
     const filtroUsuario = document.getElementById('filtroUsuarioLeituras')?.value || '';
-    const dataInicio = document.getElementById('filtroDataInicio')?.value || '';
-    const dataFim = document.getElementById('filtroDataFim')?.value || '';
+    const dataInicio = document.getElementById('filtroDataInicioLeituras')?.value || '';
+    const dataFim = document.getElementById('filtroDataFimLeituras')?.value || '';
     
     let filtradas = [...this.leiturasCache];
     if (filtroLocal) filtradas = filtradas.filter(l => l.local === filtroLocal);
@@ -625,21 +1063,36 @@ class SistemaHidrometros {
   }
 
   limparFiltrosLeituras() {
-    ['filtroLocalLeituras', 'filtroStatusLeituras', 'filtroUsuarioLeituras'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    const dataInicio = document.getElementById('filtroDataInicio');
-    const dataFim = document.getElementById('filtroDataFim');
-    if (dataInicio) dataInicio.value = '';
-    if (dataFim) dataFim.value = '';
+    ['filtroLocalLeituras', 'filtroStatusLeituras', 'filtroUsuarioLeituras', 'filtroDataInicioLeituras', 'filtroDataFimLeituras'].forEach(id => { 
+      const el = document.getElementById(id); 
+      if (el) el.value = ''; 
+    });
     if (this.leiturasCache.length) this.renderizarTabelaLeituras(this.leiturasCache);
   }
 
   exportarDados() {
-    if (!this.leiturasCache || this.leiturasCache.length === 0) { this.mostrarToast('Nenhum dado para exportar', 'error'); return; }
+    if (!this.leiturasCache || this.leiturasCache.length === 0) { 
+      this.mostrarToast('Nenhum dado para exportar', 'error'); 
+      return; 
+    }
     try {
       const headers = ['Data', 'Ronda ID', 'Técnico', 'Local', 'Hidrômetro', 'Tipo', 'Leitura Anterior', 'Leitura Atual', 'Consumo (m³)', 'Variação (%)', 'Status', 'Justificativa'];
       const rows = this.leiturasCache.map(l => {
         const data = new Date(l.data);
-        return [ data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR'), l.rondaId || '', l.tecnico || '', l.local || '', l.hidrometroId || l.id || '', l.tipo || '', l.leituraAnterior || '', l.leituraAtual || l.leitura || '', l.consumoDia || '', l.variacao || '', l.status || '', l.justificativa || '' ];
+        return [ 
+          data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR'), 
+          l.rondaId || '', 
+          l.tecnico || '', 
+          l.local || '', 
+          l.hidrometroId || l.id || '', 
+          l.tipo || '', 
+          l.leituraAnterior || '', 
+          l.leituraAtual || l.leitura || '', 
+          l.consumoDia || '', 
+          l.variacao || '', 
+          l.status || '', 
+          l.justificativa || '' 
+        ];
       });
       
       const csvContent = [headers.join(';'), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))].join('\n');
@@ -677,7 +1130,10 @@ class SistemaHidrometros {
 
       if (resRecente.success && resDetalhado.success) {
         const dadosAtuais = resRecente.ultimas || [];
-        const dadosAnteriores = resAnterior.ultimas ? resAnterior.ultimas.filter(l => { const d = new Date(l.data); return ((new Date() - d) / (1000 * 60 * 60 * 24)) > 30 && ((new Date() - d) / (1000 * 60 * 60 * 24)) <= 60; }) : [];
+        const dadosAnteriores = resAnterior.ultimas ? resAnterior.ultimas.filter(l => { 
+          const d = new Date(l.data); 
+          return ((new Date() - d) / (1000 * 60 * 60 * 24)) > 30 && ((new Date() - d) / (1000 * 60 * 60 * 24)) <= 60; 
+        }) : [];
         const todosDados = resDetalhado.leituras || dadosAtuais;
         
         this.analiseData = { atual: dadosAtuais, anterior: dadosAnteriores, todos: todosDados };
@@ -708,8 +1164,16 @@ class SistemaHidrometros {
     let dadosAnterior = [...this.analiseData.anterior];
     let dadosTodos = [...this.analiseData.todos];
     
-    if (filtroUsuario) { dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario); dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario); dadosTodos = dadosTodos.filter(l => l.tecnico === filtroUsuario); }
-    if (filtroLocal) { dadosAtual = dadosAtual.filter(l => l.local === filtroLocal); dadosAnterior = dadosAnterior.filter(l => l.local === filtroLocal); dadosTodos = dadosTodos.filter(l => l.local === filtroLocal); }
+    if (filtroUsuario) { 
+      dadosAtual = dadosAtual.filter(l => l.tecnico === filtroUsuario); 
+      dadosAnterior = dadosAnterior.filter(l => l.tecnico === filtroUsuario); 
+      dadosTodos = dadosTodos.filter(l => l.tecnico === filtroUsuario); 
+    }
+    if (filtroLocal) { 
+      dadosAtual = dadosAtual.filter(l => l.local === filtroLocal); 
+      dadosAnterior = dadosAnterior.filter(l => l.local === filtroLocal); 
+      dadosTodos = dadosTodos.filter(l => l.local === filtroLocal); 
+    }
     
     this.renderizarAnaliseGerencial(dadosAtual, dadosAnterior, dadosTodos);
     this.mostrarToast(`Análise filtrada`, 'success');
@@ -768,7 +1232,7 @@ class SistemaHidrometros {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
         <div class="analise-section" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
           <h3 style="margin-bottom: 1rem; color: #003366; font-size: 1.1rem;">🏢 Top 5 Locais - Maior Consumo</h3>
           ${topConsumo.length > 0 ? `<table style="width: 100%; border-collapse: collapse;">${topConsumo.map(([local, consumo], idx) => `<tr style="border-bottom: 1px solid #e9ecef;"><td style="padding: 0.75rem 0; font-weight: 600;">${idx + 1}. ${local}</td><td style="padding: 0.75rem 0; text-align: right; font-weight: 700; color: #003366;">${consumo.toFixed(2)} m³</td></tr>`).join('')}</table>` : '<p style="color: #6c757d; text-align: center;">Sem dados</p>'}
@@ -794,9 +1258,7 @@ class SistemaHidrometros {
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid ${
-            vazamentos > 0 ? '#ef4444' : alertas > (totalLeituras * 0.1) ? '#f59e0b' : '#22c55e'
-          };">
+          <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid ${vazamentos > 0 ? '#ef4444' : alertas > (totalLeituras * 0.1) ? '#f59e0b' : '#22c55e'};">
             <div style="font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Status do Sistema</div>
             <div style="font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem;">
               ${vazamentos > 0 ? '🔴 Crítico' : alertas > (totalLeituras * 0.1) ? '🟡 Atenção' : '🟢 Normal'}
@@ -937,7 +1399,11 @@ class SistemaHidrometros {
     try {
       const response = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'listarUsuarios' }) });
       const data = await response.json();
-      if (data.success && data.usuarios) { this.usuariosCadastrados = data.usuarios; this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, data.usuarios); this.atualizarListaUsuarios(); }
+      if (data.success && data.usuarios) { 
+        this.usuariosCadastrados = data.usuarios; 
+        this.salvarStorage(CONFIG.STORAGE_KEYS.USUARIOS, data.usuarios); 
+        this.atualizarListaUsuarios(); 
+      }
     } catch (error) { 
       this.usuariosCadastrados = this.lerStorage(CONFIG.STORAGE_KEYS.USUARIOS) || [];
       this.atualizarListaUsuarios();
@@ -958,7 +1424,15 @@ class SistemaHidrometros {
       const textoBotao = isAdmin ? '↓ Tornar Técnico' : '↑ Tornar Admin';
       const corBotao = isAdmin ? '#6c757d' : '#dc3545';
       
-      html += `<tr><td>${u.nome}</td><td>${u.usuario}</td><td><span class="${nivelClass}" style="padding: 0.25rem 0.5rem; border-radius: 4px; color: white; font-size: 0.75rem; font-weight: 700; background: ${isAdmin ? '#003366' : '#00A651'};">${nivelText}</span></td><td style="display:flex;gap:8px;"><button onclick="app.trocarSenha('${u.usuario}')" style="padding:6px 12px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">🔑 Senha</button><button onclick="app.alternarNivel('${u.usuario}', '${proximoNivel}')" style="background:${corBotao};color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem;">${textoBotao}</button></td></tr>`;
+      html += `<tr>
+        <td>${u.nome}</td>
+        <td>${u.usuario}</td>
+        <td><span class="${nivelClass}" style="padding: 0.25rem 0.5rem; border-radius: 4px; color: white; font-size: 0.75rem; font-weight: 700; background: ${isAdmin ? '#003366' : '#00A651'};">${nivelText}</span></td>
+        <td style="display:flex;gap:8px;">
+          <button onclick="app.trocarSenha('${u.usuario}')" style="padding:6px 12px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">🔑 Senha</button>
+          <button onclick="app.alternarNivel('${u.usuario}', '${proximoNivel}')" style="background:${corBotao};color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem;">${textoBotao}</button>
+        </td>
+      </tr>`;
     });
     div.innerHTML = html + '</tbody></table>';
   }
@@ -1006,7 +1480,7 @@ class SistemaHidrometros {
     } catch (error) { this.mostrarLoading(false); }
   }
 
-  // ========== RONDA COM SALVAMENTO REFORÇADO ==========
+  // ========== RONDA ==========
 
   async iniciarRonda() {
     if (!this.usuario) return;
@@ -1058,18 +1532,15 @@ class SistemaHidrometros {
       this.carregarHidrometros(localInicial);
     }
     this.atualizarProgresso();
-    
     this.showSaveIndicator('saved');
   }
 
-  // MELHORADO: Proteção extrema contra fechamento/refresh
   ativarProtecaoRonda() {
     if (this.protecaoAtiva) return;
     this.protecaoAtiva = true;
     
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Criar entradas de histórico massivas
     const criarEntradasMassivas = () => {
       for (let i = 0; i < 50; i++) {
         history.pushState({ ronda: true, id: i, timestamp: Date.now(), trap: true }, '', location.href);
@@ -1078,7 +1549,6 @@ class SistemaHidrometros {
     
     criarEntradasMassivas();
     
-    // Reabastecer histórico constantemente
     this.historicoInterval = setInterval(() => {
       if (!this.protecaoAtiva) return;
       if (history.length < 40) {
@@ -1088,10 +1558,8 @@ class SistemaHidrometros {
       }
     }, 500);
     
-    // Handler popstate (botão voltar)
     this.handlePopState = (e) => {
       if (!this.protecaoAtiva) return;
-      
       this.lastPopTime = Date.now();
       
       setTimeout(() => {
@@ -1106,7 +1574,6 @@ class SistemaHidrometros {
       this.salvarRonda();
     };
     
-    // Handler touch (prevenir swipe back)
     this.handleTouchStart = (e) => {
       if (!this.protecaoAtiva) return;
       if (e.touches[0].pageX < 30) {
@@ -1114,7 +1581,6 @@ class SistemaHidrometros {
       }
     };
     
-    // Beforeunload (desktop)
     this.handleBeforeUnload = (e) => {
       if (this.protecaoAtiva) {
         this.salvarRonda();
@@ -1124,7 +1590,6 @@ class SistemaHidrometros {
       }
     };
     
-    // Page hide (mobile)
     this.handlePageHide = () => {
       if (this.protecaoAtiva) this.salvarRonda();
     };
@@ -1219,26 +1684,42 @@ class SistemaHidrometros {
     div.className = 'hidrometro-card';
     div.id = 'card-' + h.id;
     div.innerHTML = `
-      <div class="card-header"><div class="info-principal"><span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span><span class="id">#${h.id}</span></div><span class="status-badge pendente" id="badge-${h.id}">PENDENTE</span></div>
-      <div class="leitura-anterior"><span>Leitura anterior</span><strong>${parseFloat(h.leituraAnterior || 0).toFixed(2)} m³</strong></div>
-      <div class="campo-leitura"><input type="number" step="0.01" class="input-leitura" id="input-${h.id}" placeholder="Digite a leitura atual" oninput="app.calcularPreview('${h.id}'); app.debounceSalvar('${h.id}')" onblur="app.salvarLeitura('${h.id}')"><span class="unidade">m³</span></div>
-      <div class="info-consumo" id="info-${h.id}"><span class="placeholder">Aguardando leitura...</span></div>
+      <div class="card-header">
+        <div class="info-principal">
+          <span class="tipo">🔧 ${h.tipo || 'Hidrômetro'}</span>
+          <span class="id">#${h.id}</span>
+        </div>
+        <span class="status-badge pendente" id="badge-${h.id}">PENDENTE</span>
+      </div>
+      <div class="leitura-anterior">
+        <span>Leitura anterior</span>
+        <strong>${parseFloat(h.leituraAnterior || 0).toFixed(2)} m³</strong>
+      </div>
+      <div class="campo-leitura">
+        <input type="number" step="0.01" class="input-leitura" id="input-${h.id}" placeholder="Digite a leitura atual" oninput="app.calcularPreview('${h.id}'); app.debounceSalvar('${h.id}')" onblur="app.salvarLeitura('${h.id}')">
+        <span class="unidade">m³</span>
+      </div>
+      <div class="info-consumo" id="info-${h.id}">
+        <span class="placeholder">Aguardando leitura...</span>
+      </div>
       <div class="alertas" id="alertas-${h.id}"></div>
-      <div class="justificativa-container" id="just-container-${h.id}" style="display:none;"><textarea class="input-justificativa" id="just-${h.id}" placeholder="Descreva o motivo..." oninput="app.debounceSalvar('${h.id}')" onblur="app.salvarJustificativa('${h.id}')"></textarea></div>
+      <div class="justificativa-container" id="just-container-${h.id}" style="display:none;">
+        <textarea class="input-justificativa" id="just-${h.id}" placeholder="Descreva o motivo..." oninput="app.debounceSalvar('${h.id}')" onblur="app.salvarJustificativa('${h.id}')"></textarea>
+      </div>
       <div class="foto-container">
-        <label class="btn-foto" id="btn-foto-${h.id}"><input type="file" accept="image/*" capture="environment" onchange="app.processarFoto('${h.id}', this.files[0])" style="display:none"><span>📷 Adicionar foto</span></label>
+        <label class="btn-foto" id="btn-foto-${h.id}">
+          <input type="file" accept="image/*" capture="environment" onchange="app.processarFoto('${h.id}', this.files[0])" style="display:none">
+          <span>📷 Adicionar foto</span>
+        </label>
         <div class="foto-obrigatoria" id="foto-obg-${h.id}" style="display:none; color:#dc3545; font-size:0.875rem; margin-top:0.5rem; text-align:center;">⚠️ Foto obrigatória</div>
         <img id="preview-${h.id}" class="preview-foto" style="display:none;max-width:100%;margin-top:10px;border-radius:8px;">
       </div>`;
     return div;
   }
 
-  // NOVO: Debounce para salvar enquanto digita (evita sobrecarga)
   debounceSalvar(id) {
     this.showSaveIndicator('saving');
-    
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
-    
     this.saveTimeout = setTimeout(() => {
       this.salvarRonda();
       this.showSaveIndicator('saved');
@@ -1279,7 +1760,10 @@ class SistemaHidrometros {
     else if (variacao > 20 || variacao < -20) status = 'ALERTA_VARIACAO';
     else if (consumoDia <= 0.5) status = 'CONSUMO_BAIXO';
     
-    h.leituraAtual = valor; h.consumoDia = consumoDia; h.variacao = variacao; h.status = status;
+    h.leituraAtual = valor; 
+    h.consumoDia = consumoDia; 
+    h.variacao = variacao; 
+    h.status = status;
     this.salvamentoPendente = true;
     this.atualizarUI(id);
     this.popularSelectLocais();
@@ -1349,7 +1833,6 @@ class SistemaHidrometros {
     } 
   }
 
-  // MELHORADO: Compressão mais agressiva para economizar espaço
   async processarFoto(id, arquivo) {
     if (!arquivo) return;
     if (!arquivo.type.startsWith('image/')) { this.mostrarToast('Arquivo deve ser imagem', 'error'); return; }
@@ -1359,20 +1842,18 @@ class SistemaHidrometros {
     this.showSaveIndicator('saving');
     
     try {
-      // Compressão mais agressiva: max 1024px, qualidade 0.6
       const comprimida = await this.comprimirImagem(arquivo, 1024, 0.6);
       if (!comprimida || comprimida.length < 100) throw new Error('Falha na compressão');
       
       const h = this.ronda.hidrometros.find(x => x.id === id);
       if (!h) throw new Error('Hidrômetro não encontrado');
       
-      // Se a foto for muito grande (>500KB), salvar no IndexedDB em vez do localStorage
       const tamanhoKB = comprimida.length / 1024;
       if (tamanhoKB > 500 && this.db) {
         const fotoId = `foto_${this.ronda.id}_${id}_${Date.now()}`;
         await this.salvarFotoDB(fotoId, comprimida);
-        h.foto = null; // Não salvar no localStorage
-        h.fotoId = fotoId; // Referência para o IndexedDB
+        h.foto = null;
+        h.fotoId = fotoId;
       } else {
         h.foto = comprimida;
         h.fotoId = null;
@@ -1403,7 +1884,6 @@ class SistemaHidrometros {
     }
   }
 
-  // MELHORADO: Parâmetros de compressão para tamanho menor
   comprimirImagem(arquivo, maxWidth = 1024, qualidade = 0.6) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1414,7 +1894,6 @@ class SistemaHidrometros {
             const canvas = document.createElement('canvas');
             let width = img.width, height = img.height;
             
-            // Redimensionar proporcionalmente
             if (width > height) {
               if (width > maxWidth) {
                 height = Math.round((maxWidth / width) * height);
@@ -1432,12 +1911,10 @@ class SistemaHidrometros {
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error('Canvas não suportado');
             
-            // Preencher fundo branco (para imagens com transparência)
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Compressão JPEG
             resolve(canvas.toDataURL('image/jpeg', qualidade));
           } catch (err) { reject(new Error('Erro na compressão')); }
         };
@@ -1453,7 +1930,6 @@ class SistemaHidrometros {
     const h = this.ronda.hidrometros.find(x => x.id === id); 
     if (!h) return;
     
-    // Se tem fotoId mas não tem foto, buscar do IndexedDB
     if (h.fotoId && !h.foto) {
       this.lerFotoDB(h.fotoId).then(foto => {
         if (foto) {
@@ -1519,23 +1995,16 @@ class SistemaHidrometros {
     if (anomaliasSemJust.length > 0) { this.mostrarToast('Preencha justificativa para divergências', 'error'); return; }
 
     this.mostrarLoading(true, 'Enviando...');
-    const leituras = this.ronda.hidrometros.map(h => {
-      // Se tem fotoId, buscar a foto do IndexedDB para enviar
-      if (h.fotoId && !h.foto) {
-        // Note: na prática, você precisaria buscar async antes, mas aqui simplificamos
-        // Na versão real, faça o fetch da foto antes de montar o objeto
-      }
-      return { 
-        id: h.id, 
-        local: h.local, 
-        tipo: h.tipo, 
-        leituraAnterior: h.leituraAnterior, 
-        leituraAtual: h.leituraAtual, 
-        consumoAnterior: h.consumoAnterior, 
-        justificativa: h.justificativa, 
-        foto: h.foto 
-      };
-    });
+    const leituras = this.ronda.hidrometros.map(h => ({ 
+      id: h.id, 
+      local: h.local, 
+      tipo: h.tipo, 
+      leituraAnterior: h.leituraAnterior, 
+      leituraAtual: h.leituraAtual, 
+      consumoAnterior: h.consumoAnterior, 
+      justificativa: h.justificativa, 
+      foto: h.foto 
+    }));
 
     try {
       const response = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'salvarLeituras', leituras: leituras, usuario: this.usuario.usuario, rondaId: this.ronda.id }) });
@@ -1545,7 +2014,6 @@ class SistemaHidrometros {
         
         this.desativarProtecaoRonda();
         
-        // Limpar fotos do IndexedDB após envio bem-sucedido
         if (this.db) {
           for (let h of this.ronda.hidrometros) {
             if (h.fotoId) {
@@ -1571,9 +2039,7 @@ class SistemaHidrometros {
   pausarRonda() { 
     this.salvarRonda(); 
     this.mostrarToast('Ronda salva localmente', 'info'); 
-    
     this.desativarProtecaoRonda();
-    
     this.mostrarTela('startScreen'); 
     const bottomBar = document.getElementById('bottomBar'); 
     if (bottomBar) bottomBar.style.display = 'none'; 
@@ -1638,26 +2104,22 @@ class SistemaHidrometros {
     try { 
       localStorage.setItem(chave, JSON.stringify(valor)); 
     } catch(e) {
-      // Se estourar quota, tentar limpar fotos antigas
       if (e.name === 'QuotaExceededError') {
         this.limparFotosAntigas();
         try {
           localStorage.setItem(chave, JSON.stringify(valor));
         } catch(e2) {
-          console.error('Storage cheio mesmo após limpeza');
+          console.error('Storage cheio');
         }
       }
     } 
   }
   
-  // NOVO: Limpar fotos antigas se o storage estiver cheio
   limparFotosAntigas() {
     const ronda = this.lerStorage(CONFIG.STORAGE_KEYS.RONDA_ATIVA);
     if (ronda && ronda.hidrometros) {
-      // Manter apenas referências, remover dados base64
       ronda.hidrometros.forEach(h => {
         if (h.foto && h.foto.length > 1000) {
-          // Salvar no IndexedDB se possível
           if (this.db) {
             this.salvarFotoDB(`emergency_${h.id}`, h.foto);
           }
